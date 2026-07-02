@@ -21,7 +21,8 @@ import (
 
 type Server struct {
 	search kmapv1.SearchServiceClient
-	conn   *grpc.ClientConn
+	ingest kmapv1.IngestServiceClient
+	conns  []*grpc.ClientConn
 }
 
 type problem struct {
@@ -33,28 +34,43 @@ type problem struct {
 }
 
 func NewServer(cfg config.Bundle, _ *slog.Logger) (*Server, error) {
-	target := cfg.Runtime.GRPCClients["search"]
-	if target == "" {
+	searchTarget := cfg.Runtime.GRPCClients["search"]
+	if searchTarget == "" {
 		return nil, errors.New("grpc_clients.search is required")
 	}
+	ingestTarget := cfg.Runtime.GRPCClients["ingest"]
+	if ingestTarget == "" {
+		return nil, errors.New("grpc_clients.ingest is required")
+	}
 
-	conn, err := grpc.NewClient(target, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	searchConn, err := grpc.NewClient(searchTarget, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, fmt.Errorf("create search grpc client: %w", err)
 	}
+	ingestConn, err := grpc.NewClient(ingestTarget, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		_ = searchConn.Close()
+		return nil, fmt.Errorf("create ingest grpc client: %w", err)
+	}
 
 	return &Server{
-		search: kmapv1.NewSearchServiceClient(conn),
-		conn:   conn,
+		search: kmapv1.NewSearchServiceClient(searchConn),
+		ingest: kmapv1.NewIngestServiceClient(ingestConn),
+		conns:  []*grpc.ClientConn{searchConn, ingestConn},
 	}, nil
 }
 
 func (server *Server) RegisterHTTP(router chi.Router) {
 	router.Post("/v1/search", server.searchHandler)
+	router.Post("/v1/documents", server.registerDocumentHandler)
 }
 
 func (server *Server) Close() error {
-	return server.conn.Close()
+	var result error
+	for _, conn := range server.conns {
+		result = errors.Join(result, conn.Close())
+	}
+	return result
 }
 
 func (server *Server) searchHandler(w stdhttp.ResponseWriter, r *stdhttp.Request) {
@@ -70,6 +86,27 @@ func (server *Server) searchHandler(w stdhttp.ResponseWriter, r *stdhttp.Request
 	}
 
 	resp, err := server.search.Search(r.Context(), &req)
+	if err != nil {
+		writeGRPCProblem(w, r, err)
+		return
+	}
+
+	writeProto(w, resp)
+}
+
+func (server *Server) registerDocumentHandler(w stdhttp.ResponseWriter, r *stdhttp.Request) {
+	var req kmapv1.RegisterDocumentRequest
+	body, err := readBody(w, r)
+	if err != nil {
+		writeProblem(w, r, stdhttp.StatusBadRequest, "invalid_request", "Invalid request", err.Error())
+		return
+	}
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(body, &req); err != nil {
+		writeProblem(w, r, stdhttp.StatusBadRequest, "invalid_request", "Invalid request", err.Error())
+		return
+	}
+
+	resp, err := server.ingest.RegisterDocument(r.Context(), &req)
 	if err != nil {
 		writeGRPCProblem(w, r, err)
 		return
