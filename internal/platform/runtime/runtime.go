@@ -33,6 +33,7 @@ type App struct {
 	grpcServices []GRPCService
 	httpServices []HTTPService
 	closers      []io.Closer
+	workers      []Worker
 }
 
 type GRPCService interface {
@@ -43,7 +44,20 @@ type HTTPService interface {
 	RegisterHTTP(chi.Router)
 }
 
+type Worker interface {
+	Run(ctx context.Context) error
+}
+
+type Assembly struct {
+	GRPCServices []GRPCService
+	HTTPServices []HTTPService
+	Closers      []io.Closer
+	Workers      []Worker
+}
+
 type HTTPServiceFactory func(config.Bundle, *slog.Logger) (HTTPService, error)
+
+type AssemblyFactory func(config.Bundle, *slog.Logger) (*Assembly, error)
 
 type Option func(*App) error
 
@@ -64,6 +78,20 @@ func WithHTTPService(factory HTTPServiceFactory) Option {
 		if closer, ok := service.(io.Closer); ok {
 			app.closers = append(app.closers, closer)
 		}
+		return nil
+	}
+}
+
+func WithAssembly(factory AssemblyFactory) Option {
+	return func(app *App) error {
+		assembly, err := factory(app.cfg, app.logger)
+		if err != nil {
+			return err
+		}
+		app.grpcServices = append(app.grpcServices, assembly.GRPCServices...)
+		app.httpServices = append(app.httpServices, assembly.HTTPServices...)
+		app.closers = append(app.closers, assembly.Closers...)
+		app.workers = append(app.workers, assembly.Workers...)
 		return nil
 	}
 }
@@ -176,6 +204,8 @@ func (app *App) serve(parent context.Context) error {
 	ctx, stop := signal.NotifyContext(parent, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
+	app.startWorkers(ctx)
+
 	select {
 	case <-ctx.Done():
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -216,6 +246,16 @@ func (app *App) startGRPC(errc chan<- error) error {
 	}()
 
 	return nil
+}
+
+func (app *App) startWorkers(ctx context.Context) {
+	for _, worker := range app.workers {
+		go func(worker Worker) {
+			if err := worker.Run(ctx); err != nil && !errors.Is(err, context.Canceled) {
+				app.logger.Error("worker stopped", "error", err)
+			}
+		}(worker)
+	}
 }
 
 func (app *App) shutdown(ctx context.Context) error {
