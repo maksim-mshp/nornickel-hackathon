@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAsk } from "@/features/ask/use-ask";
 import type { Fact } from "@/shared/api/types";
 import { PRESETS, type Preset } from "@/shared/config/presets";
@@ -13,6 +13,17 @@ export function Workspace() {
   const { state, ask } = useAsk();
   const [input, setInput] = useState("");
   const [selectedFact, setSelectedFact] = useState<Fact | null>(null);
+  const autoAsked = useRef(false);
+
+  useEffect(() => {
+    if (autoAsked.current) return;
+    autoAsked.current = true;
+    const q = new URLSearchParams(window.location.search).get("q");
+    if (q?.trim()) {
+      setInput(q.trim());
+      ask(q.trim());
+    }
+  }, [ask]);
 
   const submit = (question: string) => {
     const trimmed = question.trim();
