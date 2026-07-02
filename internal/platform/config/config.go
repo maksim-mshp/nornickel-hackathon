@@ -17,6 +17,17 @@ type Runtime struct {
 	GRPC        GRPC              `koanf:"grpc"`
 	Health      Health            `koanf:"health"`
 	GRPCClients map[string]string `koanf:"grpc_clients"`
+	Postgres    Postgres          `koanf:"postgres"`
+	NATS        NATS              `koanf:"nats"`
+}
+
+type Postgres struct {
+	DSN      string `koanf:"dsn"`
+	MaxConns int32  `koanf:"max_conns"`
+}
+
+type NATS struct {
+	URL string `koanf:"url"`
 }
 
 type Log struct {
