@@ -1,0 +1,65 @@
+llm:
+  default_provider: do_gradient
+  log_prompts: false
+  allowlist:
+    - openai-gpt-oss-20b
+    - openai-gpt-oss-120b
+    - deepseek-4-flash
+    - mimo-v2.5
+    - alibaba-qwen3-32b
+    - gemma-4-31B-it
+    - mistral-3-14B
+    - nvidia-nemotron-3-super-120b
+    - qwen3.5-397b-a17b
+  tasks:
+    parse_query:
+      model: openai-gpt-oss-20b
+      max_tokens: 3000
+      temperature: 0.1
+      reasoning_effort: low
+      json: true
+      timeout_s: 20
+    extract_entities:
+      model: openai-gpt-oss-20b
+      escalate_model: openai-gpt-oss-120b
+      max_tokens: 4000
+      temperature: 0.1
+      reasoning_effort: low
+      json: true
+      timeout_s: 90
+    bind_numbers:
+      model: openai-gpt-oss-20b
+      max_tokens: 2000
+      temperature: 0.0
+      reasoning_effort: low
+      json: true
+      timeout_s: 60
+    synthesize_answer:
+      model: deepseek-4-flash
+      fallback_model: openai-gpt-oss-120b
+      max_tokens: 3500
+      temperature: 0.3
+      stream: true
+      timeout_s: 90
+    judge_contradiction:
+      model: openai-gpt-oss-120b
+      max_tokens: 3000
+      temperature: 0.1
+      json: true
+      timeout_s: 120
+    suggest_aliases:
+      model: mimo-v2.5
+      max_tokens: 1500
+      temperature: 0.2
+      json: true
+      timeout_s: 60
+  concurrency:
+    interactive: 8
+    batch: 4
+
+embed:
+  backend: remote
+  model: bge-m3
+  rerank_model: bge-reranker-v2-m3
+  dims: 1024
+  batch_size: 32

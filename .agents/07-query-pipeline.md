@@ -66,7 +66,7 @@ stats        — счётчики источников (ru/foreign, годы) д
 
 ### 2.1. Ранжирование evidence
 
-`final_score = 0.35*match_strength + 0.25*rerank_score + 0.15*source_reliability + 0.15*validation_level + 0.10*freshness`, где `match_strength`: 1.0 — структурный матч фильтров, 0.6 — 1-hop сосед; `source_reliability`: protocol/report 1.0, article 0.9, patent 0.8, web 0.5; `validation_level`: expert_validated 1.0 … machine_extracted 0.6, contradicted 0.3; `freshness = exp(-0.1*(now_year - doc_year))`. Веса — конфиг (`configs/base/ranking.yaml`), в UI у каждой строки evidence — раскрываемая разбивка компонент (прозрачность вместо магии, вывод E5).
+`final_score = 0.35*match_strength + 0.25*rerank_score + 0.15*source_reliability + 0.15*validation_level + 0.10*freshness`, где `match_strength`: 1.0 — структурный матч фильтров, 0.6 — 1-hop сосед; `source_reliability`: protocol/report 1.0, article 0.9, patent 0.8, web 0.5; `validation_level`: expert_validated 1.0 … machine_extracted 0.6, contradicted 0.3; `freshness = exp(-0.1*(now_year - doc_year))`. Веса — конфиг (`configs/base/ranking.yml`), в UI у каждой строки evidence — раскрываемая разбивка компонент (прозрачность вместо магии, вывод E5).
 
 ## 3. Оркестрация ответа (kmap-answer)
 

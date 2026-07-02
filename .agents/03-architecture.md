@@ -108,7 +108,7 @@ flowchart TB
 | Frontend | Next.js + React + TS, Tailwind, shadcn/ui, Cytoscape.js, TanStack Table | актуальные | из RFC; Cytoscape для ego-графа |
 | Наблюдаемость | OpenTelemetry (traces+metrics+logs) → Prometheus, Grafana, Loki, Tempo | — | сквозной trace REST→gRPC→NATS |
 | Миграции | golang-migrate (SQL-first; `migrate` CLI + embed через iofs) | v4 | простота; postgres-драйвер сам берёт advisory lock — безопасен при параллельном старте |
-| Конфигурация | **только YAML**: `configs/base/*.yaml` + оверлей `configs/<env>/` + `configs/secrets.yaml` (merge последним; в .gitignore, шаблон — `secrets.yaml.example`) — koanf v2 в Go, pydantic-settings в Python | — | конфиг ревьюится как код; env-переменные и `.env` не используются вовсе; валидация при старте (fail-fast) |
+| Конфигурация | **только YAML**: `configs/base/*.yml` + оверлей `configs/<env>/` + `configs/secrets.yml` (merge последним; в .gitignore, шаблон — `secrets.yml.example`) — koanf v2 в Go, pydantic-settings в Python | — | конфиг ревьюится как код; env-переменные и `.env` не используются вовсе; валидация при старте (fail-fast) |
 | Деплой | Docker Compose v2 на одной Ubuntu VM (8 vCPU/32 ГБ): systemd, caddy TLS, бэкапы офф-VM; **без k8s** (отложенный путь масштабирования) | — | [12-deployment.md](12-deployment.md) |
 
 ## 5. Ключевые архитектурные решения (ADR-конспект)

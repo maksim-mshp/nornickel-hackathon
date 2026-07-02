@@ -1,0 +1,5 @@
+grpc_clients:
+  answer: localhost:9095
+  search: localhost:9093
+  catalog: localhost:9092
+  ingest: localhost:9091

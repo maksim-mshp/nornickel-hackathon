@@ -6,8 +6,8 @@
 
 | Ресурс | Статус | Детали |
 |---|---|---|
-| **LLM API владельца — DigitalOcean Gradient** (`https://inference.do-ai.run/v1`, OpenAI-совместимый) | **выдан и протестирован 02.07** (ключ v2; первый ключ отозван) | ключ — в `configs/secrets.yaml` (в .gitignore); покрывает **chat + embeddings + rerank**; модели и цены — §1.1; результаты проверки — §1.2 |
-| **«Реестр моделей» организаторов** | подтверждён в чате капитанов 02.07, выдача — утром 03.07 | что это (inference API / хостинг / каталог весов), какие модели и размеры, OpenAI-совместимость, лимиты; после получения — сравнить с DO по ценам/качеству и решить порядок upstream'ов в `llm-routes.yaml` |
+| **LLM API владельца — DigitalOcean Gradient** (`https://inference.do-ai.run/v1`, OpenAI-совместимый) | **выдан и протестирован 02.07** (ключ v2; первый ключ отозван) | ключ — в `configs/secrets.yml` (в .gitignore); покрывает **chat + embeddings + rerank**; модели и цены — §1.1; результаты проверки — §1.2 |
+| **«Реестр моделей» организаторов** | подтверждён в чате капитанов 02.07, выдача — утром 03.07 | что это (inference API / хостинг / каталог весов), какие модели и размеры, OpenAI-совместимость, лимиты; после получения — сравнить с DO по ценам/качеству и решить порядок upstream'ов в `llm-routes.yml` |
 
 ### 1.1. Выданные модели (DO Gradient) и цены ($ за 1M токенов, in/out)
 
@@ -33,8 +33,8 @@
 - ✅ `/v1/embeddings` (bge-m3, 1024d, батчи, кириллица) и ✅ `/v1/rerank` (bge-reranker-v2-m3, relevance_score) — работают: **remote-режим kmap-embed доступен с первого дня**.
 - ✅ `response_format: json_object` — работает на gpt-oss; ⚠️ на deepseek-4-flash недоступен (403) → синтез через prompt-based JSON + schema-валидация с repair.
 - ⚠️ **Дисциплина UTF-8**: шлюз DO возвращает обманчивый `403 Forbidden` на битые не-ASCII байты в теле (ловушка ручных curl из Windows-консоли — слать `--data-binary @file.json` в UTF-8). Go/Python клиенты шлют корректный UTF-8 — проблемы нет.
-- ❗ Первый ключ (02.07, 6 моделей) **отозван** (401) — везде используется только ключ v2 из `configs/secrets.yaml`.
-- ❗ В `/v1/models` виден полный каталог DO, включая **проприетарные `openai-gpt-5*`, `anthropic-claude-*` — их использовать НЕЛЬЗЯ** (правила хакатона запрещают OpenAI/Anthropic). В `llm-routes.yaml` — жёсткий allowlist только open-weight моделей.
+- ❗ Первый ключ (02.07, 6 моделей) **отозван** (401) — везде используется только ключ v2 из `configs/secrets.yml`.
+- ❗ В `/v1/models` виден полный каталог DO, включая **проприетарные `openai-gpt-5*`, `anthropic-claude-*` — их использовать НЕЛЬЗЯ** (правила хакатона запрещают OpenAI/Anthropic). В `llm-routes.yml` — жёсткий allowlist только open-weight моделей.
 
 ## 2. Запросить у владельца (по мере необходимости)
 
@@ -63,6 +63,6 @@
 
 - LLM-модели по умолчанию (DO Gradient, только open-weight): `openai-gpt-oss-20b` (extraction, parse_query, bind_numbers, aliases), `deepseek-4-flash` (synthesis), `openai-gpt-oss-120b` (judge, эскалации). Полная матрица — [06-extraction.md](06-extraction.md) §2.1.
 - Эмбеддинги/rerank: bge-m3 (1024d) + bge-reranker-v2-m3, **режим по умолчанию — remote через DO** (`embed.backend: remote`, проверено); локальный режим (torch/onnx-int8) — офлайн-фолбэк.
-- Секреты (ключи API) — только в `configs/secrets.yaml` (в .gitignore); `.env` в проекте не используется.
+- Секреты (ключи API) — только в `configs/secrets.yml` (в .gitignore); `.env` в проекте не используется.
 - Стор: PostgreSQL 18 + pgvector 0.8; шина: NATS JetStream ≥2.12; объектное: MinIO.
 - Временные артефакты (выгрузки eval, дампы, черновики) — только в `.tmp/`.

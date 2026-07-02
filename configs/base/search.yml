@@ -1,0 +1,4 @@
+grpc:
+  addr: ":9093"
+grpc_clients:
+  llm: llm:9094

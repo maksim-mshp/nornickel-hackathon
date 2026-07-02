@@ -1,0 +1,3 @@
+grpc_clients:
+  search: localhost:9093
+  llm: localhost:9094

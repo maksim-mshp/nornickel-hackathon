@@ -1,0 +1,4 @@
+grpc:
+  addr: ":9094"
+cache:
+  ttl_hours: 168

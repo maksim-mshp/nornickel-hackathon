@@ -1,0 +1,10 @@
+grpc:
+  addr: ":9095"
+grpc_clients:
+  search: search:9093
+  llm: llm:9094
+cache:
+  ttl_hours: 24
+budget:
+  first_token_ms: 1500
+  total_ms: 5000

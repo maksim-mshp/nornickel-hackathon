@@ -2,9 +2,9 @@
 
 **Все Go-сервисы — один Go-проект** (единый `go.mod`): разные точки входа в `cmd/<service>/main.go`, bounded contexts — пакеты `internal/<service>/…`, общее — `internal/platform/…`; один Dockerfile с `ARG SERVICE` собирает любой бинарь ([03-architecture.md](03-architecture.md) §9). Деплой-единицы остаются отдельными контейнерами — «микросервисность» в границах контекстов и независимом масштабировании, а не в множестве репозиториев.
 
-Общие свойства всех Go-сервисов: Go 1.25.x (в `go.mod` — строго `go 1.25.0`); чистая архитектура + DDD (эталонная структура — [03-architecture.md](03-architecture.md) §9); golangci-lint с `modernize` ([16-dev-environment.md](16-dev-environment.md)); **вся конфигурация — YAML** (каркас `internal/platform/config` на koanf v2): `configs/base/<service>.yaml` (дефолты, в git) + оверлей окружения `configs/<env>/<service>.yaml` + `configs/secrets.yaml` (merge последним; в .gitignore, шаблон — `secrets.yaml.example`); env-переменные и `.env` не используются; путь до конфига — флаг `--config` (по умолчанию `configs`), выбор окружения — `--env dev|demo|prod`; валидация схемы конфига при старте (fail-fast с внятной ошибкой); OTel-трейсинг/метрики/логи (slog JSON, `request_id`/`trace_id` сквозные, в NATS-заголовках `traceparent`); health-пробы `/healthz` (liveness) и `/readyz` (зависимости); graceful shutdown ≤30 c (drain NATS-консьюмеров, отмена контекстов); Dockerfile multi-stage на базе alpine, nonroot; лимиты ресурсов и реплики — [12-deployment.md](12-deployment.md) §3.1.
+Общие свойства всех Go-сервисов: Go 1.25.x (в `go.mod` — строго `go 1.25.0`); чистая архитектура + DDD (эталонная структура — [03-architecture.md](03-architecture.md) §9); golangci-lint с `modernize` ([16-dev-environment.md](16-dev-environment.md)); **вся конфигурация — YAML** (каркас `internal/platform/config` на koanf v2): `configs/base/<service>.yml` (дефолты, в git) + оверлей окружения `configs/<env>/<service>.yml` + `configs/secrets.yml` (merge последним; в .gitignore, шаблон — `secrets.yml.example`); env-переменные и `.env` не используются; путь до конфига — флаг `--config` (по умолчанию `configs`), выбор окружения — `--env dev|demo|prod`; валидация схемы конфига при старте (fail-fast с внятной ошибкой); OTel-трейсинг/метрики/логи (slog JSON, `request_id`/`trace_id` сквозные, в NATS-заголовках `traceparent`); health-пробы `/healthz` (liveness) и `/readyz` (зависимости); graceful shutdown ≤30 c (drain NATS-консьюмеров, отмена контекстов); Dockerfile multi-stage на базе alpine, nonroot; лимиты ресурсов и реплики — [12-deployment.md](12-deployment.md) §3.1.
 
-Python-сервисы: Python 3.13 (uv), gRPC-сервер (`grpcio`), ruff+mypy, слои `domain/app/ports/adapters` ([16-dev-environment.md](16-dev-environment.md) §2), тот же OTel/health-контракт; **конфигурация — те же YAML** из `configs/` (pydantic-settings с YAML-источником, та же схема base+оверлей+secrets.yaml); образы `python:3.13-slim` (alpine несовместим с ML-зависимостями).
+Python-сервисы: Python 3.13 (uv), gRPC-сервер (`grpcio`), ruff+mypy, слои `domain/app/ports/adapters` ([16-dev-environment.md](16-dev-environment.md) §2), тот же OTel/health-контракт; **конфигурация — те же YAML** из `configs/` (pydantic-settings с YAML-источником, та же схема base+оверлей+secrets.yml); образы `python:3.13-slim` (alpine несовместим с ML-зависимостями).
 
 ---
 
@@ -36,7 +36,7 @@ Python-сервисы: Python 3.13 (uv), gRPC-сервер (`grpcio`), ruff+mypy
 
 - Консьюмер `doc.v1.parsed`: чанкинг → эмбеддинги (батчи в kmap-embed) → numcore (детерминированный, [06-extraction.md](06-extraction.md)) → LLM-извлечение (через kmap-llm, схемы strict) → ExtractionBundle в MinIO.
 - Версии: `numcore-X.Y.Z`, `prompts/<task>@<ver>` — в bundle.quality и в каждом факте.
-- Матрица моделей по задачам и лимит параллельных LLM-вызовов — `configs/*/llm-routes.yaml`.
+- Матрица моделей по задачам и лимит параллельных LLM-вызовов — `configs/*/llm-routes.yml`.
 - **Масштабирование:** горизонтально; полная переиндексация 10⁴ документов ≤8 ч на 4 репликах (с локальным vLLM).
 
 ## 5. kmap-embed (Python) — эмбеддинги и rerank
@@ -57,7 +57,7 @@ Python-сервисы: Python 3.13 (uv), gRPC-сервер (`grpcio`), ruff+mypy
 ## 7. kmap-llm (Go) — LLM-шлюз
 
 - gRPC: `Complete(task, payload, schema_ref, stream)` → валидированный JSON/стрим токенов.
-- Роутинг задач → upstream+модель (`configs/*/llm-routes.yaml`; ключи — `configs/secrets.yaml`): OpenAI-совместимые endpoint'ы (DO Gradient / реестр организаторов / vLLM on-prem / routerai.ru). Failover-цепочки, circuit breaker (gobreaker), ретраи с джиттером (только идемпотентные), таймауты по задаче.
+- Роутинг задач → upstream+модель (`configs/*/llm-routes.yml`; ключи — `configs/secrets.yml`): OpenAI-совместимые endpoint'ы (DO Gradient / реестр организаторов / vLLM on-prem / routerai.ru). Failover-цепочки, circuit breaker (gobreaker), ретраи с джиттером (только идемпотентные), таймауты по задаче.
 - JSON Schema-валидация ответа + до 2 repair-попыток (с фидбеком ошибок схемы); structured outputs / guided decoding, если upstream поддерживает (vLLM — поддерживает).
 - Бюджеты: токен-квоты per-task/per-day, конкуренция per-upstream (semaphore), очередь batch-задач (judge) с приоритетом ниже интерактивных.
 - Кэш: PG-таблица `ops.llm_cache` (ключ sha256(model+prompt+schema), TTL по задаче) — судья/извлечение переиспользуются при реплеях (экономия ресурсов — критерий жюри).

@@ -1,0 +1,9 @@
+http:
+  addr: ":8080"
+  cors_origins:
+    - http://localhost:3000
+grpc_clients:
+  answer: answer:9095
+  search: search:9093
+  catalog: catalog:9092
+  ingest: ingest:9091

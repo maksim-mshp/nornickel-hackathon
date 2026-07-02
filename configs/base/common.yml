@@ -1,0 +1,24 @@
+log:
+  level: info
+  format: json
+
+postgres:
+  dsn: postgres://kmap:kmap@postgres:5432/kmap?sslmode=disable
+  max_conns: 10
+
+nats:
+  url: nats://nats:4222
+
+s3:
+  endpoint: minio:9000
+  access_key: kmap
+  secret_key: kmap-minio-secret
+  use_ssl: false
+  buckets:
+    raw: kmap-raw
+    docir: kmap-docir
+    bundles: kmap-bundles
+    exports: kmap-exports
+
+auth:
+  mode: demo

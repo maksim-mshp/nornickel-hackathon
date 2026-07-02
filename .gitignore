@@ -4,7 +4,7 @@
 ### dotenv ###
 .env
 
-configs/secrets.yaml
+configs/secrets.yml
 .tmp/
 data-sources/
 

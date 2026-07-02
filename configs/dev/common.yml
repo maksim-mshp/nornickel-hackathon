@@ -1,0 +1,12 @@
+log:
+  level: debug
+  format: text
+
+postgres:
+  dsn: postgres://kmap:kmap@localhost:5432/kmap?sslmode=disable
+
+nats:
+  url: nats://localhost:4222
+
+s3:
+  endpoint: localhost:9000

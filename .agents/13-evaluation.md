@@ -4,7 +4,7 @@
 
 ## 1. Gold-set v1 (расширение dev v0 после получения датасета хакатона)
 
-`eval/gold/questions.yaml` — 24–30 вопросов; структура записи:
+`eval/gold/questions.yml` — 24–30 вопросов; структура записи:
 
 ```yaml
 - id: q01_desalination
@@ -31,7 +31,7 @@
 
 Распределение категорий: 8 numeric_multiparam (ядро), 4 comparison (в т.ч. RU vs мир), 4 factual_search (+временной фильтр), 4 gap, 4 contradiction, 4 expert, 2 literature_review. Q1–Q6 из ТЗ входят обязательно.
 
-Разметка извлечения: `eval/gold/numeric_facts.yaml` — ≥150 числовых фактов из ≥20 документов разных типов (протоколы, статьи RU/EN, таблицы); `entities.yaml` — ≥100 сущностей; `relations.yaml` — ≥40 связей; `contradiction_pairs.yaml` — ≥40 пар (положительные/отрицательные, включая «разные условия — не противоречие»).
+Разметка извлечения: `eval/gold/numeric_facts.yml` — ≥150 числовых фактов из ≥20 документов разных типов (протоколы, статьи RU/EN, таблицы); `entities.yml` — ≥100 сущностей; `relations.yml` — ≥40 связей; `contradiction_pairs.yml` — ≥40 пар (положительные/отрицательные, включая «разные условия — не противоречие»).
 
 ## 2. Метрики и целевые пороги
 

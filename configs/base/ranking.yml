@@ -1,0 +1,28 @@
+ranking:
+  weights:
+    match_strength: 0.35
+    rerank_score: 0.25
+    source_reliability: 0.15
+    validation_level: 0.15
+    freshness: 0.10
+  source_reliability:
+    protocol: 1.0
+    report: 1.0
+    article: 0.9
+    patent: 0.8
+    handbook: 0.9
+    normative: 0.9
+    dataset: 1.0
+    web: 0.5
+  validation_level:
+    expert_validated: 1.0
+    multi_source: 0.9
+    machine_extracted: 0.6
+    weak_evidence: 0.5
+    contradicted: 0.3
+  freshness_lambda: 0.1
+  rrf_k: 60
+  vector_top: 200
+  fts_top: 200
+  rerank_top: 80
+  final_top: 30

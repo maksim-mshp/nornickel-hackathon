@@ -1,0 +1,17 @@
+grpc:
+  addr: ":9096"
+grpc_clients:
+  llm: llm:9094
+consensus:
+  min_sources: 2
+  consensus_overlap: 0.5
+  majority_share: 0.6
+gaps:
+  score_weights:
+    docs: 0.30
+    experiments: 0.30
+    experts: 0.15
+    recency: 0.15
+    validated: 0.10
+  recency_lambda: 0.15
+  gap_percentile: 0.25

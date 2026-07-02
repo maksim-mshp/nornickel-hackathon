@@ -41,7 +41,7 @@ Durable pull-консьюмеры (по одному на сервис-этап)
 Шаги: потоковая запись в MinIO + подсчёт sha256 → дедуп по `core.documents.sha256` (дубль → 200 с существующим id, версия не создаётся) → извлечение декларируемых метаданных из формы/манифеста (title, doc_type, year, geography, access_level, теги) → `core.documents`+`core.document_versions` → outbox `kmap.doc.v1.registered`.
 
 Отдельный вход для **структурированных источников** (не проходят parse/LLM):
-- каталог экспериментов CSV/XLSX → маппинг колонок (конфиг `configs/base/ingest/experiments-mapping.yaml`) → строки уходят сразу в catalog как эксперименты + numeric-факты с `extraction_method='catalog'`, `confidence=0.99`; текстовое представление строки (шаблон из RFC §12.2) идёт в chunks для семантического поиска;
+- каталог экспериментов CSV/XLSX → маппинг колонок (конфиг `configs/base/ingest/experiments-mapping.yml`) → строки уходят сразу в catalog как эксперименты + numeric-факты с `extraction_method='catalog'`, `confidence=0.99`; текстовое представление строки (шаблон из RFC §12.2) идёт в chunks для семантического поиска;
 - справочники материалов/оборудования/единиц, перечень сотрудников/лабораторий, таксономия тегов → `kmapctl seed` → kmap-catalog (сущности со `created_by='seed'`).
 
 ## 4. Этап 2: Parse (kmap-parse, Python + Docling)

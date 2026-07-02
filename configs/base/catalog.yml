@@ -1,0 +1,7 @@
+grpc:
+  addr: ":9092"
+resolution:
+  trgm_threshold: 0.55
+  trgm_gray_zone: 0.45
+  vector_threshold: 0.86
+  vector_gray_zone: 0.80

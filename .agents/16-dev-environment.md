@@ -33,6 +33,7 @@
 - Весь Go-бэкенд — **один проект**: точки входа `cmd/<service>/main.go`, bounded contexts — `internal/<service>/{domain,app,ports,adapters}`, общее — `internal/platform` (эталон — [03-architecture.md](03-architecture.md) §9). Домен не импортирует инфраструктуру; контексты не импортируют друг друга (depguard); никаких «всё в main.go».
 - Прочее: `gofmt`/`goimports` через golangci-lint; ошибки оборачиваются `fmt.Errorf("...: %w", err)`; контексты сквозные; тесты рядом с кодом, интеграционные — testcontainers.
 - **Комментарии в коде запрещены — в YAML-файлах тоже** (Go/Python/TS/SQL/YAML): самодокументируемые имена и структура; пояснения — в `.agents/`, не в исходниках.
+- **YAML-файлы именуются `.yml`** (не `.yaml`) — везде: configs, compose, CI, Taskfile.
 
 ## 2. Python — стандарты (обязательные)
 
