@@ -36,6 +36,15 @@ type NATSStream struct {
 	Subjects []string `koanf:"subjects"`
 }
 
+type S3 struct {
+	Endpoint  string            `koanf:"endpoint"`
+	AccessKey string            `koanf:"access_key"`
+	SecretKey string            `koanf:"secret_key"`
+	UseSSL    bool              `koanf:"use_ssl"`
+	Region    string            `koanf:"region"`
+	Buckets   map[string]string `koanf:"buckets"`
+}
+
 type Log struct {
 	Level  string `koanf:"level"`
 	Format string `koanf:"format"`
