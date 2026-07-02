@@ -1,5 +1,7 @@
 grpc:
   addr: ":9092"
+health:
+  addr: ":8092"
 resolution:
   trgm_threshold: 0.55
   trgm_gray_zone: 0.45

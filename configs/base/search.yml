@@ -1,4 +1,6 @@
 grpc:
   addr: ":9093"
+health:
+  addr: ":8093"
 grpc_clients:
   llm: llm:9094

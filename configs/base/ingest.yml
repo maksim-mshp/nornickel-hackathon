@@ -1,4 +1,6 @@
 grpc:
   addr: ":9091"
+health:
+  addr: ":8091"
 limits:
   max_file_mb: 200

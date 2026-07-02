@@ -1,4 +1,6 @@
 grpc:
   addr: ":9094"
+health:
+  addr: ":8094"
 cache:
   ttl_hours: 168

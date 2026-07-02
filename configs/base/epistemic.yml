@@ -1,5 +1,7 @@
 grpc:
   addr: ":9096"
+health:
+  addr: ":8096"
 grpc_clients:
   llm: llm:9094
 consensus:
