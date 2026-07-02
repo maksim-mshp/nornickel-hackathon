@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
 	"os"
 	"os/signal"
@@ -15,13 +16,19 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/config"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/health"
+	healthpb "google.golang.org/grpc/health/grpc_health_v1"
+	"google.golang.org/grpc/reflection"
 )
 
 type App struct {
-	service string
-	cfg     config.Bundle
-	logger  *slog.Logger
-	server  *http.Server
+	service      string
+	cfg          config.Bundle
+	logger       *slog.Logger
+	httpServer   *http.Server
+	grpcServer   *grpc.Server
+	healthServer *health.Server
 }
 
 func Run(service string) error {
@@ -40,7 +47,7 @@ func Run(service string) error {
 
 	logger.Info("service starting", "service", service, "env", cfg.Env)
 
-	if err := app.serve(); err != nil {
+	if err := app.serve(context.Background()); err != nil {
 		return err
 	}
 
@@ -86,7 +93,7 @@ func newLogger(cfg config.Log) *slog.Logger {
 	return slog.New(slog.NewJSONHandler(os.Stdout, opts))
 }
 
-func (app *App) serve() error {
+func (app *App) serve(parent context.Context) error {
 	addr := app.cfg.Runtime.Health.Addr
 	if addr == "" {
 		addr = app.cfg.Runtime.HTTP.Addr
@@ -102,26 +109,33 @@ func (app *App) serve() error {
 		router.Get("/", app.gatewayRoot)
 	}
 
-	app.server = &http.Server{
+	app.httpServer = &http.Server{
 		Addr:              addr,
 		Handler:           router,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
-	errc := make(chan error, 1)
+	errc := make(chan error, 2)
 	go func() {
 		app.logger.Info("health listener started", "addr", addr)
-		errc <- app.server.ListenAndServe()
+		errc <- app.httpServer.ListenAndServe()
 	}()
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	if app.service != "gateway" {
+		if err := app.startGRPC(errc); err != nil {
+			_ = app.httpServer.Close()
+			return err
+		}
+	}
+
+	ctx, stop := signal.NotifyContext(parent, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	select {
 	case <-ctx.Done():
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
-		if err := app.server.Shutdown(shutdownCtx); err != nil {
+		if err := app.shutdown(shutdownCtx); err != nil {
 			return fmt.Errorf("shutdown service: %w", err)
 		}
 		return nil
@@ -129,7 +143,62 @@ func (app *App) serve() error {
 		if errors.Is(err, http.ErrServerClosed) {
 			return nil
 		}
+		if errors.Is(err, grpc.ErrServerStopped) {
+			return nil
+		}
 		return fmt.Errorf("serve service: %w", err)
+	}
+}
+
+func (app *App) startGRPC(errc chan<- error) error {
+	listener, err := net.Listen("tcp", app.cfg.Runtime.GRPC.Addr)
+	if err != nil {
+		return fmt.Errorf("listen grpc: %w", err)
+	}
+
+	app.grpcServer = grpc.NewServer()
+	app.healthServer = health.NewServer()
+	app.healthServer.SetServingStatus("", healthpb.HealthCheckResponse_SERVING)
+	healthpb.RegisterHealthServer(app.grpcServer, app.healthServer)
+	reflection.Register(app.grpcServer)
+
+	go func() {
+		app.logger.Info("grpc listener started", "addr", app.cfg.Runtime.GRPC.Addr)
+		errc <- app.grpcServer.Serve(listener)
+	}()
+
+	return nil
+}
+
+func (app *App) shutdown(ctx context.Context) error {
+	if app.healthServer != nil {
+		app.healthServer.Shutdown()
+	}
+
+	errc := make(chan error, 1)
+	go func() {
+		errc <- app.httpServer.Shutdown(ctx)
+	}()
+
+	if app.grpcServer != nil {
+		stopped := make(chan struct{})
+		go func() {
+			app.grpcServer.GracefulStop()
+			close(stopped)
+		}()
+
+		select {
+		case <-ctx.Done():
+			app.grpcServer.Stop()
+		case <-stopped:
+		}
+	}
+
+	select {
+	case err := <-errc:
+		return err
+	case <-ctx.Done():
+		return ctx.Err()
 	}
 }
 
