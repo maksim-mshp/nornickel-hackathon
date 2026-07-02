@@ -27,7 +27,13 @@ type Postgres struct {
 }
 
 type NATS struct {
-	URL string `koanf:"url"`
+	URL     string       `koanf:"url"`
+	Streams []NATSStream `koanf:"streams"`
+}
+
+type NATSStream struct {
+	Name     string   `koanf:"name"`
+	Subjects []string `koanf:"subjects"`
 }
 
 type Log struct {
