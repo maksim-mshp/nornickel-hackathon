@@ -1,0 +1,82 @@
+syntax = "proto3";
+
+package kmap.v1;
+
+import "google/protobuf/struct.proto";
+import "kmap/v1/common.proto";
+
+option go_package = "github.com/maksim-mshp/nornickel-hackathon/contracts/gen/go/kmap/v1;kmapv1";
+
+service CatalogService {
+  rpc CommitExtraction(CommitExtractionRequest) returns (CommitExtractionResponse);
+  rpc ResolveEntities(ResolveEntitiesRequest) returns (ResolveEntitiesResponse);
+  rpc MergeEntities(MergeEntitiesRequest) returns (MergeEntitiesResponse);
+  rpc UpdateFactStatus(UpdateFactStatusRequest) returns (UpdateFactStatusResponse);
+  rpc UpsertSeed(UpsertSeedRequest) returns (UpsertSeedResponse);
+}
+
+message CommitExtractionRequest {
+  string bundle_uri = 1;
+  string idempotency_key = 2;
+}
+
+message CommitExtractionResponse {
+  string document_id = 1;
+  repeated string fact_ids = 2;
+  repeated string entity_ids = 3;
+  repeated string cluster_keys = 4;
+}
+
+message ResolveEntitiesRequest {
+  repeated string names = 1;
+  repeated string types = 2;
+}
+
+message ResolveEntitiesResponse {
+  repeated EntityResolution results = 1;
+}
+
+message EntityResolution {
+  string input = 1;
+  string entity_id = 2;
+  string slug = 3;
+  string canonical_name = 4;
+  double confidence = 5;
+  string status = 6;
+}
+
+message MergeEntitiesRequest {
+  string entity_id = 1;
+  string into_id = 2;
+  string comment = 3;
+  Principal principal = 4;
+}
+
+message MergeEntitiesResponse {
+  string entity_id = 1;
+  string into_id = 2;
+}
+
+message UpdateFactStatusRequest {
+  string fact_id = 1;
+  string fact_kind = 2;
+  string status = 3;
+  string comment = 4;
+  Principal principal = 5;
+}
+
+message UpdateFactStatusResponse {
+  Fact fact = 1;
+}
+
+message UpsertSeedRequest {
+  string kind = 1;
+  repeated google.protobuf.Struct items = 2;
+  string idempotency_key = 3;
+}
+
+message UpsertSeedResponse {
+  uint32 accepted = 1;
+  uint32 updated = 2;
+  repeated string failed = 3;
+}

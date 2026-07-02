@@ -1,0 +1,47 @@
+syntax = "proto3";
+
+package kmap.v1;
+
+import "google/protobuf/struct.proto";
+import "kmap/v1/common.proto";
+
+option go_package = "github.com/maksim-mshp/nornickel-hackathon/contracts/gen/go/kmap/v1;kmapv1";
+
+service IngestService {
+  rpc RegisterDocument(RegisterDocumentRequest) returns (RegisterDocumentResponse);
+  rpc GetStatus(GetStatusRequest) returns (GetStatusResponse);
+}
+
+message RegisterDocumentRequest {
+  string title = 1;
+  string blob_uri = 2;
+  bytes sha256 = 3;
+  google.protobuf.Struct declared_meta = 4;
+  Principal principal = 5;
+  string idempotency_key = 6;
+}
+
+message RegisterDocumentResponse {
+  string document_id = 1;
+  int32 version = 2;
+  string status = 3;
+  bool duplicate = 4;
+}
+
+message GetStatusRequest {
+  DocumentRef document = 1;
+  Principal principal = 2;
+}
+
+message GetStatusResponse {
+  DocumentRef document = 1;
+  repeated IngestStage stages = 2;
+  string status = 3;
+}
+
+message IngestStage {
+  string stage = 1;
+  string status = 2;
+  uint32 attempt = 3;
+  string error = 4;
+}

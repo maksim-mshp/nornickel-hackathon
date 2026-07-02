@@ -1,0 +1,42 @@
+syntax = "proto3";
+
+package kmap.v1;
+
+import "google/protobuf/struct.proto";
+import "kmap/v1/common.proto";
+
+option go_package = "github.com/maksim-mshp/nornickel-hackathon/contracts/gen/go/kmap/v1;kmapv1";
+
+service AnswerService {
+  rpc Ask(AskRequest) returns (stream AskResponse);
+}
+
+message AskRequest {
+  string question = 1;
+  google.protobuf.Struct filters = 2;
+  Principal principal = 3;
+  string lang = 4;
+}
+
+message AskResponse {
+  string type = 1;
+  QueryPlan plan = 2;
+  EvidencePack evidence = 3;
+  string delta = 4;
+  AnswerDoc answer = 5;
+  google.protobuf.Struct problem = 6;
+}
+
+message AnswerDoc {
+  string id = 1;
+  string summary = 2;
+  double confidence = 3;
+  google.protobuf.Struct payload = 4;
+  GuardReport guard = 5;
+}
+
+message GuardReport {
+  uint32 numbers_checked = 1;
+  uint32 violations = 2;
+  bool degraded = 3;
+}

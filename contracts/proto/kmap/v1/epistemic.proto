@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package kmap.v1;
+
+import "google/protobuf/struct.proto";
+import "kmap/v1/common.proto";
+
+option go_package = "github.com/maksim-mshp/nornickel-hackathon/contracts/gen/go/kmap/v1;kmapv1";
+
+service EpistemicService {
+  rpc GetCoverage(GetCoverageRequest) returns (GetCoverageResponse);
+  rpc GetContradictions(GetContradictionsRequest) returns (GetContradictionsResponse);
+  rpc DecideContradiction(DecideContradictionRequest) returns (DecideContradictionResponse);
+}
+
+message GetCoverageRequest {
+  string domain = 1;
+  string axis1 = 2;
+  string axis2 = 3;
+  google.protobuf.Struct filters = 4;
+  Principal principal = 5;
+}
+
+message GetCoverageResponse {
+  repeated CoverageCell cells = 1;
+}
+
+message CoverageCell {
+  string id = 1;
+  string domain = 2;
+  string material_id = 3;
+  string process_id = 4;
+  string condition_key = 5;
+  double score = 6;
+  bool gap_flag = 7;
+  repeated string gap_reasons = 8;
+  google.protobuf.Struct counters = 9;
+  google.protobuf.Struct score_components = 10;
+}
+
+message GetContradictionsRequest {
+  string cluster_id = 1;
+  string entity_id = 2;
+  string status = 3;
+  PageRequest page = 4;
+  Principal principal = 5;
+}
+
+message GetContradictionsResponse {
+  repeated Contradiction contradictions = 1;
+  PageResponse page = 2;
+}
+
+message DecideContradictionRequest {
+  string contradiction_id = 1;
+  string decision = 2;
+  string comment = 3;
+  Principal principal = 4;
+}
+
+message DecideContradictionResponse {
+  Contradiction contradiction = 1;
+}
+
+message Contradiction {
+  string id = 1;
+  string cluster_id = 2;
+  string status = 3;
+  string dtype = 4;
+  double severity = 5;
+  google.protobuf.Struct payload = 6;
+}

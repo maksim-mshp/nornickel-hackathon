@@ -1,0 +1,45 @@
+syntax = "proto3";
+
+package kmap.v1;
+
+import "kmap/v1/common.proto";
+
+option go_package = "github.com/maksim-mshp/nornickel-hackathon/contracts/gen/go/kmap/v1;kmapv1";
+
+service SearchService {
+  rpc Search(SearchRequest) returns (SearchResponse);
+  rpc EgoGraph(EgoGraphRequest) returns (EgoGraphResponse);
+  rpc ListExperts(ListExpertsRequest) returns (ListExpertsResponse);
+}
+
+message SearchRequest {
+  QueryPlan plan = 1;
+  Principal principal = 2;
+}
+
+message SearchResponse {
+  EvidencePack evidence = 1;
+}
+
+message EgoGraphRequest {
+  string entity_id = 1;
+  uint32 depth = 2;
+  uint32 top_n = 3;
+  Principal principal = 4;
+}
+
+message EgoGraphResponse {
+  Graph graph = 1;
+}
+
+message ListExpertsRequest {
+  string topic = 1;
+  string entity_id = 2;
+  PageRequest page = 3;
+  Principal principal = 4;
+}
+
+message ListExpertsResponse {
+  repeated Expert experts = 1;
+  PageResponse page = 2;
+}

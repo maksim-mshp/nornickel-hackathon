@@ -1,0 +1,37 @@
+syntax = "proto3";
+
+package kmap.v1;
+
+option go_package = "github.com/maksim-mshp/nornickel-hackathon/contracts/gen/go/kmap/v1;kmapv1";
+
+service EmbedService {
+  rpc Embed(EmbedRequest) returns (EmbedResponse);
+  rpc Rerank(RerankRequest) returns (RerankResponse);
+}
+
+message EmbedRequest {
+  repeated string texts = 1;
+  string mode = 2;
+}
+
+message EmbedResponse {
+  repeated Embedding vectors = 1;
+}
+
+message Embedding {
+  repeated float values = 1;
+}
+
+message RerankRequest {
+  string query = 1;
+  repeated string passages = 2;
+}
+
+message RerankResponse {
+  repeated RerankScore scores = 1;
+}
+
+message RerankScore {
+  uint32 index = 1;
+  double score = 2;
+}

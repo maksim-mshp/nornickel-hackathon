@@ -22,7 +22,7 @@ tasks:
 
   gen:
     cmds:
-      - buf generate
+      - buf generate --template buf.gen.yml
 
   lint:
     cmds:

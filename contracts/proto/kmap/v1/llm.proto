@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+package kmap.v1;
+
+import "google/protobuf/struct.proto";
+
+option go_package = "github.com/maksim-mshp/nornickel-hackathon/contracts/gen/go/kmap/v1;kmapv1";
+
+service LLMService {
+  rpc Complete(CompleteRequest) returns (CompleteResponse);
+  rpc CompleteStream(CompleteStreamRequest) returns (stream CompleteStreamResponse);
+}
+
+message CompleteRequest {
+  string task = 1;
+  google.protobuf.Struct payload = 2;
+  string schema_ref = 3;
+}
+
+message CompleteResponse {
+  google.protobuf.Struct json = 1;
+  string model = 2;
+  uint32 input_tokens = 3;
+  uint32 output_tokens = 4;
+  bool valid = 5;
+}
+
+message CompleteStreamRequest {
+  string task = 1;
+  google.protobuf.Struct payload = 2;
+  string schema_ref = 3;
+}
+
+message CompleteStreamResponse {
+  string delta = 1;
+  bool done = 2;
+  google.protobuf.Struct json = 3;
+}
