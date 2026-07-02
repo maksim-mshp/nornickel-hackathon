@@ -12,10 +12,11 @@ import (
 )
 
 type Runtime struct {
-	Log    Log    `koanf:"log"`
-	HTTP   HTTP   `koanf:"http"`
-	GRPC   GRPC   `koanf:"grpc"`
-	Health Health `koanf:"health"`
+	Log         Log               `koanf:"log"`
+	HTTP        HTTP              `koanf:"http"`
+	GRPC        GRPC              `koanf:"grpc"`
+	Health      Health            `koanf:"health"`
+	GRPCClients map[string]string `koanf:"grpc_clients"`
 }
 
 type Log struct {

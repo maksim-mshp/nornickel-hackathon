@@ -5,6 +5,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"log/slog"
 	"net"
 	"net/http"
@@ -30,17 +31,40 @@ type App struct {
 	grpcServer   *grpc.Server
 	healthServer *health.Server
 	grpcServices []GRPCService
+	httpServices []HTTPService
+	closers      []io.Closer
 }
 
 type GRPCService interface {
 	RegisterGRPC(grpc.ServiceRegistrar)
 }
 
-type Option func(*App)
+type HTTPService interface {
+	RegisterHTTP(chi.Router)
+}
+
+type HTTPServiceFactory func(config.Bundle, *slog.Logger) (HTTPService, error)
+
+type Option func(*App) error
 
 func WithGRPCService(service GRPCService) Option {
-	return func(app *App) {
+	return func(app *App) error {
 		app.grpcServices = append(app.grpcServices, service)
+		return nil
+	}
+}
+
+func WithHTTPService(factory HTTPServiceFactory) Option {
+	return func(app *App) error {
+		service, err := factory(app.cfg, app.logger)
+		if err != nil {
+			return err
+		}
+		app.httpServices = append(app.httpServices, service)
+		if closer, ok := service.(io.Closer); ok {
+			app.closers = append(app.closers, closer)
+		}
+		return nil
 	}
 }
 
@@ -58,7 +82,9 @@ func Run(service string, options ...Option) error {
 	logger := newLogger(cfg.Runtime.Log)
 	app := &App{service: service, cfg: cfg, logger: logger}
 	for _, option := range options {
-		option(app)
+		if err := option(app); err != nil {
+			return err
+		}
 	}
 
 	logger.Info("service starting", "service", service, "env", cfg.Env)
@@ -123,6 +149,9 @@ func (app *App) serve(parent context.Context) error {
 	router.Get("/readyz", app.status(http.StatusOK, "ready"))
 	if app.service == "gateway" {
 		router.Get("/", app.gatewayRoot)
+	}
+	for _, service := range app.httpServices {
+		service.RegisterHTTP(router)
 	}
 
 	app.httpServer = &http.Server{
@@ -215,10 +244,20 @@ func (app *App) shutdown(ctx context.Context) error {
 
 	select {
 	case err := <-errc:
-		return err
+		return errors.Join(err, app.closeResources())
 	case <-ctx.Done():
-		return ctx.Err()
+		return errors.Join(ctx.Err(), app.closeResources())
 	}
+}
+
+func (app *App) closeResources() error {
+	var result error
+	for _, closer := range app.closers {
+		if err := closer.Close(); err != nil {
+			result = errors.Join(result, err)
+		}
+	}
+	return result
 }
 
 func (app *App) status(code int, value string) http.HandlerFunc {

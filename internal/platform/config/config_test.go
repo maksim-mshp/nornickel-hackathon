@@ -23,6 +23,19 @@ func TestLoadMergesBaseAndEnvConfigs(t *testing.T) {
 	}
 }
 
+func TestLoadGatewayClients(t *testing.T) {
+	t.Parallel()
+
+	bundle, err := Load("../../../configs", "dev", "gateway")
+	if err != nil {
+		t.Fatalf("expected config to load: %v", err)
+	}
+
+	if bundle.Runtime.GRPCClients["search"] != "localhost:9093" {
+		t.Fatalf("expected dev search client, got %q", bundle.Runtime.GRPCClients["search"])
+	}
+}
+
 func TestValidateRuntimeRequiresGatewayHTTPAddr(t *testing.T) {
 	t.Parallel()
 
