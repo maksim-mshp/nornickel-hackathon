@@ -29,9 +29,22 @@ type App struct {
 	httpServer   *http.Server
 	grpcServer   *grpc.Server
 	healthServer *health.Server
+	grpcServices []GRPCService
 }
 
-func Run(service string) error {
+type GRPCService interface {
+	RegisterGRPC(grpc.ServiceRegistrar)
+}
+
+type Option func(*App)
+
+func WithGRPCService(service GRPCService) Option {
+	return func(app *App) {
+		app.grpcServices = append(app.grpcServices, service)
+	}
+}
+
+func Run(service string, options ...Option) error {
 	args, err := parseArgs(service)
 	if err != nil {
 		return err
@@ -44,6 +57,9 @@ func Run(service string) error {
 
 	logger := newLogger(cfg.Runtime.Log)
 	app := &App{service: service, cfg: cfg, logger: logger}
+	for _, option := range options {
+		option(app)
+	}
 
 	logger.Info("service starting", "service", service, "env", cfg.Env)
 
@@ -160,6 +176,9 @@ func (app *App) startGRPC(errc chan<- error) error {
 	app.healthServer = health.NewServer()
 	app.healthServer.SetServingStatus("", healthpb.HealthCheckResponse_SERVING)
 	healthpb.RegisterHealthServer(app.grpcServer, app.healthServer)
+	for _, service := range app.grpcServices {
+		service.RegisterGRPC(app.grpcServer)
+	}
 	reflection.Register(app.grpcServer)
 
 	go func() {
