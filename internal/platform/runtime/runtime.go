@@ -172,7 +172,7 @@ func (app *App) startGRPC(errc chan<- error) error {
 		return fmt.Errorf("listen grpc: %w", err)
 	}
 
-	app.grpcServer = grpc.NewServer()
+	app.grpcServer = grpc.NewServer(app.grpcServerOptions()...)
 	app.healthServer = health.NewServer()
 	app.healthServer.SetServingStatus("", healthpb.HealthCheckResponse_SERVING)
 	healthpb.RegisterHealthServer(app.grpcServer, app.healthServer)
