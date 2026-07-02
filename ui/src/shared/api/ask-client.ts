@@ -8,7 +8,8 @@ import {
 
 const PLAN_DELAY_MS = 600;
 const EVIDENCE_DELAY_MS = 900;
-const DELTA_DELAY_MS = 24;
+const DELTA_DELAY_MS = 90;
+const DELTA_WORDS = 8;
 const DONE_DELAY_MS = 400;
 
 function sleep(ms: number, signal?: AbortSignal): Promise<void> {
@@ -22,7 +23,12 @@ function sleep(ms: number, signal?: AbortSignal): Promise<void> {
 }
 
 function splitDeltas(text: string): string[] {
-  return text.match(/\S+\s*/g) ?? [];
+  const words = text.match(/\S+\s*/g) ?? [];
+  const chunks: string[] = [];
+  for (let i = 0; i < words.length; i += DELTA_WORDS) {
+    chunks.push(words.slice(i, i + DELTA_WORDS).join(""));
+  }
+  return chunks;
 }
 
 export async function* askStream(

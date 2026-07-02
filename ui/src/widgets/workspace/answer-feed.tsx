@@ -3,6 +3,7 @@
 import { useState } from "react";
 import type { AskState } from "@/features/ask/use-ask";
 import type { Fact } from "@/shared/api/types";
+import { ConsensusSpectrum } from "@/widgets/consensus-spectrum/consensus-spectrum";
 import { ContradictionCard } from "./contradiction-card";
 import { EvidenceTable } from "./evidence-table";
 import { GapsList, ExpertsList } from "./gaps-experts";
@@ -96,6 +97,19 @@ export function AnswerFeed({
               <FeedSkeleton lines={4} />
             )}
             {answer && <MethodsList answer={answer} onRefClick={selectRef} />}
+            {answer && pack && pack.consensus.length > 0 && (
+              <div className="mt-4 flex flex-col gap-3">
+                <h3 className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink-2">
+                  Консенсус источников
+                </h3>
+                {pack.consensus.map((consensus) => (
+                  <ConsensusSpectrum
+                    key={consensus.parameter.slug}
+                    consensus={consensus}
+                  />
+                ))}
+              </div>
+            )}
           </div>
         )}
         {tab === "evidence" &&
