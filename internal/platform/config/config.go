@@ -6,31 +6,33 @@ import (
 	"os"
 	"path/filepath"
 
-	"gopkg.in/yaml.v3"
+	"github.com/knadh/koanf/parsers/yaml"
+	"github.com/knadh/koanf/providers/file"
+	"github.com/knadh/koanf/v2"
 )
 
 type Runtime struct {
-	Log    Log    `yaml:"log"`
-	HTTP   HTTP   `yaml:"http"`
-	GRPC   GRPC   `yaml:"grpc"`
-	Health Health `yaml:"health"`
+	Log    Log    `koanf:"log"`
+	HTTP   HTTP   `koanf:"http"`
+	GRPC   GRPC   `koanf:"grpc"`
+	Health Health `koanf:"health"`
 }
 
 type Log struct {
-	Level  string `yaml:"level"`
-	Format string `yaml:"format"`
+	Level  string `koanf:"level"`
+	Format string `koanf:"format"`
 }
 
 type HTTP struct {
-	Addr string `yaml:"addr"`
+	Addr string `koanf:"addr"`
 }
 
 type GRPC struct {
-	Addr string `yaml:"addr"`
+	Addr string `koanf:"addr"`
 }
 
 type Health struct {
-	Addr string `yaml:"addr"`
+	Addr string `koanf:"addr"`
 }
 
 type Bundle struct {
@@ -50,7 +52,10 @@ func Load(root string, env string, service string) (Bundle, error) {
 		return Bundle{}, err
 	}
 
-	merged := map[string]any{}
+	store := koanf.NewWithConf(koanf.Conf{
+		Delim:       ".",
+		StrictMerge: true,
+	})
 	required := []string{
 		filepath.Join(root, "base", "common.yml"),
 		filepath.Join(root, "base", service+".yml"),
@@ -62,31 +67,27 @@ func Load(root string, env string, service string) (Bundle, error) {
 	}
 
 	for _, path := range required {
-		next, err := readMap(path)
-		if err != nil {
+		if err := loadFile(store, path); err != nil {
 			return Bundle{}, err
 		}
-		merge(merged, next)
 	}
 
 	for _, path := range optional {
-		next, err := readOptionalMap(path)
-		if err != nil {
+		if err := loadOptionalFile(store, path); err != nil {
 			return Bundle{}, err
 		}
-		merge(merged, next)
 	}
 
-	runtime, err := decodeRuntime(merged)
-	if err != nil {
-		return Bundle{}, err
+	var runtime Runtime
+	if err := store.Unmarshal("", &runtime); err != nil {
+		return Bundle{}, fmt.Errorf("decode runtime config: %w", err)
 	}
 
 	if err := validateRuntime(service, runtime); err != nil {
 		return Bundle{}, err
 	}
 
-	return Bundle{Service: service, Env: env, Root: root, Runtime: runtime, Raw: merged}, nil
+	return Bundle{Service: service, Env: env, Root: root, Runtime: runtime, Raw: store.Raw()}, nil
 }
 
 func validateEnv(env string) error {
@@ -117,53 +118,20 @@ func validateRuntime(service string, runtime Runtime) error {
 	return nil
 }
 
-func decodeRuntime(values map[string]any) (Runtime, error) {
-	data, err := yaml.Marshal(values)
-	if err != nil {
-		return Runtime{}, fmt.Errorf("encode merged config: %w", err)
+func loadFile(store *koanf.Koanf, path string) error {
+	if err := store.Load(file.Provider(path), yaml.Parser()); err != nil {
+		return fmt.Errorf("load config %s: %w", path, err)
 	}
-
-	var runtime Runtime
-	if err := yaml.Unmarshal(data, &runtime); err != nil {
-		return Runtime{}, fmt.Errorf("decode runtime config: %w", err)
-	}
-
-	return runtime, nil
+	return nil
 }
 
-func readMap(path string) (map[string]any, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("read config %s: %w", path, err)
-	}
-
-	values := map[string]any{}
-	if err := yaml.Unmarshal(data, &values); err != nil {
-		return nil, fmt.Errorf("parse config %s: %w", path, err)
-	}
-
-	return values, nil
-}
-
-func readOptionalMap(path string) (map[string]any, error) {
+func loadOptionalFile(store *koanf.Koanf, path string) error {
 	_, err := os.Stat(path)
 	if err == nil {
-		return readMap(path)
+		return loadFile(store, path)
 	}
 	if errors.Is(err, os.ErrNotExist) {
-		return map[string]any{}, nil
+		return nil
 	}
-	return nil, fmt.Errorf("stat config %s: %w", path, err)
-}
-
-func merge(dst map[string]any, src map[string]any) {
-	for key, srcValue := range src {
-		dstMap, dstOK := dst[key].(map[string]any)
-		srcMap, srcOK := srcValue.(map[string]any)
-		if dstOK && srcOK {
-			merge(dstMap, srcMap)
-			continue
-		}
-		dst[key] = srcValue
-	}
+	return fmt.Errorf("stat config %s: %w", path, err)
 }

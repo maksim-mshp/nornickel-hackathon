@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/config"
 )
 
@@ -94,16 +95,16 @@ func (app *App) serve() error {
 		return errors.New("health listener address is empty")
 	}
 
-	mux := http.NewServeMux()
-	mux.HandleFunc("/healthz", app.status(http.StatusOK, "ok"))
-	mux.HandleFunc("/readyz", app.status(http.StatusOK, "ready"))
+	router := chi.NewRouter()
+	router.Get("/healthz", app.status(http.StatusOK, "ok"))
+	router.Get("/readyz", app.status(http.StatusOK, "ready"))
 	if app.service == "gateway" {
-		mux.HandleFunc("/", app.gatewayRoot)
+		router.Get("/", app.gatewayRoot)
 	}
 
 	app.server = &http.Server{
 		Addr:              addr,
-		Handler:           mux,
+		Handler:           router,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 
@@ -141,10 +142,6 @@ func (app *App) status(code int, value string) http.HandlerFunc {
 }
 
 func (app *App) gatewayRoot(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Path != "/" {
-		http.NotFound(w, r)
-		return
-	}
 	w.Header().Set("Content-Type", "application/json")
 	_, _ = fmt.Fprintf(w, `{"service":%q,"status":"running"}`+"\n", app.service)
 }

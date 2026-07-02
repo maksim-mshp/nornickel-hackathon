@@ -2,44 +2,24 @@ package config
 
 import "testing"
 
-func TestMergeOverridesNestedValues(t *testing.T) {
+func TestLoadMergesBaseAndEnvConfigs(t *testing.T) {
 	t.Parallel()
 
-	dst := map[string]any{
-		"log": map[string]any{
-			"level":  "info",
-			"format": "json",
-		},
-		"postgres": map[string]any{
-			"dsn":       "base",
-			"max_conns": 10,
-		},
-	}
-	src := map[string]any{
-		"log": map[string]any{
-			"level": "debug",
-		},
-		"postgres": map[string]any{
-			"dsn": "dev",
-		},
+	bundle, err := Load("../../../configs", "dev", "search")
+	if err != nil {
+		t.Fatalf("expected config to load: %v", err)
 	}
 
-	merge(dst, src)
-
-	logValues := dst["log"].(map[string]any)
-	if logValues["level"] != "debug" {
-		t.Fatalf("expected debug level, got %v", logValues["level"])
-	}
-	if logValues["format"] != "json" {
-		t.Fatalf("expected inherited format, got %v", logValues["format"])
+	if bundle.Runtime.Log.Level != "debug" {
+		t.Fatalf("expected dev log level, got %q", bundle.Runtime.Log.Level)
 	}
 
-	postgresValues := dst["postgres"].(map[string]any)
-	if postgresValues["dsn"] != "dev" {
-		t.Fatalf("expected dev dsn, got %v", postgresValues["dsn"])
+	if bundle.Runtime.Log.Format != "text" {
+		t.Fatalf("expected dev log format, got %q", bundle.Runtime.Log.Format)
 	}
-	if postgresValues["max_conns"] != 10 {
-		t.Fatalf("expected inherited max_conns, got %v", postgresValues["max_conns"])
+
+	if bundle.Runtime.GRPC.Addr != ":9093" {
+		t.Fatalf("expected base grpc addr, got %q", bundle.Runtime.GRPC.Addr)
 	}
 }
 
