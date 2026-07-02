@@ -14,7 +14,7 @@
   version: "2"
   linters:
     enable:
-      - modernize      # правила go fix / gopls modernize — ОБЯЗАТЕЛЬНО
+      - modernize
       - govet
       - staticcheck
       - errcheck
@@ -32,6 +32,7 @@
   Локально: `golangci-lint run --fix` (modernize применяет автофиксы); в CI — `golangci-lint run` (без `--fix`, расхождение = красный билд).
 - Весь Go-бэкенд — **один проект**: точки входа `cmd/<service>/main.go`, bounded contexts — `internal/<service>/{domain,app,ports,adapters}`, общее — `internal/platform` (эталон — [03-architecture.md](03-architecture.md) §9). Домен не импортирует инфраструктуру; контексты не импортируют друг друга (depguard); никаких «всё в main.go».
 - Прочее: `gofmt`/`goimports` через golangci-lint; ошибки оборачиваются `fmt.Errorf("...: %w", err)`; контексты сквозные; тесты рядом с кодом, интеграционные — testcontainers.
+- **Комментарии в коде запрещены — в YAML-файлах тоже** (Go/Python/TS/SQL/YAML): самодокументируемые имена и структура; пояснения — в `.agents/`, не в исходниках.
 
 ## 2. Python — стандарты (обязательные)
 

@@ -8,6 +8,7 @@
 nornickel-hackathon/
 ├── AGENTS.md, .agents/           # управление и проектная документация
 ├── .tmp/                         # ВСЕ временные файлы (в .gitignore)
+├── data-sources/                 # исходные данные хакатона: корпус, каталоги, справочники (в .gitignore)
 ├── contracts/{proto,openapi,events}/
 ├── go.mod                        # единый Go-модуль всего бэкенда
 ├── cmd/                          # точки входа Go-сервисов: gateway|ingest|catalog|llm|search|answer|epistemic
