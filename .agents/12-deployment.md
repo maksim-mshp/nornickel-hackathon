@@ -29,7 +29,7 @@ nornickel-hackathon/
 └── .github/workflows/            # CI
 ```
 
-Конвенция коммитов: **Conventional Commits с описанием на русском** — `<type>: <описание по-русски>` (типы: `feat`, `fix`, `docs`, `refactor`, `test`, `perf`, `ci`, `chore`). Пример: `feat: добавлен метод для взаимодействия с LLM`. Без трейлеров (`Co-Authored-By` и т.п.); каждый коммит сразу пушится.
+Конвенция коммитов: **Conventional Commits с описанием на русском** — `<type>: <описание по-русски>` (типы: `feat`, `fix`, `docs`, `refactor`, `test`, `perf`, `ci`, `chore`). Пример: `feat: добавлен метод для взаимодействия с LLM`. Без трейлеров (`Co-Authored-By` и т.п.); порядок всегда `pull → commit → push` (pull непосредственно перед коммитом).
 
 ## 2. Dev/demo-контур (локально и на хакатоне)
 
