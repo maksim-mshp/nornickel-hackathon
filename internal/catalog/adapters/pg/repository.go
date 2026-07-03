@@ -4,6 +4,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -93,9 +95,9 @@ VALUES ($1, $2, $3, 'catalog', 'active')
 ON CONFLICT DO NOTHING`
 
 const insertChunkSQL = `INSERT INTO core.chunks
-(id, document_id, version, ordinal, text, kind, page_from, page_to, char_from, char_to, lang, section_path)
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-ON CONFLICT (document_id, version, ordinal) DO UPDATE SET text = EXCLUDED.text`
+(id, document_id, version, ordinal, text, kind, page_from, page_to, char_from, char_to, lang, section_path, embedding)
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13::vector)
+ON CONFLICT (document_id, version, ordinal) DO UPDATE SET text = EXCLUDED.text, embedding = COALESCE(EXCLUDED.embedding, core.chunks.embedding)`
 
 const insertFactSQL = `INSERT INTO kg.numeric_facts
 (id, document_id, chunk_id, subject_id, parameter_id, relation, operator, value_raw, vmin, vmax,
@@ -175,6 +177,7 @@ func (repository *Repository) Commit(ctx context.Context, cmd app.CommitCommand,
 			nullableInt(chunk.PageFrom), nullableInt(chunk.PageTo),
 			nullableInt(chunk.CharFrom), nullableInt(chunk.CharTo),
 			nullableString(chunk.Lang), stringArray(chunk.SectionPath),
+			vectorLiteral(chunk.Embedding),
 		); err != nil {
 			return fmt.Errorf("insert chunk %q: %w", chunk.ID, err)
 		}
@@ -316,6 +319,17 @@ func stringArray(value []string) []string {
 		return []string{}
 	}
 	return value
+}
+
+func vectorLiteral(embedding []float32) any {
+	if len(embedding) == 0 {
+		return nil
+	}
+	parts := make([]string, len(embedding))
+	for i, value := range embedding {
+		parts[i] = strconv.FormatFloat(float64(value), 'g', -1, 32)
+	}
+	return "[" + strings.Join(parts, ",") + "]"
 }
 
 func defaultString(value string, fallback string) string {

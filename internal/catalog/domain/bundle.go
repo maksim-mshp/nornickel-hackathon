@@ -13,16 +13,17 @@ type Bundle struct {
 }
 
 type Chunk struct {
-	ID          string   `json:"id"`
-	Text        string   `json:"text"`
-	Ordinal     int      `json:"ordinal"`
-	PageFrom    int      `json:"page_from"`
-	PageTo      int      `json:"page_to"`
-	Kind        string   `json:"kind"`
-	Lang        string   `json:"lang"`
-	SectionPath []string `json:"section_path"`
-	CharFrom    int      `json:"char_from"`
-	CharTo      int      `json:"char_to"`
+	ID          string    `json:"id"`
+	Text        string    `json:"text"`
+	Ordinal     int       `json:"ordinal"`
+	PageFrom    int       `json:"page_from"`
+	PageTo      int       `json:"page_to"`
+	Kind        string    `json:"kind"`
+	Lang        string    `json:"lang"`
+	SectionPath []string  `json:"section_path"`
+	CharFrom    int       `json:"char_from"`
+	CharTo      int       `json:"char_to"`
+	Embedding   []float32 `json:"embedding"`
 }
 
 type BundleEntity struct {
