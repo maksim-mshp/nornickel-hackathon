@@ -10,6 +10,7 @@ import (
 
 type fakeRepo struct {
 	facts          []Fact
+	chunks         []Chunk
 	consensus      []Consensus
 	contradictions []Contradiction
 	gaps           []GapCell
@@ -20,6 +21,7 @@ func (f fakeRepo) ExpandEntityIDs(_ context.Context, slugs []string) ([]string, 
 	return slugs, nil
 }
 func (f fakeRepo) Facts(context.Context, []string, FactFilter) ([]Fact, error) { return f.facts, nil }
+func (f fakeRepo) FTSChunks(context.Context, string, int) ([]Chunk, error)      { return f.chunks, nil }
 func (f fakeRepo) Consensus(context.Context, []string) ([]Consensus, error) { return f.consensus, nil }
 func (f fakeRepo) Contradictions(context.Context, []string) ([]Contradiction, error) {
 	return f.contradictions, nil

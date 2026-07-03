@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 
 	kmapv1 "github.com/maksim-mshp/nornickel-hackathon/contracts/gen/go/kmap/v1"
 	"google.golang.org/grpc/codes"
@@ -22,6 +23,7 @@ type FactFilter struct {
 type Repo interface {
 	ExpandEntityIDs(ctx context.Context, slugs []string) ([]string, error)
 	Facts(ctx context.Context, entityIDs []string, filter FactFilter) ([]Fact, error)
+	FTSChunks(ctx context.Context, queryText string, top int) ([]Chunk, error)
 	Consensus(ctx context.Context, entityIDs []string) ([]Consensus, error)
 	Contradictions(ctx context.Context, entityIDs []string) ([]Contradiction, error)
 	Gaps(ctx context.Context, entityIDs []string) ([]GapCell, error)
@@ -152,7 +154,18 @@ func (service *Service) buildPack(ctx context.Context, plan *kmapv1.QueryPlan) (
 		return EvidencePack{}, err
 	}
 	service.rankFacts(facts, slugs)
+	if top := service.ranking.finalTop(); len(facts) > top {
+		facts = facts[:top]
+	}
 	refByID := assignRefs(facts)
+
+	chunks, err := service.repo.FTSChunks(ctx, planQueryText(plan, slugs), service.ranking.ftsTop())
+	if err != nil {
+		return EvidencePack{}, err
+	}
+	if top := service.ranking.finalTop(); len(chunks) > top {
+		chunks = chunks[:top]
+	}
 
 	consensus, err := service.repo.Consensus(ctx, entityIDs)
 	if err != nil {
@@ -179,6 +192,7 @@ func (service *Service) buildPack(ctx context.Context, plan *kmapv1.QueryPlan) (
 
 	return EvidencePack{
 		Facts:          facts,
+		Chunks:         chunks,
 		Consensus:      consensus,
 		Contradictions: contradictions,
 		Gaps:           gaps,
@@ -187,6 +201,34 @@ func (service *Service) buildPack(ctx context.Context, plan *kmapv1.QueryPlan) (
 		GraphEdges:     edges,
 		Stats:          computeStats(facts),
 	}, nil
+}
+
+func planQueryText(plan *kmapv1.QueryPlan, slugs []string) string {
+	terms := make([]string, 0, len(slugs)+4)
+	seen := make(map[string]bool)
+	add := func(value string) {
+		value = strings.TrimSpace(value)
+		if value == "" || seen[value] {
+			return
+		}
+		seen[value] = true
+		terms = append(terms, value)
+	}
+	for _, slug := range slugs {
+		add(readableSlug(slug))
+	}
+	for _, constraint := range plan.GetParamConstraints() {
+		add(readableSlug(constraint.GetParameter()))
+	}
+	return strings.Join(terms, " ")
+}
+
+func readableSlug(slug string) string {
+	name := slug
+	if idx := strings.IndexByte(slug, ':'); idx >= 0 {
+		name = slug[idx+1:]
+	}
+	return strings.ReplaceAll(name, "-", " ")
 }
 
 func (service *Service) rankFacts(facts []Fact, slugs []string) {
@@ -355,8 +397,20 @@ func (pack EvidencePack) toProto() (*kmapv1.EvidencePack, error) {
 	if err != nil {
 		return nil, err
 	}
+	chunks := make([]*kmapv1.Chunk, 0, len(pack.Chunks))
+	for _, item := range pack.Chunks {
+		chunks = append(chunks, &kmapv1.Chunk{
+			Id:         item.ID,
+			DocumentId: item.DocumentID,
+			Version:    int32(item.Version),
+			Text:       item.Text,
+			PageFrom:   int32(item.PageFrom),
+			PageTo:     int32(item.PageTo),
+		})
+	}
 	return &kmapv1.EvidencePack{
 		Facts:          facts,
+		Chunks:         chunks,
 		Consensus:      consensus,
 		Contradictions: contradictions,
 		Gaps:           gaps,

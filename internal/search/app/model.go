@@ -102,8 +102,19 @@ type EvidenceStats struct {
 	YearTo         int `json:"yearTo"`
 }
 
+type Chunk struct {
+	ID         string
+	DocumentID string
+	Version    int
+	Text       string
+	PageFrom   int
+	PageTo     int
+	Score      float64
+}
+
 type EvidencePack struct {
 	Facts          []Fact
+	Chunks         []Chunk
 	Consensus      []Consensus
 	Contradictions []Contradiction
 	Gaps           []GapCell

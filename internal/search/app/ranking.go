@@ -7,6 +7,11 @@ type Ranking struct {
 	SourceReliability map[string]float64 `koanf:"source_reliability"`
 	ValidationLevel   map[string]float64 `koanf:"validation_level"`
 	FreshnessLambda   float64            `koanf:"freshness_lambda"`
+	RRFK              int                `koanf:"rrf_k"`
+	VectorTop         int                `koanf:"vector_top"`
+	FTSTop            int                `koanf:"fts_top"`
+	RerankTop         int                `koanf:"rerank_top"`
+	FinalTop          int                `koanf:"final_top"`
 }
 
 type RankingWeights struct {
@@ -32,7 +37,26 @@ func DefaultRanking() Ranking {
 			"weak_evidence": 0.5, "contradicted": 0.3,
 		},
 		FreshnessLambda: 0.1,
+		RRFK:            60,
+		VectorTop:       200,
+		FTSTop:          200,
+		RerankTop:       80,
+		FinalTop:        30,
 	}
+}
+
+func (ranking Ranking) finalTop() int {
+	if ranking.FinalTop <= 0 {
+		return 30
+	}
+	return ranking.FinalTop
+}
+
+func (ranking Ranking) ftsTop() int {
+	if ranking.FTSTop <= 0 {
+		return 200
+	}
+	return ranking.FTSTop
 }
 
 func (ranking Ranking) score(matchStrength float64, confidence float64, docType string, validation string, docYear int, currentYear int) ScoreComponents {

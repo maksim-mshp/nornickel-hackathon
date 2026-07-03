@@ -86,6 +86,39 @@ func (repo *Repo) Facts(ctx context.Context, entityIDs []string, filter app.Fact
 	return facts, err
 }
 
+func (repo *Repo) FTSChunks(ctx context.Context, queryText string, top int) ([]app.Chunk, error) {
+	if queryText == "" || top <= 0 {
+		return nil, nil
+	}
+	const query = `
+SELECT c.id::text, c.document_id::text, c.version, c.text,
+       coalesce(c.page_from, 0), coalesce(c.page_to, 0),
+       ts_rank_cd(c.tsv_ru || c.tsv_en, q)::float8 AS rank
+FROM core.chunks c,
+     (websearch_to_tsquery('russian', $1) || websearch_to_tsquery('english', $1)) q
+WHERE (c.tsv_ru || c.tsv_en) @@ q
+ORDER BY rank DESC, c.id
+LIMIT $2`
+	var chunks []app.Chunk
+	err := repo.read(ctx, func(q queryer) error {
+		rows, err := q.Query(ctx, query, queryText, top)
+		if err != nil {
+			return fmt.Errorf("query fts chunks: %w", err)
+		}
+		defer rows.Close()
+		for rows.Next() {
+			var chunk app.Chunk
+			if err := rows.Scan(&chunk.ID, &chunk.DocumentID, &chunk.Version, &chunk.Text,
+				&chunk.PageFrom, &chunk.PageTo, &chunk.Score); err != nil {
+				return fmt.Errorf("scan chunk: %w", err)
+			}
+			chunks = append(chunks, chunk)
+		}
+		return rows.Err()
+	})
+	return chunks, err
+}
+
 func queryFacts(ctx context.Context, q queryer, entityIDs []string, filter app.FactFilter) ([]app.Fact, error) {
 	const query = `
 SELECT f.id::text, f.operator::text, f.vmin::float8, f.vmax::float8, f.unit_orig,
