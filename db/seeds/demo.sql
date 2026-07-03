@@ -63,13 +63,13 @@ JOIN kg.entities e ON e.slug = a.slug
 ON CONFLICT (entity_id, alias, lang) DO NOTHING;
 
 INSERT INTO core.documents (id, title, doc_type, lang, year, geography, access_level, sha256, status) VALUES
-  ('a1000000-0000-4000-8000-000000000017', 'Отчёт: оптимизация циркуляции католита', 'report', 'ru', 2023, 'foreign', 'internal', decode('d017','hex'), 'indexed'),
+  ('a1000000-0000-4000-8000-000000000017', 'Отчёт: оптимизация циркуляции католита', 'report', 'ru', 2023, 'foreign', 'confidential', decode('d017','hex'), 'indexed'),
   ('a1000000-0000-4000-8000-000000000042', 'Протокол опытной серии ЭН-7', 'protocol', 'ru', 2021, 'ru', 'internal', decode('d042','hex'), 'indexed'),
   ('a1000000-0000-4000-8000-000000000058', 'Отчёт: режимы диафрагменных ячеек', 'report', 'ru', 2023, 'ru', 'internal', decode('d058','hex'), 'indexed'),
-  ('a1000000-0000-4000-8000-000000000101', 'Nickel electrowinning practice review', 'article', 'en', 2022, 'foreign', 'internal', decode('d101','hex'), 'indexed'),
+  ('a1000000-0000-4000-8000-000000000101', 'Nickel electrowinning practice review', 'article', 'en', 2022, 'foreign', 'public', decode('d101','hex'), 'indexed'),
   ('a1000000-0000-4000-8000-000000000201', 'Обзор технологий обессоливания оборотных вод', 'article', 'en', 2022, 'foreign', 'internal', decode('d201','hex'), 'indexed'),
   ('a1000000-0000-4000-8000-000000000215', 'Ионообменная очистка сточных вод обогатительной фабрики', 'report', 'ru', 2023, 'ru', 'internal', decode('d215','hex'), 'indexed'),
-  ('a1000000-0000-4000-8000-000000000310', 'Heap leaching of nickel laterites', 'article', 'en', 2019, 'foreign', 'internal', decode('d310','hex'), 'indexed')
+  ('a1000000-0000-4000-8000-000000000310', 'Heap leaching of nickel laterites', 'article', 'en', 2019, 'foreign', 'restricted', decode('d310','hex'), 'indexed')
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO core.document_versions (document_id, version, blob_uri, parser_version, parsed_at)
