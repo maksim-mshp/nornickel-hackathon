@@ -1,7 +1,11 @@
 "use client";
 
 import { Fragment, useEffect, useState } from "react";
-import { getDocuments, type DocumentRow } from "@/shared/api/browse";
+import {
+  getDocuments,
+  openDocumentSource,
+  type DocumentRow,
+} from "@/shared/api/browse";
 
 const STAGES = ["registered", "parsed", "extracted", "indexed"] as const;
 
@@ -15,6 +19,15 @@ const GEO_LABELS: Record<string, string> = {
 export default function DocumentsPage() {
   const [rows, setRows] = useState<DocumentRow[]>([]);
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [toast, setToast] = useState<string | null>(null);
+
+  const openSource = async (id: string) => {
+    const ok = await openDocumentSource(id);
+    if (!ok) {
+      setToast("Исходный файл недоступен в хранилище");
+      setTimeout(() => setToast(null), 3000);
+    }
+  };
 
   useEffect(() => {
     let alive = true;
@@ -91,7 +104,14 @@ export default function DocumentsPage() {
                         <span className="text-ink-1">llm_valid_rate: 0.94</span>
                         <button
                           type="button"
+                          onClick={() => openSource(row.id)}
                           className="ml-auto rounded-sm border border-line px-2 py-1 font-mono text-[10px] text-ink-1 transition-colors hover:border-electrolyte hover:text-electrolyte"
+                        >
+                          открыть источник
+                        </button>
+                        <button
+                          type="button"
+                          className="rounded-sm border border-line px-2 py-1 font-mono text-[10px] text-ink-1 transition-colors hover:border-electrolyte hover:text-electrolyte"
                         >
                           reindex
                         </button>
@@ -104,6 +124,12 @@ export default function DocumentsPage() {
           </tbody>
         </table>
       </div>
+
+      {toast && (
+        <div className="fixed bottom-6 left-6 z-50 rounded-sm border border-anode/50 bg-bg-2 px-4 py-2 text-[12px] text-anode shadow-lg">
+          {toast}
+        </div>
+      )}
     </div>
   );
 }

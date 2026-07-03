@@ -1,75 +1,43 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   decideContradiction,
   getContradictions,
+  getReviewEntities,
+  getReviewOrphans,
+  updateFactStatus,
   type ContradictionLive,
+  type ReviewEntity,
+  type ReviewOrphan,
 } from "@/shared/api/browse";
 
 type Tab = "entities" | "orphans" | "contradictions";
 
-type EntityItem = { id: string; name: string; type: string; candidate: string; similarity: number };
-type OrphanItem = { id: string; quote: string; value: string; candidates: string[] };
-type ContradictionItem = {
-  id: string;
-  a: string;
-  b: string;
-  cause: string;
-  confidence: number;
-};
-
-const ENTITIES: EntityItem[] = [
-  { id: "e1", name: "циркуляция католита", type: "process", candidate: "циркуляция католита (process:catholyte-circulation)", similarity: 0.72 },
-  { id: "e2", name: "ПВП", type: "equipment", candidate: "печь взвешенной плавки (equipment:flash-furnace)", similarity: 0.58 },
-  { id: "e3", name: "сухой остаток", type: "property", candidate: "сухой остаток (property:tds)", similarity: 0.91 },
-];
-
-const ORPHANS: OrphanItem[] = [
-  { id: "o1", value: "250 А/м²", quote: "плотность тока поддерживалась на уровне 250 А/м²", candidates: ["parameter:current-density", "parameter:flow-rate"] },
-  { id: "o2", value: "1,2 г/л", quote: "концентрация примесей не превышала 1,2 г/л", candidates: ["parameter:impurity-concentration"] },
-];
-
-const CONTRADICTIONS: ContradictionItem[] = [
-  {
-    id: "c1",
-    a: "0,8–1,0 м/с улучшает равномерность осаждения [F1]",
-    b: "выше 0,7 м/с растёт дефектность осадка [F2]",
-    cause: "различие плотности тока: 220 vs 320 А/м²",
-    confidence: 0.86,
-  },
-];
-
 const TAB_LABELS: Record<Tab, string> = {
   entities: "Сущности pending",
-  orphans: "Числа-сироты",
+  orphans: "Числа на ревью",
   contradictions: "Противоречия suspected",
 };
 
-function toReviewItem(item: ContradictionLive): ContradictionItem {
-  return {
-    id: item.id,
-    a: item.aStatement || item.subject,
-    b: item.bStatement || item.parameter,
-    cause: item.cause || `${item.subject} · ${item.parameter}`.trim(),
-    confidence: item.severity,
-  };
-}
-
 export default function ReviewPage() {
   const [tab, setTab] = useState<Tab>("entities");
-  const [entities, setEntities] = useState(ENTITIES);
-  const [orphans, setOrphans] = useState(ORPHANS);
-  const [contradictions, setContradictions] = useState(CONTRADICTIONS);
-  const [live, setLive] = useState(false);
+  const [entities, setEntities] = useState<ReviewEntity[]>([]);
+  const [orphans, setOrphans] = useState<ReviewOrphan[]>([]);
+  const [contradictions, setContradictions] = useState<ContradictionLive[]>([]);
   const [toast, setToast] = useState<string | null>(null);
 
   useEffect(() => {
     let alive = true;
-    getContradictions().then((items) => {
-      if (!alive || items.length === 0) return;
-      setContradictions(items.map(toReviewItem));
-      setLive(true);
+    void Promise.all([
+      getReviewEntities(),
+      getReviewOrphans(),
+      getContradictions("suspected"),
+    ]).then(([e, o, c]) => {
+      if (!alive) return;
+      setEntities(e);
+      setOrphans(o);
+      setContradictions(c);
     });
     return () => {
       alive = false;
@@ -82,40 +50,62 @@ export default function ReviewPage() {
     contradictions: contradictions.length,
   };
 
-  const notify = (message: string) => {
+  const notify = useCallback((message: string) => {
     setToast(message);
     setTimeout(() => setToast(null), 2500);
-  };
+  }, []);
 
-  const resolveEntity = (id: string, action: string) => {
-    setEntities((prev) => prev.filter((item) => item.id !== id));
-    notify(`Сущность ${action} · записано в fact_history`);
-  };
-  const resolveOrphan = (id: string, action: string) => {
-    setOrphans((prev) => prev.filter((item) => item.id !== id));
-    notify(`Число ${action}`);
-  };
-  const resolveContradiction = (id: string, action: string) => {
-    setContradictions((prev) => prev.filter((item) => item.id !== id));
-    notify(`Противоречие ${action}`);
-    if (live) {
-      void decideContradiction(id, action === "подтверждено" ? "confirmed" : "rejected");
-    }
-  };
+  const resolveEntity = useCallback(
+    (id: string, action: string) => {
+      setEntities((prev) => prev.filter((item) => item.id !== id));
+      notify(`Сущность ${action}`);
+    },
+    [notify],
+  );
+
+  const resolveOrphan = useCallback(
+    (id: string, action: string, status: string) => {
+      setOrphans((prev) => prev.filter((item) => item.id !== id));
+      notify(`Число ${action} · fact_history`);
+      void updateFactStatus(id, status);
+    },
+    [notify],
+  );
+
+  const resolveContradiction = useCallback(
+    (id: string, action: string, decision: "confirmed" | "rejected") => {
+      setContradictions((prev) => prev.filter((item) => item.id !== id));
+      notify(`Противоречие ${action}`);
+      void decideContradiction(id, decision);
+    },
+    [notify],
+  );
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
-      if (event.key === "a" || event.key === "r") {
-        const action = event.key === "a" ? "подтверждено" : "отклонено";
-        if (tab === "entities" && entities[0]) resolveEntity(entities[0].id, action);
-        if (tab === "orphans" && orphans[0]) resolveOrphan(orphans[0].id, action);
-        if (tab === "contradictions" && contradictions[0])
-          resolveContradiction(contradictions[0].id, action);
+      if (event.key !== "a" && event.key !== "r") return;
+      const approve = event.key === "a";
+      if (tab === "entities" && entities[0]) {
+        resolveEntity(entities[0].id, approve ? "подтверждена" : "отклонена");
+      }
+      if (tab === "orphans" && orphans[0]) {
+        resolveOrphan(
+          orphans[0].id,
+          approve ? "подтверждено" : "отклонено",
+          approve ? "expert_validated" : "rejected",
+        );
+      }
+      if (tab === "contradictions" && contradictions[0]) {
+        resolveContradiction(
+          contradictions[0].id,
+          approve ? "подтверждено" : "отклонено",
+          approve ? "confirmed" : "rejected",
+        );
       }
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [tab, entities, orphans, contradictions]);
+  }, [tab, entities, orphans, contradictions, resolveEntity, resolveOrphan, resolveContradiction]);
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6 px-6 py-8">
@@ -124,12 +114,11 @@ export default function ReviewPage() {
           Очередь ревью
         </h1>
         <p className="mt-1 text-[13px] text-ink-1">
-          Валидация извлечённого: клавиши{" "}
+          Валидация извлечённого из базы: клавиши{" "}
           <kbd className="rounded-sm border border-line px-1 font-mono text-[11px]">a</kbd>{" "}
           подтвердить ·{" "}
           <kbd className="rounded-sm border border-line px-1 font-mono text-[11px]">r</kbd>{" "}
           отклонить
-          {live ? " · противоречия из базы" : ""}
         </p>
       </section>
 
@@ -158,31 +147,37 @@ export default function ReviewPage() {
           entities.map((item) => (
             <ReviewCard
               key={item.id}
-              onApprove={() => resolveEntity(item.id, "подтверждено")}
-              onReject={() => resolveEntity(item.id, "отклонено")}
+              onApprove={() => resolveEntity(item.id, "подтверждена")}
+              onReject={() => resolveEntity(item.id, "отклонена")}
             >
               <div className="flex items-baseline gap-2">
                 <span className="font-mono text-[10px] uppercase text-ink-2">{item.type}</span>
                 <span className="text-[14px] font-semibold text-ink-0">{item.name}</span>
               </div>
-              <p className="mt-1 text-[12px] text-ink-1">
-                кандидат: {item.candidate}
-              </p>
-              <p className="mt-1 font-mono text-[11px] text-ink-2">
-                similarity {item.similarity.toFixed(2)}
-              </p>
+              <p className="mt-1 font-mono text-[11px] text-ink-2">{item.slug}</p>
+              {item.candidate && (
+                <p className="mt-1 text-[12px] text-ink-1">
+                  кандидат: {item.candidate}{" "}
+                  <span className="font-mono text-[11px] text-ink-2">
+                    similarity {item.similarity.toFixed(2)}
+                  </span>
+                </p>
+              )}
             </ReviewCard>
           ))}
         {tab === "orphans" &&
           orphans.map((item) => (
             <ReviewCard
               key={item.id}
-              onApprove={() => resolveOrphan(item.id, "привязано")}
-              onReject={() => resolveOrphan(item.id, "отклонено")}
+              onApprove={() => resolveOrphan(item.id, "подтверждено", "expert_validated")}
+              onReject={() => resolveOrphan(item.id, "отклонено", "rejected")}
             >
               <p className="font-mono text-[15px] font-bold text-electrolyte">{item.value}</p>
-              <p className="mt-1 text-[12px] italic text-ink-1">«{item.quote}»</p>
+              {item.quote && <p className="mt-1 text-[12px] italic text-ink-1">«{item.quote}»</p>}
               <div className="mt-2 flex flex-wrap gap-1.5">
+                <span className="rounded-sm border border-anode/40 px-1.5 py-0.5 font-mono text-[10px] text-anode">
+                  {item.status}
+                </span>
                 {item.candidates.map((candidate) => (
                   <span
                     key={candidate}
@@ -198,16 +193,17 @@ export default function ReviewPage() {
           contradictions.map((item) => (
             <ReviewCard
               key={item.id}
-              onApprove={() => resolveContradiction(item.id, "подтверждено")}
-              onReject={() => resolveContradiction(item.id, "отклонено")}
+              onApprove={() => resolveContradiction(item.id, "подтверждено", "confirmed")}
+              onReject={() => resolveContradiction(item.id, "отклонено", "rejected")}
             >
               <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3">
-                <p className="text-[12px] text-ink-0">{item.a}</p>
+                <p className="text-[12px] text-ink-0">{item.aStatement || item.subject}</p>
                 <span className="h-8 w-px bg-melt" />
-                <p className="text-[12px] text-ink-0">{item.b}</p>
+                <p className="text-[12px] text-ink-0">{item.bStatement || item.parameter}</p>
               </div>
               <p className="mt-2 rounded-sm border border-melt/30 bg-melt/5 px-2 py-1 text-[11px] text-melt">
-                судья: {item.cause} · confidence {item.confidence.toFixed(2)}
+                судья: {item.cause || `${item.subject} · ${item.parameter}`} · severity{" "}
+                {item.severity.toFixed(2)}
               </p>
             </ReviewCard>
           ))}

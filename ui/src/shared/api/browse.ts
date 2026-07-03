@@ -200,6 +200,22 @@ export function getDocuments(): Promise<DocumentRow[]> {
   return getJSON("/v1/documents", DOCUMENTS);
 }
 
+export async function openDocumentSource(id: string): Promise<boolean> {
+  try {
+    const response = await fetch(`/v1/documents/${encodeURIComponent(id)}/file`, {
+      headers: { ...authHeaders() },
+    });
+    if (!response.ok) return false;
+    const blob = await response.blob();
+    const url = URL.createObjectURL(blob);
+    window.open(url, "_blank", "noopener");
+    setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export type CoverageCellLive = {
   material: string;
   process: string;
@@ -260,6 +276,71 @@ export async function getContradictions(status = ""): Promise<ContradictionLive[
   }));
 }
 
+export type ReviewEntity = {
+  id: string;
+  slug: string;
+  name: string;
+  type: string;
+  candidate: string;
+  similarity: number;
+};
+
+export type ReviewOrphan = {
+  id: string;
+  value: string;
+  quote: string;
+  status: string;
+  candidates: string[];
+};
+
+export async function getReviewEntities(): Promise<ReviewEntity[]> {
+  const items = await getJSON<Partial<ReviewEntity>[]>(
+    "/v1/review/queue?kind=entities",
+    [],
+  );
+  if (!Array.isArray(items)) return [];
+  return items.map((item) => ({
+    id: item.id ?? "",
+    slug: item.slug ?? "",
+    name: item.name ?? "",
+    type: item.type ?? "",
+    candidate: item.candidate ?? "",
+    similarity: item.similarity ?? 0,
+  }));
+}
+
+export async function getReviewOrphans(): Promise<ReviewOrphan[]> {
+  const items = await getJSON<Partial<ReviewOrphan>[]>(
+    "/v1/review/queue?kind=orphans",
+    [],
+  );
+  if (!Array.isArray(items)) return [];
+  return items.map((item) => ({
+    id: item.id ?? "",
+    value: item.value ?? "",
+    quote: item.quote ?? "",
+    status: item.status ?? "",
+    candidates: item.candidates ?? [],
+  }));
+}
+
+export async function updateFactStatus(
+  id: string,
+  status: string,
+  comment = "",
+): Promise<boolean> {
+  try {
+    const response = await fetch(`/v1/facts/${encodeURIComponent(id)}/status`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ status, comment }),
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
 export async function decideContradiction(
   id: string,
   decision: "confirmed" | "rejected",
@@ -287,6 +368,104 @@ export type EntitySummaryLive = {
   nameEn: string;
   etype: string;
 };
+
+const ETYPE_LABELS: Record<string, string> = {
+  material: "материал",
+  process: "процесс",
+  equipment: "оборудование",
+  property: "свойство",
+  parameter: "параметр",
+  technology: "технология",
+  experiment: "эксперимент",
+  publication: "публикация",
+  person: "эксперт",
+  lab: "лаборатория",
+  org: "организация",
+  geography: "география",
+  topic: "тема",
+  economic_indicator: "экономика",
+  climate: "климат",
+  facility: "объект",
+};
+
+type EntityCardApi = {
+  id?: string;
+  slug?: string;
+  nameRu?: string;
+  nameEn?: string;
+  type?: string;
+  synonyms?: string[] | null;
+  counters?: Record<string, number> | null;
+  relations?: { rel?: string; dst?: string; weight?: number }[] | null;
+  experts?: Partial<ExpertProfile>[] | null;
+  timeline?: { year?: number; facts?: number }[] | null;
+};
+
+function labelFromSlug(slug: string): string {
+  const after = slug.includes(":") ? slug.slice(slug.indexOf(":") + 1) : slug;
+  return after.replace(/-/g, " ") || slug;
+}
+
+export type EntityCardLive = {
+  slug: string;
+  type: string;
+  nameRu: string;
+  nameEn: string;
+  synonyms: { value: string; pending: boolean }[];
+  counters: { documents: number; facts: number; experiments: number; experts: number };
+  relations: { group: string; items: { slug: string; name: string; weight: number }[] }[];
+  experts: ExpertProfile[];
+  timeline: { year: number; facts: number }[];
+};
+
+export async function getEntityCard(slug: string): Promise<EntityCardLive | null> {
+  const data = await getJSON<EntityCardApi | null>(
+    `/v1/entities/${encodeURIComponent(slug)}`,
+    null,
+  );
+  if (!data || (!data.slug && !data.nameRu && !data.id)) return null;
+
+  const counters = data.counters ?? {};
+  const groups = new Map<string, { group: string; items: { slug: string; name: string; weight: number }[] }>();
+  for (const edge of data.relations ?? []) {
+    const dst = edge.dst ?? "";
+    if (!dst) continue;
+    const group = edge.rel ?? "связи";
+    if (!groups.has(group)) groups.set(group, { group, items: [] });
+    groups.get(group)!.items.push({ slug: dst, name: labelFromSlug(dst), weight: edge.weight ?? 0.5 });
+  }
+
+  return {
+    slug: data.slug ?? slug,
+    type: ETYPE_LABELS[data.type ?? ""] ?? data.type ?? "сущность",
+    nameRu: data.nameRu ?? slug,
+    nameEn: data.nameEn ?? "",
+    synonyms: (data.synonyms ?? []).map((value) => ({ value, pending: false })),
+    counters: {
+      documents: counters.documents ?? 0,
+      facts: counters.facts ?? 0,
+      experiments: counters.experiments ?? 0,
+      experts: counters.experts ?? 0,
+    },
+    relations: [...groups.values()],
+    experts: (data.experts ?? []).map((item) => ({
+      id: item.id ?? "",
+      name: item.name ?? "",
+      lab: item.lab ?? "",
+      weight: item.weight ?? 0,
+      reports: item.reports ?? 0,
+      experiments: item.experiments ?? 0,
+      lastYear: item.lastYear ?? 0,
+      topics: item.topics ?? [],
+      activity: item.activity ?? [],
+      evidence: item.evidence ?? [],
+    })),
+    timeline: (data.timeline ?? []).map((point) => ({
+      year: point.year ?? 0,
+      facts: point.facts ?? 0,
+    })),
+  };
+}
 
 export async function getEntities(query = ""): Promise<EntitySummaryLive[]> {
   const path = query

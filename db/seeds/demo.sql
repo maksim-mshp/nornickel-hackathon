@@ -255,4 +255,9 @@ INSERT INTO iam.users (oidc_sub, display_name, email, roles, doc_access) VALUES
   ('demo-partner', 'Внешний партнёр', 'partner@kmap.local', ARRAY['external_partner'], 'public')
 ON CONFLICT (oidc_sub) DO NOTHING;
 
+INSERT INTO kg.entities (etype, canonical_name, canonical_name_en, slug, attrs, status, created_by) VALUES
+  ('process', 'циркуляция католита', 'catholyte circulation', 'process:catholyte-circulation', '{"domain":"hydro"}', 'pending_review', 'extract'),
+  ('equipment', 'печь взвешенной плавки', 'flash smelting furnace', 'equipment:flash-furnace', '{}', 'pending_review', 'extract')
+ON CONFLICT (slug) DO NOTHING;
+
 COMMIT;
