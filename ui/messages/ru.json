@@ -1,0 +1,18 @@
+{
+  "nav": {
+    "search": "Поиск",
+    "experiments": "Эксперименты",
+    "coverage": "Покрытие",
+    "experts": "Эксперты",
+    "documents": "Документы",
+    "review": "Ревью",
+    "dictionaries": "Словари"
+  },
+  "header": {
+    "ask": "Спросить или перейти…",
+    "toggleTheme": "Переключить тему",
+    "skipToContent": "К содержимому",
+    "pipelineRunning": "Конвейер работает",
+    "language": "Язык"
+  }
+}

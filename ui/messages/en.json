@@ -1,0 +1,18 @@
+{
+  "nav": {
+    "search": "Search",
+    "experiments": "Experiments",
+    "coverage": "Coverage",
+    "experts": "Experts",
+    "documents": "Documents",
+    "review": "Review",
+    "dictionaries": "Dictionaries"
+  },
+  "header": {
+    "ask": "Ask or navigate…",
+    "toggleTheme": "Toggle theme",
+    "skipToContent": "Skip to content",
+    "pipelineRunning": "Pipeline running",
+    "language": "Language"
+  }
+}

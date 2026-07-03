@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import {
   ROLE_LABELS,
@@ -9,6 +10,7 @@ import {
   useRole,
   type DemoRole,
 } from "@/shared/lib/role";
+import { setLocale, type Locale } from "@/shared/lib/locale";
 import { applyTheme, readTheme, toggleTheme } from "@/shared/lib/theme";
 import { CommandPalette } from "@/widgets/command-palette/command-palette";
 import {
@@ -23,18 +25,19 @@ import {
 } from "@/shared/ui/icons";
 
 const NAV_ITEMS = [
-  { href: "/", label: "Поиск", icon: IconSearch },
-  { href: "/experiments", label: "Эксперименты", icon: IconFlask },
-  { href: "/coverage", label: "Покрытие", icon: IconGrid },
-  { href: "/experts", label: "Эксперты", icon: IconPeople },
-  { href: "/documents", label: "Документы", icon: IconDocs },
-  { href: "/review", label: "Ревью", icon: IconCheck },
-  { href: "/dictionaries", label: "Словари", icon: IconBook },
-];
+  { href: "/", key: "search", icon: IconSearch },
+  { href: "/experiments", key: "experiments", icon: IconFlask },
+  { href: "/coverage", key: "coverage", icon: IconGrid },
+  { href: "/experts", key: "experts", icon: IconPeople },
+  { href: "/documents", key: "documents", icon: IconDocs },
+  { href: "/review", key: "review", icon: IconCheck },
+  { href: "/dictionaries", key: "dictionaries", icon: IconBook },
+] as const;
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const role = useRole((store) => store.role);
+  const t = useTranslations();
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -53,7 +56,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         href="#main"
         className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded-sm focus:bg-electrolyte focus:px-3 focus:py-1.5 focus:text-bg-0"
       >
-        К содержимому
+        {t("header.skipToContent")}
       </a>
       <Header />
       <div className="flex min-h-0 flex-1">
@@ -61,7 +64,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           aria-label="Основная навигация"
           className="flex w-16 shrink-0 flex-col items-center gap-1 border-r border-line bg-bg-1 py-3"
         >
-          {navItems.map(({ href, label, icon: Icon }) => {
+          {navItems.map(({ href, key, icon: Icon }) => {
+            const label = t(`nav.${key}`);
             const active =
               href === "/" ? pathname === "/" : pathname.startsWith(href);
             return (
@@ -83,7 +87,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <div className="mt-auto flex flex-col items-center gap-2 text-[10px] text-ink-2">
             <span
               className="h-2 w-2 rounded-full bg-electrolyte"
-              title="Конвейер работает"
+              title={t("header.pipelineRunning")}
             />
             <span className="font-mono">v0.1</span>
           </div>
@@ -97,6 +101,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 }
 
 function Header() {
+  const t = useTranslations("header");
   return (
     <header className="flex h-14 shrink-0 items-center gap-4 border-b border-line bg-bg-1 px-4">
       <Link href="/" className="flex items-center gap-2">
@@ -114,13 +119,14 @@ function Header() {
       >
         <IconSearch width={16} height={16} />
         <span className="flex-1 truncate text-left text-[13px]">
-          Спросить или перейти…
+          {t("ask")}
         </span>
         <kbd className="rounded-sm border border-line px-1.5 py-0.5 font-mono text-[10px]">
           ⌘K
         </kbd>
       </button>
       <div className="ml-auto flex items-center gap-3">
+        <LanguageSwitcher />
         <ThemeToggle />
         <RoleSwitcher />
       </div>
@@ -128,12 +134,29 @@ function Header() {
   );
 }
 
+function LanguageSwitcher() {
+  const locale = useLocale();
+  const t = useTranslations("header");
+  return (
+    <select
+      value={locale}
+      onChange={(event) => setLocale(event.target.value as Locale)}
+      aria-label={t("language")}
+      className="rounded-sm border border-line bg-bg-0 px-2 py-1 font-mono text-[11px] uppercase text-ink-1"
+    >
+      <option value="ru">RU</option>
+      <option value="en">EN</option>
+    </select>
+  );
+}
+
 function ThemeToggle() {
+  const t = useTranslations("header");
   const [, force] = useState(0);
   return (
     <button
       type="button"
-      title="Переключить тему"
+      title={t("toggleTheme")}
       onClick={() => {
         toggleTheme();
         force((n) => n + 1);

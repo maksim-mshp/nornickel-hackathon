@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Golos_Text, JetBrains_Mono, Unbounded } from "next/font/google";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages } from "next-intl/server";
 import { AppShell } from "@/widgets/app-shell/app-shell";
 import "./globals.css";
 
@@ -27,18 +29,22 @@ export const metadata: Metadata = {
     "Поисково-аналитическая система знаний для горно-металлургических исследований",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const locale = await getLocale();
+  const messages = await getMessages();
   return (
     <html
-      lang="ru"
+      lang={locale}
       data-theme="night"
       className={`${display.variable} ${text.variable} ${mono.variable}`}
       suppressHydrationWarning
     >
       <body>
-        <AppShell>{children}</AppShell>
+        <NextIntlClientProvider locale={locale} messages={messages}>
+          <AppShell>{children}</AppShell>
+        </NextIntlClientProvider>
       </body>
     </html>
   );
