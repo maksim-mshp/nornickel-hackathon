@@ -19,6 +19,8 @@ import (
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/auth"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/blob"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/config"
+	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/events"
+	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/nats"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/pg"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -43,6 +45,8 @@ type Server struct {
 	blob        blob.Store
 	verifier    auth.Verifier
 	audit       *audit.Writer
+	auditEvents events.Publisher
+	auditBus    io.Closer
 	logger      *slog.Logger
 	pool        *pg.Pool
 	rawBucket   string
@@ -121,6 +125,22 @@ func NewServer(cfg config.Bundle, logger *slog.Logger) (*Server, error) {
 		return nil, fmt.Errorf("connect postgres: %w", err)
 	}
 
+	var auditEvents events.Publisher
+	var auditBus io.Closer
+	if url := cfg.Runtime.NATS.URL; url != "" {
+		bus, busErr := nats.New(context.Background(), nats.Config{
+			URL:     url,
+			Name:    "kmap-gateway",
+			Streams: []nats.StreamSpec{{Name: "KMAP_AUDIT", Subjects: []string{"kmap.audit.v1.>"}}},
+		})
+		if busErr != nil {
+			logger.Warn("audit event stream disabled", "error", busErr)
+		} else {
+			auditEvents = bus
+			auditBus = bus
+		}
+	}
+
 	return &Server{
 		search:      kmapv1.NewSearchServiceClient(conns["search"]),
 		ingest:      kmapv1.NewIngestServiceClient(conns["ingest"]),
@@ -130,6 +150,8 @@ func NewServer(cfg config.Bundle, logger *slog.Logger) (*Server, error) {
 		blob:        blobStore,
 		verifier:    verifier,
 		audit:       audit.NewWriter(pool.Pool),
+		auditEvents: auditEvents,
+		auditBus:    auditBus,
 		logger:      logger,
 		pool:        pool,
 		rawBucket:   rawBucket,
@@ -168,6 +190,9 @@ func (server *Server) Close() error {
 	var result error
 	for _, conn := range server.conns {
 		result = errors.Join(result, conn.Close())
+	}
+	if server.auditBus != nil {
+		result = errors.Join(result, server.auditBus.Close())
 	}
 	if server.pool != nil {
 		result = errors.Join(result, server.pool.Close())

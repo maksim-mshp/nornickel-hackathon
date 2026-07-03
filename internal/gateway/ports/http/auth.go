@@ -12,18 +12,22 @@ import (
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/audit"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/auth"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/config"
+	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/events"
 )
 
 type auditMeta struct {
 	action     string
 	objectType string
+	persist    bool
 }
 
 var auditActions = map[auth.Operation]auditMeta{
-	auth.OpDocumentUpload:        {action: "document.upload", objectType: "document"},
-	auth.OpFactDecision:          {action: "fact.decision", objectType: "fact"},
-	auth.OpEntityMerge:           {action: "entity.merge", objectType: "entity"},
-	auth.OpContradictionDecision: {action: "contradiction.decision", objectType: "contradiction"},
+	auth.OpAsk:                   {action: "search.ask", objectType: "query"},
+	auth.OpSearch:                {action: "search.query", objectType: "query"},
+	auth.OpDocumentUpload:        {action: "document.upload", objectType: "document", persist: true},
+	auth.OpFactDecision:          {action: "fact.decision", objectType: "fact", persist: true},
+	auth.OpEntityMerge:           {action: "entity.merge", objectType: "entity", persist: true},
+	auth.OpContradictionDecision: {action: "contradiction.decision", objectType: "contradiction", persist: true},
 }
 
 func buildVerifier(cfg config.Auth) (auth.Verifier, error) {
@@ -95,8 +99,36 @@ func (server *Server) authorize(operation auth.Operation, next stdhttp.HandlerFu
 		recorder := &statusRecorder{ResponseWriter: w, status: stdhttp.StatusOK}
 		next(recorder, r.WithContext(ctx))
 		if recorder.status >= 200 && recorder.status < 300 {
-			server.recordAudit(ctx, r, principal, meta)
+			server.emitAuditEvent(ctx, principal, meta, chi.URLParam(r, "id"))
+			if meta.persist {
+				server.recordAudit(ctx, r, principal, meta)
+			}
 		}
+	}
+}
+
+func (server *Server) emitAuditEvent(ctx context.Context, principal auth.Principal, meta auditMeta, objectID string) {
+	if server.auditEvents == nil {
+		return
+	}
+	envelope, err := events.New(events.Event{
+		Type:    events.Audit(meta.action),
+		Source:  "kmap/gateway",
+		Subject: principal.UserID,
+		Data: map[string]any{
+			"actor_id":    principal.UserID,
+			"action":      meta.action,
+			"object_type": meta.objectType,
+			"object_id":   objectID,
+			"roles":       principal.Roles,
+		},
+	})
+	if err != nil {
+		server.logger.Warn("build audit event failed", "error", err, "action", meta.action)
+		return
+	}
+	if err := server.auditEvents.Publish(ctx, envelope); err != nil {
+		server.logger.Warn("publish audit event failed", "error", err, "action", meta.action)
 	}
 }
 
@@ -158,4 +190,10 @@ type statusRecorder struct {
 func (recorder *statusRecorder) WriteHeader(code int) {
 	recorder.status = code
 	recorder.ResponseWriter.WriteHeader(code)
+}
+
+func (recorder *statusRecorder) Flush() {
+	if flusher, ok := recorder.ResponseWriter.(stdhttp.Flusher); ok {
+		flusher.Flush()
+	}
 }
