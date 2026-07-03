@@ -1,4 +1,14 @@
-import type { AnswerDoc, AskEvent, EvidencePack, QueryPlan } from "@/shared/api/types";
+import type {
+  AnswerDoc,
+  AskEvent,
+  Consensus,
+  Contradiction,
+  EvidencePack,
+  EvidenceStats,
+  Expert,
+  Fact,
+  QueryPlan,
+} from "@/shared/api/types";
 import {
   CATHOLYTE_ANSWER,
   CATHOLYTE_PACK,
@@ -74,6 +84,34 @@ async function* parseSSE(
   }
 }
 
+function asArray<T>(value: unknown): T[] {
+  return Array.isArray(value) ? (value as T[]) : [];
+}
+
+function normalizePack(data: Record<string, unknown>): EvidencePack {
+  const gaps = asArray<Record<string, unknown>>(data.gaps).map((gap) => ({
+    label: String(gap.label ?? ""),
+    score: Number(gap.score ?? 0),
+    reasons: asArray<string>(gap.reasons),
+    neighbors: asArray<string>(gap.neighbors),
+  }));
+  const stats = (data.stats as EvidenceStats | undefined) ?? {
+    sources: 0,
+    ruSources: 0,
+    foreignSources: 0,
+    yearFrom: 0,
+    yearTo: 0,
+  };
+  return {
+    facts: asArray<Fact>(data.facts),
+    consensus: asArray<Consensus>(data.consensus),
+    contradictions: asArray<Contradiction>(data.contradictions),
+    gaps,
+    experts: asArray<Expert>(data.experts),
+    stats,
+  };
+}
+
 function parseFrame(frame: string): AskEvent | null {
   let event = "";
   const dataLines: string[] = [];
@@ -91,7 +129,7 @@ function parseFrame(frame: string): AskEvent | null {
     case "plan":
       return { type: "plan", plan: data as QueryPlan };
     case "evidence":
-      return { type: "evidence", pack: data as EvidencePack };
+      return { type: "evidence", pack: normalizePack(data as Record<string, unknown>) };
     case "answer.delta":
       return { type: "answer.delta", text: String(data.text ?? "") };
     case "answer.done":
