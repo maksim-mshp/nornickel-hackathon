@@ -6,6 +6,7 @@ import {
   getContradictions,
   getReviewEntities,
   getReviewOrphans,
+  updateEntityStatus,
   updateFactStatus,
   type ContradictionLive,
   type ReviewEntity,
@@ -57,9 +58,10 @@ export default function ReviewPage() {
   }, []);
 
   const resolveEntity = useCallback(
-    (id: string, action: string) => {
+    (id: string, action: string, status: "accept" | "reject") => {
       setEntities((prev) => prev.filter((item) => item.id !== id));
-      notify(`Сущность ${action}`);
+      notify(`Сущность ${action} · audit_log`);
+      void updateEntityStatus(id, status);
     },
     [notify],
   );
@@ -87,7 +89,11 @@ export default function ReviewPage() {
       if (event.key !== "a" && event.key !== "r") return;
       const approve = event.key === "a";
       if (tab === "entities" && entities[0]) {
-        resolveEntity(entities[0].id, approve ? "подтверждена" : "отклонена");
+        resolveEntity(
+          entities[0].id,
+          approve ? "подтверждена" : "отклонена",
+          approve ? "accept" : "reject",
+        );
       }
       if (tab === "orphans" && orphans[0]) {
         resolveOrphan(
@@ -148,8 +154,8 @@ export default function ReviewPage() {
           entities.map((item) => (
             <ReviewCard
               key={item.id}
-              onApprove={() => resolveEntity(item.id, "подтверждена")}
-              onReject={() => resolveEntity(item.id, "отклонена")}
+              onApprove={() => resolveEntity(item.id, "подтверждена", "accept")}
+              onReject={() => resolveEntity(item.id, "отклонена", "reject")}
             >
               <div className="flex items-baseline gap-2">
                 <span className="font-mono text-[10px] uppercase text-ink-2">{item.type}</span>

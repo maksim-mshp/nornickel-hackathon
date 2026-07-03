@@ -363,6 +363,22 @@ export async function updateFactStatus(
   }
 }
 
+export async function updateEntityStatus(
+  id: string,
+  status: "accept" | "reject",
+): Promise<boolean> {
+  try {
+    const response = await fetch(`/v1/entities/${encodeURIComponent(id)}/status`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...authHeaders() },
+      body: JSON.stringify({ status }),
+    });
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
 export async function decideContradiction(
   id: string,
   decision: "confirmed" | "rejected",
