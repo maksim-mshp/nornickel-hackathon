@@ -1,18 +1,18 @@
 package app
 
-type entityRef struct {
+type EntityRef struct {
 	Slug string `json:"slug"`
 	Name string `json:"name"`
 }
 
-type numericValue struct {
+type NumericValue struct {
 	Operator string   `json:"operator"`
 	Vmin     *float64 `json:"vmin,omitempty"`
 	Vmax     *float64 `json:"vmax,omitempty"`
 	Unit     string   `json:"unit"`
 }
 
-type provenance struct {
+type Provenance struct {
 	DocumentID string `json:"documentId"`
 	Title      string `json:"title"`
 	DocType    string `json:"docType"`
@@ -21,7 +21,7 @@ type provenance struct {
 	Year       int    `json:"year"`
 }
 
-type scoreComponents struct {
+type ScoreComponents struct {
 	Match      float64 `json:"match"`
 	Rerank     float64 `json:"rerank"`
 	Source     float64 `json:"source"`
@@ -29,25 +29,25 @@ type scoreComponents struct {
 	Freshness  float64 `json:"freshness"`
 }
 
-type fact struct {
+type Fact struct {
 	ID               string            `json:"id"`
 	Ref              string            `json:"ref"`
-	Subject          entityRef         `json:"subject"`
-	Parameter        entityRef         `json:"parameter"`
-	Value            numericValue      `json:"value"`
-	SI               numericValue      `json:"si"`
+	Subject          EntityRef         `json:"subject"`
+	Parameter        EntityRef         `json:"parameter"`
+	Value            NumericValue      `json:"value"`
+	SI               NumericValue      `json:"si"`
 	Conditions       map[string]string `json:"conditions"`
 	Geography        string            `json:"geography"`
-	Provenance       provenance        `json:"provenance"`
+	Provenance       Provenance        `json:"provenance"`
 	ExtractionMethod string            `json:"extractionMethod"`
 	ExtractorVersion string            `json:"extractorVersion"`
 	Confidence       float64           `json:"confidence"`
 	ValidationStatus string            `json:"validationStatus"`
 	Score            float64           `json:"score"`
-	ScoreComponents  scoreComponents   `json:"scoreComponents"`
+	ScoreComponents  ScoreComponents   `json:"scoreComponents"`
 }
 
-type consensusSource struct {
+type ConsensusSource struct {
 	Title     string  `json:"title"`
 	Year      int     `json:"year"`
 	Geography string  `json:"geography"`
@@ -55,17 +55,17 @@ type consensusSource struct {
 	Vmax      float64 `json:"vmax"`
 }
 
-type consensus struct {
-	Parameter    entityRef         `json:"parameter"`
+type Consensus struct {
+	Parameter    EntityRef         `json:"parameter"`
 	Unit         string            `json:"unit"`
 	Verdict      string            `json:"verdict"`
 	AgreedMin    float64           `json:"agreedMin"`
 	AgreedMax    float64           `json:"agreedMax"`
 	OverlapIndex float64           `json:"overlapIndex"`
-	Sources      []consensusSource `json:"sources"`
+	Sources      []ConsensusSource `json:"sources"`
 }
 
-type contradiction struct {
+type Contradiction struct {
 	ID          string   `json:"id"`
 	AFactRef    string   `json:"aFactRef"`
 	BFactRef    string   `json:"bFactRef"`
@@ -77,14 +77,14 @@ type contradiction struct {
 	Confidence  float64  `json:"confidence"`
 }
 
-type gapCell struct {
+type GapCell struct {
 	Label     string   `json:"label"`
 	Score     float64  `json:"score"`
 	Reasons   []string `json:"reasons"`
 	Neighbors []string `json:"neighbors"`
 }
 
-type expert struct {
+type Expert struct {
 	ID          string  `json:"id"`
 	Name        string  `json:"name"`
 	Lab         string  `json:"lab"`
@@ -94,7 +94,7 @@ type expert struct {
 	LastYear    int     `json:"lastYear"`
 }
 
-type evidenceStats struct {
+type EvidenceStats struct {
 	Sources        int `json:"sources"`
 	RuSources      int `json:"ruSources"`
 	ForeignSources int `json:"foreignSources"`
@@ -102,20 +102,29 @@ type evidenceStats struct {
 	YearTo         int `json:"yearTo"`
 }
 
-type scenario struct {
-	slug           string
-	intent         string
-	materials      []entityRef
-	processes      []entityRef
-	properties     []entityRef
-	facts          []fact
-	consensus      []consensus
-	contradictions []contradiction
-	gaps           []gapCell
-	experts        []expert
-	stats          evidenceStats
+type EvidencePack struct {
+	Facts          []Fact
+	Consensus      []Consensus
+	Contradictions []Contradiction
+	Gaps           []GapCell
+	Experts        []Expert
+	GraphNodes     []GraphNode
+	GraphEdges     []GraphEdge
+	Stats          EvidenceStats
 }
 
-func ptr(v float64) *float64 {
-	return &v
+type GraphNode struct {
+	ID    string
+	Type  string
+	Label string
+}
+
+type GraphEdge struct {
+	ID            string
+	Src           string
+	Dst           string
+	Rel           string
+	Weight        float64
+	Confidence    float64
+	Contradiction bool
 }

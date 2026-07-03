@@ -118,6 +118,33 @@ func Load(root string, env string, service string) (Bundle, error) {
 	return Bundle{Service: service, Env: env, Root: root, Runtime: runtime, Raw: store.Raw()}, nil
 }
 
+func LoadNamed(root string, env string, name string, out any) error {
+	if root == "" {
+		return errors.New("config root is required")
+	}
+	if err := validateEnv(env); err != nil {
+		return err
+	}
+
+	store := koanf.NewWithConf(koanf.Conf{Delim: ".", StrictMerge: true})
+	if err := loadFile(store, filepath.Join(root, "base", name+".yml")); err != nil {
+		return err
+	}
+	for _, path := range []string{
+		filepath.Join(root, env, name+".yml"),
+		filepath.Join(root, "secrets.yml"),
+	} {
+		if err := loadOptionalFile(store, path); err != nil {
+			return err
+		}
+	}
+
+	if err := store.Unmarshal("", out); err != nil {
+		return fmt.Errorf("decode %s config: %w", name, err)
+	}
+	return nil
+}
+
 func validateEnv(env string) error {
 	switch env {
 	case "dev", "demo", "prod":

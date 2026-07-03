@@ -107,6 +107,7 @@ SELECT a.id, b.id, e.rel, e.weight, e.confidence FROM (VALUES
   ('process:nickel-electrowinning','parameter:catholyte-flow-rate','OPERATES_AT',4,0.95),
   ('process:nickel-electrowinning','parameter:temperature','OPERATES_AT',1,0.9),
   ('experiment:exp-014','parameter:cathode-purity-gain','PRODUCES_PROPERTY',1,0.99),
+  ('experiment:exp-014','process:nickel-electrowinning','USES_PROCESS',1,0.95),
   ('process:desalination','technology:reverse-osmosis','USES_PROCESS',1,0.9),
   ('process:desalination','technology:ion-exchange','USES_PROCESS',1,0.9),
   ('technology:reverse-osmosis','property:tds','IMPROVES',2,0.9),
@@ -152,8 +153,8 @@ INSERT INTO epi.cluster_members (cluster_id, fact_kind, fact_id) VALUES
 ON CONFLICT (cluster_id, fact_kind, fact_id) DO NOTHING;
 
 INSERT INTO epi.consensus (cluster_id, verdict, agreed_range, overlap_index, stats, confidence, engine_version) VALUES
-  ('c0000000-0000-4000-8000-000000000001','majority',numrange(0.8,0.9,'[]'),0.42,'{"sources":4,"ru":2,"foreign":2,"years":[2021,2023],"unit":"м/с","parameter":"скорость циркуляции католита"}',0.78,'epi-1.0'),
-  ('c0000000-0000-4000-8000-000000000002','consensus',numrange(300,500,'[]'),0.61,'{"sources":2,"ru":1,"foreign":1,"years":[2022,2023],"unit":"мг/дм³","parameter":"сухой остаток"}',0.85,'epi-1.0')
+  ('c0000000-0000-4000-8000-000000000001','majority',numrange(0.8,0.9,'[]'),0.42,'{"unit":"м/с","parameter":"скорость циркуляции католита","sources":[{"title":"Отчёт 2023 (doc_017)","year":2023,"geography":"foreign","vmin":0.8,"vmax":1.0},{"title":"Протокол ЭН-7 (doc_042)","year":2021,"geography":"ru","vmin":0.3,"vmax":0.7},{"title":"Отчёт 2023 (doc_058)","year":2023,"geography":"ru","vmin":0.8,"vmax":0.8},{"title":"Review 2022 (doc_101)","year":2022,"geography":"foreign","vmin":0.6,"vmax":0.9}]}',0.78,'epi-1.0'),
+  ('c0000000-0000-4000-8000-000000000002','consensus',numrange(300,500,'[]'),0.61,'{"unit":"мг/дм³","parameter":"сухой остаток","sources":[{"title":"Обзор 2022 (doc_201)","year":2022,"geography":"foreign","vmin":300,"vmax":500},{"title":"Отчёт 2023 (doc_215)","year":2023,"geography":"ru","vmin":350,"vmax":500}]}',0.85,'epi-1.0')
 ON CONFLICT (cluster_id) DO NOTHING;
 
 INSERT INTO epi.contradictions (id, cluster_id, a_kind, a_id, b_kind, b_id, dtype, status, severity, judge_model, judge_rationale, confounders) VALUES

@@ -13,8 +13,8 @@ type Server struct {
 	service *app.Service
 }
 
-func NewServer() *Server {
-	return &Server{service: app.NewService()}
+func NewServer(service *app.Service) *Server {
+	return &Server{service: service}
 }
 
 func (server *Server) RegisterGRPC(registrar grpc.ServiceRegistrar) {
