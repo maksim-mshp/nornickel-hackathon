@@ -52,6 +52,7 @@ POST /v1/documents/{id}/reindex          повторный прогон
 GET  /v1/review/queue?kind=entities|facts|contradictions|orphans
 POST /v1/facts/{id}/status                {status, comment} → fact_history + audit
 POST /v1/entities/{id}/merge              {into_id, comment}
+POST /v1/entities/{id}/status             {status: accept|reject, comment} → active|deprecated + audit
 POST /v1/contradictions/{id}/decision     {decision: confirmed|rejected|resolved, comment}
 GET|PUT /v1/dictionaries/synonyms|units   словари (PUT — версия+автор)
 GET  /v1/audit?actor=&action=&from=&to=   выгрузка аудита
