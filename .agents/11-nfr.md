@@ -51,6 +51,14 @@
 - **LLM-гигиена**: промпты не содержат секретов; журнал вызовов с `llm.log_prompts: false` (YAML) в ИБ-режиме; prompt-injection из документов ограничен: экстракция — строгие схемы (свободный текст модели никуда не исполняется), синтез — только цитирование evidence, guard блокирует внесённые числа.
 - Supply chain: минимальные образы (alpine; slim для ML), trivy-скан в CI, зависимость pinning (go.sum, uv.lock), SBOM (syft) в артефакты релиза.
 
+### 4.1 Статус реализации MVP (контур доступа)
+
+- **Ядро** — `internal/platform/auth`: `Principal{UserID, Roles[], DocAccess}`, роли ТЗ (`researcher/analyst/manager/expert/admin/partner`), RBAC-таблица «операция → роли» (`ask/search/browse/document.upload/fact.decision/entity.merge/contradiction.decision`), верификаторы `demo` (статические bearer-токены из `configs/base/gateway.yml`), `oidc` (Keycloak, JWKS через `github.com/coreos/go-oidc/v3`, ленивое обнаружение issuer) и `hybrid` (оба сразу). `doc_access` берётся из claim либо выводится из ролей (`partner→public`, `researcher/analyst→internal`, `manager/expert→confidential`, `admin→restricted`).
+- **Gateway** — middleware `secure(operation)`: bearer → верификация → RBAC → `Principal` в контекст; 401 без токена, 403 без прав; мутации (`document.upload/fact.decision/entity.merge/contradiction.decision`) пишутся в `ops.audit_log`.
+- **Проброс principal** — client/server gRPC-интерсепторы (`x-kmap-user/-roles/-doc-access` в метаданных); в сервисах `SET LOCAL app.doc_access/app.user_id` через `pg.WithRLS`; RLS-политика на `core.documents` фильтрует список/статус документов по уровню доступа (dedup по sha256 читает под `restricted`, чтобы не расходились дубли).
+- **Режимы окружений** — `demo` (компоуз): `mode: hybrid` (demo-токены для UI + реальные JWT Keycloak); `prod`: `mode: oidc`. `dev`: `mode: demo`.
+- **Keycloak** — realm `kmap` (`deploy/keycloak/realm-kmap.json`, импорт при старте): 6 realm-ролей, demo-пользователи `researcher/analyst/manager/expert/admin-rd/partner` (пароль = логин), public-клиент `kmap-ui` (direct grants + audience-mapper на `kmap-gateway`), bearer-only клиент `kmap-gateway`. Хост-порт `8081`.
+
 ## 5. Наблюдаемость
 
 - **Трейсы**: OTel SDK во всех сервисах; сквозной trace REST → gRPC → NATS (traceparent в заголовках сообщений) → LLM-вызовы (атрибуты: task, model, tokens); Tempo.
