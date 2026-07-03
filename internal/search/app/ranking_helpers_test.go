@@ -1,6 +1,28 @@
 package app
 
-import "testing"
+import (
+	"testing"
+
+	kmapv1 "github.com/maksim-mshp/nornickel-hackathon/contracts/gen/go/kmap/v1"
+)
+
+func TestPlanQueryText(t *testing.T) {
+	t.Parallel()
+	plan := &kmapv1.QueryPlan{
+		ParamConstraints: []*kmapv1.ParamConstraint{
+			{Parameter: "parameter:temperature"},
+			{Parameter: "parameter:temperature"},
+		},
+	}
+	got := planQueryText(plan, []string{"material:catholyte", "material:catholyte", "process:nickel-electrowinning"})
+	want := "catholyte nickel electrowinning temperature"
+	if got != want {
+		t.Fatalf("planQueryText = %q, want %q (readable, deduped)", got, want)
+	}
+	if planQueryText(&kmapv1.QueryPlan{}, nil) != "" {
+		t.Error("empty plan should yield empty query text")
+	}
+}
 
 func TestReadableSlug(t *testing.T) {
 	t.Parallel()
