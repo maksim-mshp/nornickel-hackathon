@@ -107,6 +107,12 @@ ON CONFLICT DO NOTHING`
 
 const documentContextSQL = `SELECT year, geography::text FROM core.documents WHERE id = $1`
 const updateDocStatusSQL = `UPDATE core.documents SET status = 'indexed', updated_at = now() WHERE id = $1`
+const markDocFailedSQL = `
+UPDATE core.documents
+SET status = 'failed',
+    meta = coalesce(meta, '{}'::jsonb) || jsonb_build_object('failure_reason', $2::text),
+    updated_at = now()
+WHERE id = $1 AND status <> 'indexed'`
 
 func (repository *Repository) Commit(ctx context.Context, cmd app.CommitCommand, committed events.Envelope, clusterDirty events.Envelope) error {
 	tx, err := repository.pool.Begin(ctx)
@@ -251,6 +257,13 @@ VALUES ('entity', $1, $2, 'merged', $3)`, entityID, defaultString(actor, "system
 		return fmt.Errorf("write fact history: %w", err)
 	}
 	return tx.Commit(ctx)
+}
+
+func (repository *Repository) MarkDocumentFailed(ctx context.Context, documentID uuid.UUID, reason string) error {
+	if _, err := repository.pool.Exec(ctx, markDocFailedSQL, documentID, reason); err != nil {
+		return fmt.Errorf("mark document failed: %w", err)
+	}
+	return nil
 }
 
 func factTable(kind string) (string, error) {

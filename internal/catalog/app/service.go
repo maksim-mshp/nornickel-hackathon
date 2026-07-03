@@ -34,6 +34,14 @@ func (service *Service) MergeEntities(ctx context.Context, entityID string, into
 	return service.repository.MergeEntities(ctx, entityID, intoID, actor, comment)
 }
 
+func (service *Service) MarkDocumentFailed(ctx context.Context, documentID string, reason string) error {
+	id, err := uuid.Parse(documentID)
+	if err != nil {
+		return fmt.Errorf("parse document id: %w", err)
+	}
+	return service.repository.MarkDocumentFailed(ctx, id, reason)
+}
+
 type CommitResult struct {
 	DocumentID  uuid.UUID
 	FactIDs     []uuid.UUID

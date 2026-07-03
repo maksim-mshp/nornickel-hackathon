@@ -49,6 +49,10 @@ func (repo *fakeRepository) MergeEntities(context.Context, string, string, strin
 	return nil
 }
 
+func (repo *fakeRepository) MarkDocumentFailed(context.Context, uuid.UUID, string) error {
+	return nil
+}
+
 func TestCommitExtractionAcceptsNumericCandidatesBundle(t *testing.T) {
 	t.Parallel()
 

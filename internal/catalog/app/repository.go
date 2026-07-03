@@ -27,4 +27,5 @@ type Repository interface {
 	Commit(ctx context.Context, cmd CommitCommand, committed events.Envelope, clusterDirty events.Envelope) error
 	UpdateFactStatus(ctx context.Context, factID string, factKind string, status string, actor string, comment string) error
 	MergeEntities(ctx context.Context, entityID string, intoID string, actor string, comment string) error
+	MarkDocumentFailed(ctx context.Context, documentID uuid.UUID, reason string) error
 }

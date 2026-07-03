@@ -10,6 +10,7 @@ import (
 
 type Committer interface {
 	CommitExtraction(ctx context.Context, bundleURI string) (app.CommitResult, error)
+	MarkDocumentFailed(ctx context.Context, documentID string, reason string) error
 }
 
 type Bus interface {
@@ -34,6 +35,13 @@ func (worker *Worker) Run(ctx context.Context) error {
 	}); err != nil {
 		return err
 	}
+	if err := worker.bus.Subscribe(ctx, events.Subscription{
+		Subject: events.DocumentParseFailed,
+		Durable: "kmap-catalog-parse-failed",
+		Handler: worker.handleParseFailed,
+	}); err != nil {
+		return err
+	}
 	<-ctx.Done()
 	return nil
 }
@@ -53,5 +61,22 @@ func (worker *Worker) handle(ctx context.Context, msg events.Message) events.Ack
 		return events.Nack
 	}
 	worker.logger.Info("committed extraction", "document_id", data.DocumentID, "facts", len(result.FactIDs))
+	return events.Ack
+}
+
+func (worker *Worker) handleParseFailed(ctx context.Context, msg events.Message) events.AckAction {
+	var data struct {
+		DocumentID string `json:"document_id"`
+		Reason     string `json:"reason"`
+	}
+	if err := msg.Envelope.UnmarshalData(&data); err != nil || data.DocumentID == "" {
+		worker.logger.Warn("skip parse-failed event", "error", err)
+		return events.Term
+	}
+	if err := worker.service.MarkDocumentFailed(ctx, data.DocumentID, data.Reason); err != nil {
+		worker.logger.Error("mark document failed", "document_id", data.DocumentID, "error", err)
+		return events.Nack
+	}
+	worker.logger.Info("marked document failed", "document_id", data.DocumentID, "reason", data.Reason)
 	return events.Ack
 }
