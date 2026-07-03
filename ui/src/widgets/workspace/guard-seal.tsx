@@ -2,6 +2,8 @@ import type { GuardReport } from "@/shared/api/types";
 
 export function GuardSeal({ guard }: { guard: GuardReport }) {
   const ok = !guard.degraded && guard.violations === 0;
+  const total = guard.numbersChecked;
+  const verified = Math.max(0, total - guard.violations);
   return (
     <div
       className={`seal-snap flex items-center gap-3 border border-dashed px-4 py-2.5 ${
@@ -13,8 +15,8 @@ export function GuardSeal({ guard }: { guard: GuardReport }) {
       <span className="font-mono text-base leading-none">{ok ? "☑" : "⚠"}</span>
       <span className="font-mono text-[12px] tabular-nums">
         {ok
-          ? `${guard.numbersChecked}/${guard.numbersChecked} чисел сверены с источниками`
-          : "экстрактивный режим: показаны только проверенные факты"}
+          ? `${verified}/${total} чисел сверены с источниками`
+          : `${verified}/${total} сверены · ${guard.violations} расхождений — экстрактивный режим`}
       </span>
       <span className="ml-auto font-mono text-[10px] uppercase tracking-[0.2em] opacity-70">
         numeric guard

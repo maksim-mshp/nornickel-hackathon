@@ -21,7 +21,7 @@ export function exportMarkdown(
     "",
     answer.summary,
     "",
-    `> guard: ${answer.guard.numbersChecked}/${answer.guard.numbersChecked} чисел сверены · confidence ${Math.round(answer.confidence * 100)}%`,
+    `> guard: ${Math.max(0, answer.guard.numbersChecked - answer.guard.violations)}/${answer.guard.numbersChecked} чисел сверены · confidence ${Math.round(answer.confidence * 100)}%`,
     "",
     "## Методы",
     ...answer.methods.map(
