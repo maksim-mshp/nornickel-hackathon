@@ -193,6 +193,20 @@ services:
     command: ["--config", "/configs", "--env", "demo"]
     restart: unless-stopped
 
+  extract:
+    build:
+      context: ../../services/extract
+    profiles: [app]
+    depends_on:
+      nats:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    volumes:
+      - ../../configs:/configs:ro
+    command: ["--config", "/configs", "--env", "demo"]
+    restart: unless-stopped
+
   ui:
     build:
       context: ../../ui
