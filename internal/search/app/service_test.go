@@ -19,7 +19,7 @@ type fakeRepo struct {
 func (f fakeRepo) ExpandEntityIDs(_ context.Context, slugs []string) ([]string, error) {
 	return slugs, nil
 }
-func (f fakeRepo) Facts(context.Context, []string) ([]Fact, error)          { return f.facts, nil }
+func (f fakeRepo) Facts(context.Context, []string, FactFilter) ([]Fact, error) { return f.facts, nil }
 func (f fakeRepo) Consensus(context.Context, []string) ([]Consensus, error) { return f.consensus, nil }
 func (f fakeRepo) Contradictions(context.Context, []string) ([]Contradiction, error) {
 	return f.contradictions, nil

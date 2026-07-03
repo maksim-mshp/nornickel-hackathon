@@ -75,17 +75,17 @@ SELECT id::text FROM neigh`
 	return ids, rows.Err()
 }
 
-func (repo *Repo) Facts(ctx context.Context, entityIDs []string) ([]app.Fact, error) {
+func (repo *Repo) Facts(ctx context.Context, entityIDs []string, filter app.FactFilter) ([]app.Fact, error) {
 	var facts []app.Fact
 	err := repo.read(ctx, func(q queryer) error {
-		result, err := queryFacts(ctx, q, entityIDs)
+		result, err := queryFacts(ctx, q, entityIDs, filter)
 		facts = result
 		return err
 	})
 	return facts, err
 }
 
-func queryFacts(ctx context.Context, q queryer, entityIDs []string) ([]app.Fact, error) {
+func queryFacts(ctx context.Context, q queryer, entityIDs []string, filter app.FactFilter) ([]app.Fact, error) {
 	const query = `
 SELECT f.id::text, f.operator::text, f.vmin::float8, f.vmax::float8, f.unit_orig,
        f.vmin_si::float8, f.vmax_si::float8, coalesce(u.si_unit, ''),
@@ -99,8 +99,17 @@ JOIN kg.entities p ON p.id = f.parameter_id
 JOIN core.documents d ON d.id = f.document_id
 LEFT JOIN kg.units u ON u.code = f.unit_code
 WHERE (f.subject_id = ANY($1) OR f.parameter_id = ANY($1)) AND f.superseded_by IS NULL
+  AND ($2 = '' OR f.geography::text = $2)
+  AND (
+    cardinality($3::text[]) = 0
+    OR p.slug <> ALL($3::text[])
+    OR EXISTS (
+      SELECT 1 FROM unnest($3::text[], $4::float8[], $5::float8[]) AS c(slug, lo, hi)
+      WHERE c.slug = p.slug AND f.si_range && numrange(c.lo::numeric, c.hi::numeric, '[]')
+    )
+  )
 ORDER BY f.extraction_confidence DESC, f.id`
-	rows, err := q.Query(ctx, query, entityIDs)
+	rows, err := q.Query(ctx, query, entityIDs, filter.Geography, filter.ParamSlugs, filter.RangeLo, filter.RangeHi)
 	if err != nil {
 		return nil, fmt.Errorf("query facts: %w", err)
 	}

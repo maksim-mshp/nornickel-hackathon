@@ -164,7 +164,44 @@ func parseConstraint(segment string, rule constraintRule) *kmapv1.ParamConstrain
 		constraint.Vmin = numbers[0]
 		constraint.Vmax = numbers[0]
 	}
+	applySI(constraint)
 	return constraint
+}
+
+type unitSI struct {
+	factor float64
+	offset float64
+	siUnit string
+}
+
+var querySIUnits = map[string]unitSI{
+	"м/с":    {1, 0, "m/s"},
+	"m/s":    {1, 0, "m/s"},
+	"°c":     {1, 273.15, "K"},
+	"мг/дм³": {1e-3, 0, "kg/m^3"},
+	"мг/дм3": {1e-3, 0, "kg/m^3"},
+	"мг/л":   {1e-3, 0, "kg/m^3"},
+	"mg/l":   {1e-3, 0, "kg/m^3"},
+	"%":      {1, 0, "ratio"},
+	"а/м²":   {1, 0, "A/m^2"},
+	"мпа":    {1e6, 0, "Pa"},
+}
+
+func applySI(constraint *kmapv1.ParamConstraint) {
+	unit, ok := querySIUnits[strings.ToLower(constraint.Unit)]
+	if !ok {
+		return
+	}
+	constraint.SiUnit = unit.siUnit
+	switch constraint.Op {
+	case "range", "eq":
+		constraint.VminSi = constraint.Vmin*unit.factor + unit.offset
+		constraint.VmaxSi = constraint.Vmax*unit.factor + unit.offset
+	case "lte":
+		constraint.VmaxSi = constraint.Vmax*unit.factor + unit.offset
+	case "gte":
+		constraint.VminSi = constraint.Vmin*unit.factor + unit.offset
+	}
 }
 
 func detectOperator(segment string) (op string, hasUpper bool, hasLower bool) {

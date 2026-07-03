@@ -12,9 +12,16 @@ import (
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
+type FactFilter struct {
+	Geography  string
+	ParamSlugs []string
+	RangeLo    []float64
+	RangeHi    []float64
+}
+
 type Repo interface {
 	ExpandEntityIDs(ctx context.Context, slugs []string) ([]string, error)
-	Facts(ctx context.Context, entityIDs []string) ([]Fact, error)
+	Facts(ctx context.Context, entityIDs []string, filter FactFilter) ([]Fact, error)
 	Consensus(ctx context.Context, entityIDs []string) ([]Consensus, error)
 	Contradictions(ctx context.Context, entityIDs []string) ([]Contradiction, error)
 	Gaps(ctx context.Context, entityIDs []string) ([]GapCell, error)
@@ -36,8 +43,7 @@ func NewService(repo Repo, ranking Ranking, currentYear int) *Service {
 }
 
 func (service *Service) Search(ctx context.Context, req *kmapv1.SearchRequest) (*kmapv1.SearchResponse, error) {
-	slugs := planSlugs(req.GetPlan())
-	pack, err := service.buildPack(ctx, slugs)
+	pack, err := service.buildPack(ctx, req.GetPlan())
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "build evidence pack: %v", err)
 	}
@@ -101,7 +107,7 @@ func (service *Service) ListEntityFacts(ctx context.Context, req *kmapv1.ListEnt
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "resolve entity: %v", err)
 	}
-	facts, err := service.repo.Facts(ctx, ids)
+	facts, err := service.repo.Facts(ctx, ids, FactFilter{})
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "list entity facts: %v", err)
 	}
@@ -125,7 +131,8 @@ func (service *Service) ListExperiments(ctx context.Context, req *kmapv1.ListExp
 	return &kmapv1.ListExperimentsResponse{Items: items, Page: &kmapv1.PageResponse{}}, nil
 }
 
-func (service *Service) buildPack(ctx context.Context, slugs []string) (EvidencePack, error) {
+func (service *Service) buildPack(ctx context.Context, plan *kmapv1.QueryPlan) (EvidencePack, error) {
+	slugs := planSlugs(plan)
 	if len(slugs) == 0 {
 		return EvidencePack{}, nil
 	}
@@ -137,7 +144,7 @@ func (service *Service) buildPack(ctx context.Context, slugs []string) (Evidence
 		return EvidencePack{}, nil
 	}
 
-	facts, err := service.repo.Facts(ctx, entityIDs)
+	facts, err := service.repo.Facts(ctx, entityIDs, factFilter(plan))
 	if err != nil {
 		return EvidencePack{}, err
 	}
@@ -268,6 +275,34 @@ func planSlugs(plan *kmapv1.QueryPlan) []string {
 		}
 	}
 	return slugs
+}
+
+func factFilter(plan *kmapv1.QueryPlan) FactFilter {
+	const unbounded = 1e18
+	filter := FactFilter{}
+	if geo := plan.GetGeography(); geo == "ru" || geo == "foreign" {
+		filter.Geography = geo
+	}
+	for _, constraint := range plan.GetParamConstraints() {
+		if constraint.GetSiUnit() == "" {
+			continue
+		}
+		lo, hi := -unbounded, unbounded
+		switch constraint.GetOp() {
+		case "range", "eq":
+			lo, hi = constraint.GetVminSi(), constraint.GetVmaxSi()
+		case "lte":
+			hi = constraint.GetVmaxSi()
+		case "gte":
+			lo = constraint.GetVminSi()
+		default:
+			continue
+		}
+		filter.ParamSlugs = append(filter.ParamSlugs, constraint.GetParameter())
+		filter.RangeLo = append(filter.RangeLo, lo)
+		filter.RangeHi = append(filter.RangeHi, hi)
+	}
+	return filter
 }
 
 func toSet(values []string) map[string]bool {
