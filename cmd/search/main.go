@@ -52,6 +52,6 @@ type rankingConfig struct {
 type poolCloser struct{ pool *pg.Pool }
 
 func (closer poolCloser) Close() error {
-	closer.pool.Close()
+	_ = closer.pool.Close()
 	return nil
 }

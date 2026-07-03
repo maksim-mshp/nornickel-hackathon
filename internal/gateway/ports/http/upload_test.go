@@ -11,6 +11,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/go-chi/chi/v5"
 	kmapv1 "github.com/maksim-mshp/nornickel-hackathon/contracts/gen/go/kmap/v1"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/blob"
 	"google.golang.org/grpc"
@@ -19,9 +20,12 @@ import (
 )
 
 type fakeIngestClient struct {
-	gotRequest *kmapv1.RegisterDocumentRequest
-	response   *kmapv1.RegisterDocumentResponse
-	err        error
+	gotRequest       *kmapv1.RegisterDocumentRequest
+	gotStatusRequest *kmapv1.GetStatusRequest
+	response         *kmapv1.RegisterDocumentResponse
+	statusResponse   *kmapv1.GetStatusResponse
+	err              error
+	statusErr        error
 }
 
 func (client *fakeIngestClient) RegisterDocument(_ context.Context, req *kmapv1.RegisterDocumentRequest, _ ...grpc.CallOption) (*kmapv1.RegisterDocumentResponse, error) {
@@ -32,8 +36,12 @@ func (client *fakeIngestClient) RegisterDocument(_ context.Context, req *kmapv1.
 	return client.response, nil
 }
 
-func (client *fakeIngestClient) GetStatus(_ context.Context, _ *kmapv1.GetStatusRequest, _ ...grpc.CallOption) (*kmapv1.GetStatusResponse, error) {
-	return nil, status.Error(codes.Unimplemented, "not used")
+func (client *fakeIngestClient) GetStatus(_ context.Context, req *kmapv1.GetStatusRequest, _ ...grpc.CallOption) (*kmapv1.GetStatusResponse, error) {
+	client.gotStatusRequest = req
+	if client.statusErr != nil {
+		return nil, client.statusErr
+	}
+	return client.statusResponse, nil
 }
 
 func testServer(ingest *fakeIngestClient, blobStore blob.Store) *Server {
@@ -80,7 +88,7 @@ func TestUploadDocumentStreamsToBlobAndRegisters(t *testing.T) {
 	server := testServer(ingest, blobStore)
 
 	req := newMultipartUpload(t, "report.pdf", payload, map[string]any{
-		"title":   "Ni electrowinning",
+		"title":    "Ni electrowinning",
 		"doc_type": "report",
 	})
 	rec := httptest.NewRecorder()
@@ -155,5 +163,58 @@ func TestUploadDocumentPropagatesIngestError(t *testing.T) {
 
 	if rec.Code != http.StatusBadRequest {
 		t.Fatalf("expected 400, got %d", rec.Code)
+	}
+}
+
+func TestDocumentStatusReturnsIngestStatus(t *testing.T) {
+	t.Parallel()
+
+	ingest := &fakeIngestClient{statusResponse: &kmapv1.GetStatusResponse{
+		Document: &kmapv1.DocumentRef{DocumentId: "0197-doc"},
+		Status:   "registered",
+		Stages: []*kmapv1.IngestStage{
+			{Stage: "registered", Status: "done"},
+		},
+	}}
+	server := testServer(ingest, blob.NewMemStore())
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/documents/0197-doc/status", nil)
+	routeCtx := chi.NewRouteContext()
+	routeCtx.URLParams.Add("document_id", "0197-doc")
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, routeCtx))
+	rec := httptest.NewRecorder()
+
+	server.documentStatusHandler(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d: %s", rec.Code, rec.Body.String())
+	}
+	if ingest.gotStatusRequest.GetDocument().GetDocumentId() != "0197-doc" {
+		t.Fatalf("expected document id 0197-doc, got %q", ingest.gotStatusRequest.GetDocument().GetDocumentId())
+	}
+	if ingest.gotStatusRequest.GetPrincipal().GetUserId() != "demo" {
+		t.Fatalf("expected demo principal, got %q", ingest.gotStatusRequest.GetPrincipal().GetUserId())
+	}
+	if !strings.Contains(rec.Body.String(), `"status":"registered"`) {
+		t.Fatalf("expected registered status in response, got %s", rec.Body.String())
+	}
+}
+
+func TestDocumentStatusMapsIngestNotFound(t *testing.T) {
+	t.Parallel()
+
+	ingest := &fakeIngestClient{statusErr: status.Error(codes.NotFound, "document not found")}
+	server := testServer(ingest, blob.NewMemStore())
+
+	req := httptest.NewRequest(http.MethodGet, "/v1/documents/missing/status", nil)
+	routeCtx := chi.NewRouteContext()
+	routeCtx.URLParams.Add("document_id", "missing")
+	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, routeCtx))
+	rec := httptest.NewRecorder()
+
+	server.documentStatusHandler(rec, req)
+
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("expected 404, got %d: %s", rec.Code, rec.Body.String())
 	}
 }

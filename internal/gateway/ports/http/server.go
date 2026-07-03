@@ -107,6 +107,7 @@ func (server *Server) RegisterHTTP(router chi.Router) {
 	router.Post("/v1/ask", server.cors(server.askHandler))
 	router.Post("/v1/search", server.cors(server.searchHandler))
 	router.Post("/v1/documents", server.cors(server.uploadDocumentHandler))
+	router.Get("/v1/documents/{document_id}/status", server.cors(server.documentStatusHandler))
 	router.Options("/v1/*", server.corsPreflight)
 }
 
@@ -166,6 +167,25 @@ func (server *Server) uploadDocumentHandler(w stdhttp.ResponseWriter, r *stdhttp
 	}
 
 	resp, err := server.ingest.RegisterDocument(r.Context(), request)
+	if err != nil {
+		writeGRPCProblem(w, r, err)
+		return
+	}
+
+	writeProto(w, resp)
+}
+
+func (server *Server) documentStatusHandler(w stdhttp.ResponseWriter, r *stdhttp.Request) {
+	documentID := chi.URLParam(r, "document_id")
+	if documentID == "" {
+		writeProblem(w, r, stdhttp.StatusBadRequest, "invalid_request", "Invalid request", "document_id is required")
+		return
+	}
+
+	resp, err := server.ingest.GetStatus(r.Context(), &kmapv1.GetStatusRequest{
+		Document:  &kmapv1.DocumentRef{DocumentId: documentID},
+		Principal: principalFromRequest(r),
+	})
 	if err != nil {
 		writeGRPCProblem(w, r, err)
 		return
