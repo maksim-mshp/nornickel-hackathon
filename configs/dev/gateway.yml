@@ -2,4 +2,5 @@ grpc_clients:
   answer: localhost:9095
   search: localhost:9093
   catalog: localhost:9092
+  epistemic: localhost:9096
   ingest: localhost:9091

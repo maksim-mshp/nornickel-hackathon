@@ -34,6 +34,8 @@ type Server struct {
 	search      kmapv1.SearchServiceClient
 	ingest      kmapv1.IngestServiceClient
 	answer      kmapv1.AnswerServiceClient
+	catalog     kmapv1.CatalogServiceClient
+	epistemic   kmapv1.EpistemicServiceClient
 	blob        blob.Store
 	rawBucket   string
 	corsOrigins []string
@@ -57,7 +59,7 @@ func NewServer(cfg config.Bundle, _ *slog.Logger) (*Server, error) {
 		}
 	}
 
-	for _, name := range []string{"search", "ingest", "answer"} {
+	for _, name := range []string{"search", "ingest", "answer", "catalog", "epistemic"} {
 		target := targets[name]
 		if target == "" {
 			closeAll()
@@ -96,18 +98,27 @@ func NewServer(cfg config.Bundle, _ *slog.Logger) (*Server, error) {
 		search:      kmapv1.NewSearchServiceClient(conns["search"]),
 		ingest:      kmapv1.NewIngestServiceClient(conns["ingest"]),
 		answer:      kmapv1.NewAnswerServiceClient(conns["answer"]),
+		catalog:     kmapv1.NewCatalogServiceClient(conns["catalog"]),
+		epistemic:   kmapv1.NewEpistemicServiceClient(conns["epistemic"]),
 		blob:        blobStore,
 		rawBucket:   rawBucket,
 		corsOrigins: cfg.Runtime.HTTP.CorsOrigins,
-		conns:       []*grpc.ClientConn{conns["search"], conns["ingest"], conns["answer"]},
+		conns:       []*grpc.ClientConn{conns["search"], conns["ingest"], conns["answer"], conns["catalog"], conns["epistemic"]},
 	}, nil
 }
 
 func (server *Server) RegisterHTTP(router chi.Router) {
 	router.Post("/v1/ask", server.cors(server.askHandler))
 	router.Post("/v1/search", server.cors(server.searchHandler))
+	router.Get("/v1/experts", server.cors(server.expertsHandler))
+	router.Get("/v1/coverage", server.cors(server.coverageHandler))
+	router.Get("/v1/contradictions", server.cors(server.contradictionsHandler))
+	router.Get("/v1/graph", server.cors(server.graphHandler))
 	router.Post("/v1/documents", server.cors(server.uploadDocumentHandler))
 	router.Get("/v1/documents/{document_id}/status", server.cors(server.documentStatusHandler))
+	router.Post("/v1/facts/{id}/status", server.cors(server.updateFactStatusHandler))
+	router.Post("/v1/entities/{id}/merge", server.cors(server.mergeEntityHandler))
+	router.Post("/v1/contradictions/{id}/decision", server.cors(server.decideContradictionHandler))
 	router.Options("/v1/*", server.corsPreflight)
 }
 

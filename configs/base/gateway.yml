@@ -6,4 +6,5 @@ grpc_clients:
   answer: answer:9095
   search: search:9093
   catalog: catalog:9092
+  epistemic: epistemic:9096
   ingest: ingest:9091
