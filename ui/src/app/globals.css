@@ -42,6 +42,29 @@
   --line-strong: rgba(27, 42, 56, 0.32);
 }
 
+@media print {
+  :root[data-theme] {
+    --bg-0: #f3efe6;
+    --bg-1: #ece6d9;
+    --bg-2: #ffffff;
+    --bg-3: #e4ddcd;
+    --grid-line: transparent;
+    --ink-0: #1b2a38;
+    --ink-1: #44586a;
+    --ink-2: #7c8b98;
+    --electrolyte: #127a5f;
+    --electrolyte-deep: #0b4a3a;
+    --electrolyte-glow: transparent;
+    --melt: #c2431f;
+    --melt-deep: #7a2a12;
+    --anode: #8f6a1e;
+    --void: #5e7189;
+    --focus: #127a5f;
+    --line: rgba(27, 42, 56, 0.16);
+    --line-strong: rgba(27, 42, 56, 0.32);
+  }
+}
+
 @theme inline {
   --color-bg-0: var(--bg-0);
   --color-bg-1: var(--bg-1);
