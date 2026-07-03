@@ -91,12 +91,14 @@ func (repo *Repo) FTSChunks(ctx context.Context, queryText string, top int) ([]a
 		return nil, nil
 	}
 	const query = `
+WITH q AS (
+  SELECT websearch_to_tsquery('russian', $1) || websearch_to_tsquery('english', $1) AS query
+)
 SELECT c.id::text, c.document_id::text, c.version, c.text,
        coalesce(c.page_from, 0), coalesce(c.page_to, 0),
-       ts_rank_cd(c.tsv_ru || c.tsv_en, q)::float8 AS rank
-FROM core.chunks c,
-     (websearch_to_tsquery('russian', $1) || websearch_to_tsquery('english', $1)) q
-WHERE (c.tsv_ru || c.tsv_en) @@ q
+       ts_rank_cd(c.tsv_ru || c.tsv_en, q.query)::float8 AS rank
+FROM core.chunks c, q
+WHERE (c.tsv_ru || c.tsv_en) @@ q.query
 ORDER BY rank DESC, c.id
 LIMIT $2`
 	var chunks []app.Chunk
