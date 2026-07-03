@@ -1,15 +1,20 @@
 package http
 
 import (
+	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+	"mime/multipart"
 	stdhttp "net/http"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/google/uuid"
 	kmapv1 "github.com/maksim-mshp/nornickel-hackathon/contracts/gen/go/kmap/v1"
+	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/blob"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/config"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -17,12 +22,20 @@ import (
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/structpb"
+)
+
+const (
+	maxUploadBytes = 100 << 20
+	metadataLimit  = 1 << 20
 )
 
 type Server struct {
 	search      kmapv1.SearchServiceClient
 	ingest      kmapv1.IngestServiceClient
 	answer      kmapv1.AnswerServiceClient
+	blob        blob.Store
+	rawBucket   string
 	corsOrigins []string
 	conns       []*grpc.ClientConn
 }
@@ -58,10 +71,33 @@ func NewServer(cfg config.Bundle, _ *slog.Logger) (*Server, error) {
 		conns[name] = conn
 	}
 
+	blobStore, err := blob.New(blob.Config{
+		Endpoint:  cfg.Runtime.S3.Endpoint,
+		AccessKey: cfg.Runtime.S3.AccessKey,
+		SecretKey: cfg.Runtime.S3.SecretKey,
+		UseSSL:    cfg.Runtime.S3.UseSSL,
+		Region:    cfg.Runtime.S3.Region,
+	})
+	if err != nil {
+		closeAll()
+		return nil, fmt.Errorf("create s3 client: %w", err)
+	}
+	rawBucket := cfg.Runtime.S3.Buckets["raw"]
+	if rawBucket == "" {
+		closeAll()
+		return nil, errors.New("s3.buckets.raw is required")
+	}
+	if err := blobStore.EnsureBucket(context.Background(), rawBucket); err != nil {
+		closeAll()
+		return nil, fmt.Errorf("ensure raw bucket: %w", err)
+	}
+
 	return &Server{
 		search:      kmapv1.NewSearchServiceClient(conns["search"]),
 		ingest:      kmapv1.NewIngestServiceClient(conns["ingest"]),
 		answer:      kmapv1.NewAnswerServiceClient(conns["answer"]),
+		blob:        blobStore,
+		rawBucket:   rawBucket,
 		corsOrigins: cfg.Runtime.HTTP.CorsOrigins,
 		conns:       []*grpc.ClientConn{conns["search"], conns["ingest"], conns["answer"]},
 	}, nil
@@ -70,7 +106,7 @@ func NewServer(cfg config.Bundle, _ *slog.Logger) (*Server, error) {
 func (server *Server) RegisterHTTP(router chi.Router) {
 	router.Post("/v1/ask", server.cors(server.askHandler))
 	router.Post("/v1/search", server.cors(server.searchHandler))
-	router.Post("/v1/documents", server.cors(server.registerDocumentHandler))
+	router.Post("/v1/documents", server.cors(server.uploadDocumentHandler))
 	router.Options("/v1/*", server.corsPreflight)
 }
 
@@ -103,25 +139,125 @@ func (server *Server) searchHandler(w stdhttp.ResponseWriter, r *stdhttp.Request
 	writeProto(w, resp)
 }
 
-func (server *Server) registerDocumentHandler(w stdhttp.ResponseWriter, r *stdhttp.Request) {
-	var req kmapv1.RegisterDocumentRequest
-	body, err := readBody(w, r)
+func (server *Server) uploadDocumentHandler(w stdhttp.ResponseWriter, r *stdhttp.Request) {
+	r.Body = stdhttp.MaxBytesReader(w, r.Body, maxUploadBytes)
+	reader, err := r.MultipartReader()
 	if err != nil {
-		writeProblem(w, r, stdhttp.StatusBadRequest, "invalid_request", "Invalid request", err.Error())
-		return
-	}
-	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal(body, &req); err != nil {
-		writeProblem(w, r, stdhttp.StatusBadRequest, "invalid_request", "Invalid request", err.Error())
+		writeProblem(w, r, stdhttp.StatusBadRequest, "invalid_request", "Invalid multipart request", err.Error())
 		return
 	}
 
-	resp, err := server.ingest.RegisterDocument(r.Context(), &req)
+	upload, meta, err := server.collectParts(r.Context(), reader)
+	if err != nil {
+		writeProblem(w, r, stdhttp.StatusBadRequest, "invalid_request", "Invalid upload", err.Error())
+		return
+	}
+	if upload == nil {
+		writeProblem(w, r, stdhttp.StatusBadRequest, "invalid_request", "Missing file part", "")
+		return
+	}
+
+	request := &kmapv1.RegisterDocumentRequest{
+		Title:        titleFromMeta(meta, upload.fileName),
+		BlobUri:      upload.blobURI,
+		Sha256:       upload.sha256,
+		DeclaredMeta: meta,
+		Principal:    principalFromRequest(r),
+	}
+
+	resp, err := server.ingest.RegisterDocument(r.Context(), request)
 	if err != nil {
 		writeGRPCProblem(w, r, err)
 		return
 	}
 
 	writeProto(w, resp)
+}
+
+type uploadedFile struct {
+	blobURI  string
+	sha256   []byte
+	fileName string
+}
+
+func (server *Server) collectParts(ctx context.Context, reader *multipart.Reader) (*uploadedFile, *structpb.Struct, error) {
+	var upload *uploadedFile
+	meta := map[string]any{}
+
+	for {
+		part, err := reader.NextPart()
+		if errors.Is(err, io.EOF) {
+			break
+		}
+		if err != nil {
+			return nil, nil, err
+		}
+
+		switch part.FormName() {
+		case "file":
+			uploaded, err := server.streamFile(ctx, part)
+			_ = part.Close()
+			if err != nil {
+				return nil, nil, err
+			}
+			upload = uploaded
+		case "metadata":
+			data, err := io.ReadAll(io.LimitReader(part, metadataLimit))
+			_ = part.Close()
+			if err != nil {
+				return nil, nil, err
+			}
+			if err := json.Unmarshal(data, &meta); err != nil {
+				return nil, nil, fmt.Errorf("parse metadata: %w", err)
+			}
+		default:
+			_ = part.Close()
+		}
+	}
+
+	return upload, metaStruct(meta), nil
+}
+
+func (server *Server) streamFile(ctx context.Context, part *multipart.Part) (*uploadedFile, error) {
+	key, err := uuid.NewV7()
+	if err != nil {
+		return nil, fmt.Errorf("generate object key: %w", err)
+	}
+	hasher := sha256.New()
+	tee := io.TeeReader(part, hasher)
+
+	blobURI, err := server.blob.Put(ctx, server.rawBucket, key.String(), tee, -1)
+	if err != nil {
+		return nil, err
+	}
+	return &uploadedFile{
+		blobURI:  blobURI,
+		sha256:   hasher.Sum(nil),
+		fileName: part.FileName(),
+	}, nil
+}
+
+func titleFromMeta(meta *structpb.Struct, fallback string) string {
+	if value, ok := meta.AsMap()["title"].(string); ok && value != "" {
+		return value
+	}
+	return fallback
+}
+
+func metaStruct(meta map[string]any) *structpb.Struct {
+	st, err := structpb.NewStruct(meta)
+	if err != nil {
+		return &structpb.Struct{Fields: map[string]*structpb.Value{}}
+	}
+	return st
+}
+
+func principalFromRequest(r *stdhttp.Request) *kmapv1.Principal {
+	userID := r.Header.Get("x-user-id")
+	if userID == "" {
+		userID = "demo"
+	}
+	return &kmapv1.Principal{UserId: userID, Roles: []string{"researcher"}, DocAccess: "internal"}
 }
 
 func readBody(w stdhttp.ResponseWriter, r *stdhttp.Request) ([]byte, error) {
