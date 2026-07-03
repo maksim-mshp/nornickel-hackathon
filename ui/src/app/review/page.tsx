@@ -1,6 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import {
+  decideContradiction,
+  getContradictions,
+  type ContradictionLive,
+} from "@/shared/api/browse";
 
 type Tab = "entities" | "orphans" | "contradictions";
 
@@ -41,12 +46,35 @@ const TAB_LABELS: Record<Tab, string> = {
   contradictions: "Противоречия suspected",
 };
 
+function toReviewItem(item: ContradictionLive): ContradictionItem {
+  return {
+    id: item.id,
+    a: item.aStatement || item.subject,
+    b: item.bStatement || item.parameter,
+    cause: item.cause || `${item.subject} · ${item.parameter}`.trim(),
+    confidence: item.severity,
+  };
+}
+
 export default function ReviewPage() {
   const [tab, setTab] = useState<Tab>("entities");
   const [entities, setEntities] = useState(ENTITIES);
   const [orphans, setOrphans] = useState(ORPHANS);
   const [contradictions, setContradictions] = useState(CONTRADICTIONS);
+  const [live, setLive] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    getContradictions().then((items) => {
+      if (!alive || items.length === 0) return;
+      setContradictions(items.map(toReviewItem));
+      setLive(true);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const counts: Record<Tab, number> = {
     entities: entities.length,
@@ -70,6 +98,9 @@ export default function ReviewPage() {
   const resolveContradiction = (id: string, action: string) => {
     setContradictions((prev) => prev.filter((item) => item.id !== id));
     notify(`Противоречие ${action}`);
+    if (live) {
+      void decideContradiction(id, action === "подтверждено" ? "confirmed" : "rejected");
+    }
   };
 
   useEffect(() => {
@@ -98,6 +129,7 @@ export default function ReviewPage() {
           подтвердить ·{" "}
           <kbd className="rounded-sm border border-line px-1 font-mono text-[11px]">r</kbd>{" "}
           отклонить
+          {live ? " · противоречия из базы" : ""}
         </p>
       </section>
 

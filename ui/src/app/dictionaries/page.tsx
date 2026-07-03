@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { getEntities, type EntitySummaryLive } from "@/shared/api/browse";
 
 type UnitRow = { code: string; names: string; dimension: string; si: string; factor: string };
 type SynonymRow = { canonical: string; aliases: { value: string; lang: string; status: string }[] };
@@ -68,7 +69,18 @@ function parseNumcore(input: string): Parsed {
 
 export default function DictionariesPage() {
   const [test, setTest] = useState("0,8–1,0 м/с");
+  const [entities, setEntities] = useState<EntitySummaryLive[]>([]);
   const parsed = parseNumcore(test);
+
+  useEffect(() => {
+    let alive = true;
+    getEntities().then((items) => {
+      if (alive) setEntities(items);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   return (
     <div className="mx-auto flex max-w-[1200px] flex-col gap-6 px-6 py-8">
@@ -76,8 +88,31 @@ export default function DictionariesPage() {
         <h1 className="font-display text-xl font-extrabold text-ink-0">Словари</h1>
         <p className="mt-1 text-[13px] text-ink-1">
           Синонимы сущностей и реестр единиц измерения с живым тестом парсинга numcore
+          {entities.length > 0 ? " · реестр сущностей из базы" : ""}
         </p>
       </section>
+
+      {entities.length > 0 && (
+        <section className="rise-in" style={{ animationDelay: "20ms" }}>
+          <h2 className="mb-3 font-mono text-[10px] uppercase tracking-[0.2em] text-ink-2">
+            Сущности базы · {entities.length}
+          </h2>
+          <div className="flex flex-wrap gap-1.5">
+            {entities.map((entity) => (
+              <span
+                key={entity.id}
+                title={entity.nameEn || entity.slug}
+                className="flex items-center gap-1.5 rounded-sm border border-line-strong bg-bg-1 px-2 py-1 text-[12px] text-ink-0"
+              >
+                {entity.name}
+                <span className="font-mono text-[9px] uppercase text-ink-2">
+                  {entity.etype}
+                </span>
+              </span>
+            ))}
+          </div>
+        </section>
+      )}
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <section className="rise-in" style={{ animationDelay: "40ms" }}>

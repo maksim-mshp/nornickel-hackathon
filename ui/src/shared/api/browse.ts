@@ -230,3 +230,75 @@ export async function getCoverageCells(): Promise<CoverageCellLive[] | null> {
     reasons: cell.reasons ?? [],
   }));
 }
+
+export type ContradictionLive = {
+  id: string;
+  status: string;
+  subject: string;
+  parameter: string;
+  aStatement: string;
+  bStatement: string;
+  cause: string;
+  severity: number;
+};
+
+export async function getContradictions(status = ""): Promise<ContradictionLive[]> {
+  const path = status
+    ? `/v1/contradictions?status=${encodeURIComponent(status)}`
+    : "/v1/contradictions";
+  const items = await getJSON<Partial<ContradictionLive>[]>(path, []);
+  if (!Array.isArray(items)) return [];
+  return items.map((item) => ({
+    id: item.id ?? "",
+    status: item.status ?? "",
+    subject: item.subject ?? "",
+    parameter: item.parameter ?? "",
+    aStatement: item.aStatement ?? "",
+    bStatement: item.bStatement ?? "",
+    cause: item.cause ?? "",
+    severity: item.severity ?? 0,
+  }));
+}
+
+export async function decideContradiction(
+  id: string,
+  decision: "confirmed" | "rejected",
+  comment = "",
+): Promise<boolean> {
+  try {
+    const response = await fetch(
+      `/v1/contradictions/${encodeURIComponent(id)}/decision`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ decision, comment }),
+      },
+    );
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
+export type EntitySummaryLive = {
+  id: string;
+  slug: string;
+  name: string;
+  nameEn: string;
+  etype: string;
+};
+
+export async function getEntities(query = ""): Promise<EntitySummaryLive[]> {
+  const path = query
+    ? `/v1/entities?q=${encodeURIComponent(query)}`
+    : "/v1/entities";
+  const items = await getJSON<Partial<EntitySummaryLive>[]>(path, []);
+  if (!Array.isArray(items)) return [];
+  return items.map((item) => ({
+    id: item.id ?? "",
+    slug: item.slug ?? "",
+    name: item.name ?? "",
+    nameEn: item.nameEn ?? "",
+    etype: item.etype ?? "",
+  }));
+}
