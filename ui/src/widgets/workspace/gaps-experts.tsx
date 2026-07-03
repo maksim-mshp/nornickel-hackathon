@@ -7,6 +7,13 @@ export function GapsList({
   gaps: GapCell[];
   onAsk: (question: string) => void;
 }) {
+  if (gaps.length === 0) {
+    return (
+      <p className="rounded-sm border border-line bg-bg-1 p-4 text-[12px] text-ink-2">
+        Пробелы по этому запросу не обнаружены.
+      </p>
+    );
+  }
   return (
     <div className="flex flex-col gap-3">
       {gaps.map((gap) => (
@@ -23,7 +30,7 @@ export function GapsList({
             </span>
           </div>
           <div className="mt-2 flex flex-wrap gap-1.5">
-            {gap.reasons.map((reason) => (
+            {(gap.reasons ?? []).map((reason) => (
               <span
                 key={reason}
                 className="rounded-sm border border-void/40 px-1.5 py-0.5 font-mono text-[10px] text-void"
@@ -36,7 +43,7 @@ export function GapsList({
             <span className="font-mono text-[10px] uppercase tracking-wider text-ink-2">
               смежные области
             </span>
-            {gap.neighbors.map((neighbor) => (
+            {(gap.neighbors ?? []).map((neighbor) => (
               <button
                 key={neighbor}
                 type="button"

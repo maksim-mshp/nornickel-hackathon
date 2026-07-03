@@ -175,6 +175,7 @@ func (server *Server) RegisterHTTP(router chi.Router) {
 	router.Get("/v1/documents", server.secure(auth.OpBrowse, server.documentsHandler))
 	router.Post("/v1/documents", server.secure(auth.OpDocumentUpload, server.uploadDocumentHandler))
 	router.Get("/v1/documents/{document_id}/status", server.secure(auth.OpBrowse, server.documentStatusHandler))
+	router.Get("/v1/documents/{document_id}/file", server.secure(auth.OpBrowse, server.documentFileHandler))
 	router.Post("/v1/facts/{id}/status", server.secure(auth.OpFactDecision, server.updateFactStatusHandler))
 	router.Post("/v1/entities/{id}/merge", server.secure(auth.OpEntityMerge, server.mergeEntityHandler))
 	router.Post("/v1/contradictions/{id}/decision", server.secure(auth.OpContradictionDecision, server.decideContradictionHandler))

@@ -444,7 +444,7 @@ func mapCoverageCell(item *kmapv1.CoverageCell) coverageCell {
 		Condition:  item.GetConditionKey(),
 		Score:      item.GetScore(),
 		GapFlag:    item.GetGapFlag(),
-		Reasons:    item.GetGapReasons(),
+		Reasons:    nonNilStrings(item.GetGapReasons()),
 		Counters:   counters,
 		Components: structMap(item.GetScoreComponents()),
 	}
@@ -577,10 +577,17 @@ func floatValue(raw string) float64 {
 	return value
 }
 
+func nonNilStrings(values []string) []string {
+	if values == nil {
+		return []string{}
+	}
+	return values
+}
+
 func stringList(value any) []string {
 	raw, ok := value.([]any)
 	if !ok {
-		return nil
+		return []string{}
 	}
 	result := make([]string, 0, len(raw))
 	for _, item := range raw {

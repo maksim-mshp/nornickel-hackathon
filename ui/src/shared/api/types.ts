@@ -127,8 +127,8 @@ export type Contradiction = {
 export type GapCell = {
   label: string;
   score: number;
-  reasons: string[];
-  neighbors: string[];
+  reasons: string[] | null;
+  neighbors: string[] | null;
 };
 
 export type Expert = {

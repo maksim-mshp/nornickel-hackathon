@@ -8,6 +8,7 @@ from datetime import datetime, timezone
 
 import nats
 from minio import Minio
+from minio.error import S3Error
 
 from parse.config import Config, load
 from parse.docir import build_docir, extract_text
@@ -17,6 +18,9 @@ logger = logging.getLogger("parse")
 
 REGISTERED = "kmap.doc.v1.registered"
 PARSED = "kmap.doc.v1.parsed"
+PARSE_FAILED = "kmap.doc.v1.parse-failed"
+TERMINAL_S3_CODES = {"NoSuchKey", "NoSuchBucket"}
+RETRY_DELAY_SECONDS = 10
 
 
 def _minio(cfg: Config) -> Minio:
@@ -60,6 +64,17 @@ async def run() -> None:
     except Exception:
         pass
 
+    async def fail_terminal(msg, document_id: str, reason: str) -> None:
+        attempt = msg.metadata.num_delivered if msg.metadata else 1
+        event_id, envelope_bytes = _envelope(
+            PARSE_FAILED,
+            document_id,
+            {"document_id": document_id, "reason": reason, "attempt": attempt},
+        )
+        await js.publish(PARSE_FAILED, envelope_bytes, headers={"Nats-Msg-Id": event_id})
+        logger.error("parse failed terminally for document %s: %s", document_id, reason)
+        await msg.term()
+
     async def handle(msg) -> None:
         try:
             envelope = json.loads(msg.data)
@@ -71,14 +86,24 @@ async def run() -> None:
                 return
 
             bucket, key = _parse_uri(blob_uri)
-            response = store.get_object(bucket, key)
             try:
-                raw = response.read()
-            finally:
-                response.close()
-                response.release_conn()
+                response = store.get_object(bucket, key)
+                try:
+                    raw = response.read()
+                finally:
+                    response.close()
+                    response.release_conn()
+            except S3Error as error:
+                if error.code in TERMINAL_S3_CODES:
+                    await fail_terminal(msg, document_id, f"blob not found: {blob_uri}")
+                    return
+                raise
 
-            text, source_format, pages = extract_text(raw)
+            try:
+                text, source_format, pages = extract_text(raw)
+            except Exception as error:
+                await fail_terminal(msg, document_id, f"unparseable document: {error}")
+                return
             docir = build_docir(document_id, text, source_format, pages)
             docir_key = f"{document_id}/docir.json"
             payload = json.dumps(docir).encode("utf-8")
@@ -102,7 +127,7 @@ async def run() -> None:
             await msg.ack()
         except Exception as error:
             logger.exception("parse failed: %s", error)
-            await msg.nak()
+            await msg.nak(delay=RETRY_DELAY_SECONDS)
 
     await js.subscribe(REGISTERED, durable="kmap-parse", cb=handle, manual_ack=True)
     logger.info("parse worker subscribed to %s", REGISTERED)

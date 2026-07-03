@@ -10,6 +10,7 @@ const (
 	OpFactDecision          Operation = "fact.decision"
 	OpEntityMerge           Operation = "entity.merge"
 	OpContradictionDecision Operation = "contradiction.decision"
+	OpReviewQueue           Operation = "review.queue"
 )
 
 var operationRoles = map[Operation][]string{
@@ -20,6 +21,7 @@ var operationRoles = map[Operation][]string{
 	OpFactDecision:          {RoleExpert, RoleAdmin},
 	OpEntityMerge:           {RoleExpert, RoleAdmin},
 	OpContradictionDecision: {RoleExpert, RoleAdmin},
+	OpReviewQueue:           {RoleExpert, RoleAdmin},
 }
 
 func Allowed(operation Operation, principal Principal) bool {

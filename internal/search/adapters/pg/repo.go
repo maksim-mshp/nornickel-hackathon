@@ -285,6 +285,9 @@ ORDER BY cc.score`
 			return nil, fmt.Errorf("scan gap: %w", err)
 		}
 		gap.Label = buildGapLabel(processName, materialName, condition)
+		if gap.Reasons == nil {
+			gap.Reasons = []string{}
+		}
 		gap.Neighbors = gapNeighbors(ctx, q, domain)
 		result = append(result, gap)
 	}
@@ -300,12 +303,12 @@ LEFT JOIN kg.entities pr ON pr.id = cc.process_id
 WHERE cc.domain = $1 AND NOT cc.gap_flag
 ORDER BY cc.score DESC
 LIMIT 2`
+	neighbors := []string{}
 	rows, err := q.Query(ctx, query, domain)
 	if err != nil {
-		return nil
+		return neighbors
 	}
 	defer rows.Close()
-	var neighbors []string
 	for rows.Next() {
 		var label string
 		if err := rows.Scan(&label); err != nil {
