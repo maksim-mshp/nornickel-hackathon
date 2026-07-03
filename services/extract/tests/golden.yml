@@ -1,20 +1,20 @@
-- text: "скорость 0,8 м/с"
+- text: скорость 0,8 м/с
   operator: eq
   vmin: 0.8
   vmax: 0.8
   unit_code: m_per_s
   parameter_slug: parameter:flow-rate
-- text: "0,6–0,9 м/с"
+- text: 0,6–0,9 м/с
   operator: range
   vmin: 0.6
   vmax: 0.9
   unit_code: m_per_s
-- text: "0.6-0.9 m/s"
+- text: 0.6-0.9 m/s
   operator: range
   vmin: 0.6
   vmax: 0.9
   unit_code: m_per_s
-- text: "температура 60—80 °C"
+- text: температура 60—80 °C
   operator: range
   vmin: 60
   vmax: 80
@@ -22,67 +22,685 @@
   vmin_si: 333.15
   vmax_si: 353.15
   parameter_slug: parameter:temperature
-- text: "не более 1000 мг/дм³"
+- text: не более 1000 мг/дм³
   operator: lte
   vmax: 1000
   unit_code: mg_per_dm3
   vmax_si: 1.0
-- text: "≤500 мг/дм³"
+- text: ≤500 мг/дм³
   operator: lte
   vmax: 500
   unit_code: mg_per_dm3
-- text: "до 300 мг/л"
+- text: до 300 мг/л
   operator: lte
   vmax: 300
   unit_code: mg_per_l
-- text: "не менее 95 %"
+- text: не менее 95 %
   operator: gte
   vmin: 95
   unit_code: percent
   parameter_slug: parameter:ratio
-- text: "≥100 мг/л"
+- text: ≥100 мг/л
   operator: gte
   vmin: 100
   unit_code: mg_per_l
-- text: "свыше 0,7 м/с"
+- text: свыше 0,7 м/с
   operator: gt
   vmin: 0.7
   unit_code: m_per_s
-- text: "выше 0,7 м/с"
+- text: выше 0,7 м/с
   operator: gt
   vmin: 0.7
   unit_code: m_per_s
-- text: "от 250 мг/л"
+- text: от 250 мг/л
   operator: gte
   vmin: 250
   unit_code: mg_per_l
-- text: "65 ± 2 °C"
+- text: 65 ± 2 °C
   operator: range
   vmin: 63
   vmax: 67
   unit_code: celsius
-- text: "плотность тока 250 а/м²"
+- text: плотность тока 250 а/м²
   operator: eq
   vmin: 250
   vmax: 250
   unit_code: a_per_m2
   parameter_slug: parameter:current-density
-- text: "давление 1,5 МПа"
+- text: давление 1,5 МПа
   operator: eq
   vmin: 1.5
   vmax: 1.5
   unit_code: mpa
   vmin_si: 1500000.0
   parameter_slug: parameter:pressure
-- text: "прирост 4,2 %"
+- text: прирост 4,2 %
   operator: eq
   vmin: 4.2
   vmax: 4.2
   unit_code: percent
-- text: "давление 1,5–2,0 МПа"
+- text: давление 1,5–2,0 МПа
   operator: range
   vmin: 1.5
   vmax: 2.0
   unit_code: mpa
   vmin_si: 1500000.0
   vmax_si: 2000000.0
+- text: температура -20 °C
+  operator: eq
+  vmin: -20
+  vmax: -20
+  unit_code: celsius
+  vmin_si: 253.15
+- text: охлаждение до -40 °C
+  operator: lte
+  vmax: -40
+  unit_code: celsius
+- text: от -60 до 80 °C
+  operator: range
+  vmin: -60
+  vmax: 80
+  unit_code: celsius
+  vmin_si: 213.15
+  vmax_si: 353.15
+- text: перепад -10 °C
+  operator: eq
+  vmin: -10
+  vmax: -10
+  unit_code: celsius
+- text: сухой остаток 1 000 мг/л
+  operator: eq
+  vmin: 1000
+  vmax: 1000
+  unit_code: mg_per_l
+  vmin_si: 1.0
+- text: производительность 1 000 000 т/год
+  operator: eq
+  vmin: 1000000
+  vmax: 1000000
+  unit_code: t_per_year
+- text: себестоимость 12 500 руб/т
+  operator: eq
+  vmin: 12500
+  vmax: 12500
+  unit_code: rub_per_t
+- text: не более 1 500 мг/дм³
+  operator: lte
+  vmax: 1500
+  unit_code: mg_per_dm3
+- text: 3·10⁻² моль/л
+  operator: eq
+  vmin: 0.03
+  vmax: 0.03
+  unit_code: mol_per_l
+  vmin_si: 30.0
+- text: 1.2e5 Па
+  operator: eq
+  vmin: 120000
+  vmax: 120000
+  unit_code: pa
+- text: 5×10^3 мг/л
+  operator: eq
+  vmin: 5000
+  vmax: 5000
+  unit_code: mg_per_l
+  vmin_si: 5.0
+- text: 2·10³ А/м²
+  operator: eq
+  vmin: 2000
+  vmax: 2000
+  unit_code: a_per_m2
+- text: 1,5·10⁻³ г/л
+  operator: eq
+  vmin: 0.0015
+  vmax: 0.0015
+  unit_code: g_per_l
+- text: см. рисунок 5 мг/л
+  none: true
+- text: по ГОСТ 2874 мг/л
+  none: true
+- text: в таблице 5 мг/л
+  none: true
+- text: формула 7 моль/л
+  none: true
+- text: уравнение 3 моль/л
+  none: true
+- text: патент 2500 мг/л
+  none: true
+- text: ГОСТ Р 51232 мг/л
+  none: true
+- text: стр. 12 мг/л
+  none: true
+- text: № 5 мг/л
+  none: true
+- text: пункт 3 %
+  none: true
+- text: отчёт 2023 года
+  none: true
+- text: за последние 5 лет
+  none: true
+- text: в 3 стадии
+  none: true
+- text: получено 15 образцов
+  none: true
+- text: температура 5000 °C
+  operator: eq
+  vmin: 5000
+  unit_code: celsius
+  flags:
+  - implausible
+  confidence: 0.5
+- text: температура -100 °C
+  operator: eq
+  vmin: -100
+  unit_code: celsius
+  flags:
+  - implausible
+- text: скорость потока 80 м/с
+  operator: eq
+  vmin: 80
+  unit_code: m_per_s
+  flags:
+  - implausible
+- text: давление 5·10⁹ Па
+  operator: eq
+  vmin: 5000000000.0
+  unit_code: pa
+  flags:
+  - implausible
+- text: pH 4,5
+  operator: eq
+  vmin: 4.5
+  vmax: 4.5
+  unit_code: ph
+  parameter_slug: parameter:ph
+- text: рН 8,2
+  operator: eq
+  vmin: 8.2
+  vmax: 8.2
+  unit_code: ph
+- text: кислотность pH 7
+  operator: eq
+  vmin: 7
+  vmax: 7
+  unit_code: ph
+- text: раствор 6,5 pH
+  operator: eq
+  vmin: 6.5
+  vmax: 6.5
+  unit_code: ph
+- text: pH = 3
+  operator: eq
+  vmin: 3
+  vmax: 3
+  unit_code: ph
+- text: pH 20
+  operator: eq
+  vmin: 20
+  unit_code: ph
+  flags:
+  - implausible
+- text: 60–80 °C
+  operator: range
+  vmin: 60
+  vmax: 80
+  unit_code: celsius
+  vmin_si: 333.15
+  vmax_si: 353.15
+- text: 200…300 мг/л
+  operator: range
+  vmin: 200
+  vmax: 300
+  unit_code: mg_per_l
+  vmin_si: 0.2
+  vmax_si: 0.3
+- text: 200...300 мг/л
+  operator: range
+  vmin: 200
+  vmax: 300
+  unit_code: mg_per_l
+- text: от 0.6 до 0.9 м/с
+  operator: range
+  vmin: 0.6
+  vmax: 0.9
+  unit_code: m_per_s
+- text: 0.8 ± 0.05 м/с
+  operator: range
+  vmin: 0.75
+  vmax: 0.85
+  unit_code: m_per_s
+- text: от 100 до 300 мг/л
+  operator: range
+  vmin: 100
+  vmax: 300
+  unit_code: mg_per_l
+- text: ≤1000 мг/дм³
+  operator: lte
+  vmax: 1000
+  unit_code: mg_per_dm3
+  vmax_si: 1.0
+- text: <200 мг/л
+  operator: lt
+  vmax: 200
+  unit_code: mg_per_l
+- text: менее 50 мг/л
+  operator: lt
+  vmax: 50
+  unit_code: mg_per_l
+- text: не выше 80 °C
+  operator: lte
+  vmax: 80
+  unit_code: celsius
+- text: '>0.7 м/с'
+  operator: gt
+  vmin: 0.7
+  unit_code: m_per_s
+- text: выше 60 °C
+  operator: gt
+  vmin: 60
+  unit_code: celsius
+- text: более 100 мг/л
+  operator: gt
+  vmin: 100
+  unit_code: mg_per_l
+- text: минимум 10 %
+  operator: gte
+  vmin: 10
+  unit_code: percent
+- text: максимум 90 %
+  operator: lte
+  vmax: 90
+  unit_code: percent
+- text: около 100 мг/л
+  operator: approx
+  vmin: 100
+  vmax: 100
+  unit_code: mg_per_l
+- text: порядка 250 мг/л
+  operator: approx
+  vmin: 250
+  unit_code: mg_per_l
+- text: ~100 °C
+  operator: approx
+  vmin: 100
+  unit_code: celsius
+- text: примерно 5 м/с
+  operator: approx
+  vmin: 5
+  unit_code: m_per_s
+- text: ≈ 0.8 м/с
+  operator: approx
+  vmin: 0.8
+  unit_code: m_per_s
+- text: температура 60 °C, скорость 0.8 м/с
+  count: 2
+  operator: eq
+  unit_code: celsius
+- text: сульфаты 200–300 мг/л и TDS ≤1000 мг/дм³
+  count: 2
+  operator: range
+  unit_code: mg_per_l
+- text: сухой остаток ≤1000 мг/дм³
+  operator: lte
+  vmax: 1000
+  unit_code: mg_per_dm3
+  vmax_si: 1.0
+- text: оптимальная скорость потока 0,8 м/с
+  operator: eq
+  vmin: 0.8
+  unit_code: m_per_s
+- text: себестоимость 120 руб/т
+  operator: eq
+  vmin: 120
+  unit_code: rub_per_t
+  parameter_slug: parameter:cost
+- text: 5 м/с
+  operator: eq
+  vmin: 5
+  vmax: 5
+  unit_code: m_per_s
+- text: 5 см/с
+  operator: eq
+  vmin: 5
+  vmax: 5
+  unit_code: cm_per_s
+- text: 5 мм/с
+  operator: eq
+  vmin: 5
+  vmax: 5
+  unit_code: mm_per_s
+- text: 5 м/мин
+  operator: eq
+  vmin: 5
+  vmax: 5
+  unit_code: m_per_min
+- text: 5 м/ч
+  operator: eq
+  vmin: 5
+  vmax: 5
+  unit_code: m_per_h
+- text: 50 °C
+  operator: eq
+  vmin: 50
+  vmax: 50
+  unit_code: celsius
+- text: 300 K
+  operator: eq
+  vmin: 300
+  vmax: 300
+  unit_code: kelvin
+- text: 200 °F
+  operator: eq
+  vmin: 200
+  vmax: 200
+  unit_code: fahrenheit
+- text: 5 Па
+  operator: eq
+  vmin: 5
+  vmax: 5
+  unit_code: pa
+- text: 5 кПа
+  operator: eq
+  vmin: 5
+  vmax: 5
+  unit_code: kpa
+- text: 5 МПа
+  operator: eq
+  vmin: 5
+  vmax: 5
+  unit_code: mpa
+- text: 5 бар
+  operator: eq
+  vmin: 5
+  vmax: 5
+  unit_code: bar
+- text: 5 мбар
+  operator: eq
+  vmin: 5
+  vmax: 5
+  unit_code: mbar
+- text: 5 атм
+  operator: eq
+  vmin: 5
+  vmax: 5
+  unit_code: atm
+- text: 5 мм рт. ст.
+  operator: eq
+  vmin: 5
+  vmax: 5
+  unit_code: mmhg
+- text: 5 кгс/см²
+  operator: eq
+  vmin: 5
+  vmax: 5
+  unit_code: kgf_per_cm2
+- text: 5 psi
+  operator: eq
+  vmin: 5
+  vmax: 5
+  unit_code: psi
+- text: 5 А/м²
+  operator: eq
+  vmin: 5
+  vmax: 5
+  unit_code: a_per_m2
+- text: 5 А/дм²
+  operator: eq
+  vmin: 5
+  vmax: 5
+  unit_code: a_per_dm2
+- text: 5 А/см²
+  operator: eq
+  vmin: 5
+  vmax: 5
+  unit_code: a_per_cm2
+- text: 5 мА/см²
+  operator: eq
+  vmin: 5
+  vmax: 5
+  unit_code: ma_per_cm2
+- text: 5 мА/дм²
+  operator: eq
+  vmin: 5
+  vmax: 5
+  unit_code: ma_per_dm2
+- text: 50 %
+  operator: eq
+  vmin: 50
+  vmax: 50
+  unit_code: percent
+- text: 50 ‰
+  operator: eq
+  vmin: 50
+  vmax: 50
+  unit_code: permille
+- text: 7 pH
+  operator: eq
+  vmin: 7
+  vmax: 7
+  unit_code: ph
+- text: 100 мг/л
+  operator: eq
+  vmin: 100
+  vmax: 100
+  unit_code: mg_per_l
+- text: 100 мг/дм³
+  operator: eq
+  vmin: 100
+  vmax: 100
+  unit_code: mg_per_dm3
+- text: 100 г/л
+  operator: eq
+  vmin: 100
+  vmax: 100
+  unit_code: g_per_l
+- text: 100 г/дм³
+  operator: eq
+  vmin: 100
+  vmax: 100
+  unit_code: g_per_dm3
+- text: 100 кг/м³
+  operator: eq
+  vmin: 100
+  vmax: 100
+  unit_code: kg_per_m3
+- text: 100 г/м³
+  operator: eq
+  vmin: 100
+  vmax: 100
+  unit_code: g_per_m3
+- text: 100 мг/м³
+  operator: eq
+  vmin: 100
+  vmax: 100
+  unit_code: mg_per_m3
+- text: 100 мкг/л
+  operator: eq
+  vmin: 100
+  vmax: 100
+  unit_code: mcg_per_l
+- text: 100 ppm
+  operator: eq
+  vmin: 100
+  vmax: 100
+  unit_code: ppm
+- text: 100 ppb
+  operator: eq
+  vmin: 100
+  vmax: 100
+  unit_code: ppb
+- text: 100 г/т
+  operator: eq
+  vmin: 100
+  vmax: 100
+  unit_code: g_per_t
+- text: 100 мг/г
+  operator: eq
+  vmin: 100
+  vmax: 100
+  unit_code: mg_per_g
+- text: 100 г/кг
+  operator: eq
+  vmin: 100
+  vmax: 100
+  unit_code: g_per_kg
+- text: 1 моль/л
+  operator: eq
+  vmin: 1
+  vmax: 1
+  unit_code: mol_per_l
+- text: 1 ммоль/л
+  operator: eq
+  vmin: 1
+  vmax: 1
+  unit_code: mmol_per_l
+- text: 1 моль/м³
+  operator: eq
+  vmin: 1
+  vmax: 1
+  unit_code: mol_per_m3
+- text: 5 т/сут
+  operator: eq
+  vmin: 5
+  vmax: 5
+  unit_code: t_per_day
+- text: 5 т/ч
+  operator: eq
+  vmin: 5
+  vmax: 5
+  unit_code: t_per_h
+- text: 5 т/год
+  operator: eq
+  vmin: 5
+  vmax: 5
+  unit_code: t_per_year
+- text: 5 кг/ч
+  operator: eq
+  vmin: 5
+  vmax: 5
+  unit_code: kg_per_h
+- text: 5 кг/с
+  operator: eq
+  vmin: 5
+  vmax: 5
+  unit_code: kg_per_s
+- text: 5 м³/ч
+  operator: eq
+  vmin: 5
+  vmax: 5
+  unit_code: m3_per_h
+- text: 5 м³/сут
+  operator: eq
+  vmin: 5
+  vmax: 5
+  unit_code: m3_per_day
+- text: 5 м³/с
+  operator: eq
+  vmin: 5
+  vmax: 5
+  unit_code: m3_per_s
+- text: 5 л/ч
+  operator: eq
+  vmin: 5
+  vmax: 5
+  unit_code: l_per_h
+- text: 5 л/мин
+  operator: eq
+  vmin: 5
+  vmax: 5
+  unit_code: l_per_min
+- text: 5 л/с
+  operator: eq
+  vmin: 5
+  vmax: 5
+  unit_code: l_per_s
+- text: 5 кВт·ч/т
+  operator: eq
+  vmin: 5
+  vmax: 5
+  unit_code: kwh_per_t
+- text: 5 кВт·ч/кг
+  operator: eq
+  vmin: 5
+  vmax: 5
+  unit_code: kwh_per_kg
+- text: 5 МДж/т
+  operator: eq
+  vmin: 5
+  vmax: 5
+  unit_code: mj_per_t
+- text: 5 кДж/кг
+  operator: eq
+  vmin: 5
+  vmax: 5
+  unit_code: kj_per_kg
+- text: 5 мм
+  operator: eq
+  vmin: 5
+  vmax: 5
+  unit_code: mm
+- text: 5 см
+  operator: eq
+  vmin: 5
+  vmax: 5
+  unit_code: cm
+- text: 5 мкм
+  operator: eq
+  vmin: 5
+  vmax: 5
+  unit_code: um
+- text: 5 нм
+  operator: eq
+  vmin: 5
+  vmax: 5
+  unit_code: nm
+- text: 5 ч
+  operator: eq
+  vmin: 5
+  vmax: 5
+  unit_code: hour
+- text: 5 мин
+  operator: eq
+  vmin: 5
+  vmax: 5
+  unit_code: minute
+- text: 5 сек
+  operator: eq
+  vmin: 5
+  vmax: 5
+  unit_code: second
+- text: 5 сут
+  operator: eq
+  vmin: 5
+  vmax: 5
+  unit_code: day
+- text: 100 об/мин
+  operator: eq
+  vmin: 100
+  vmax: 100
+  unit_code: rpm
+- text: 100 об/с
+  operator: eq
+  vmin: 100
+  vmax: 100
+  unit_code: rps
+- text: 100 руб/т
+  operator: eq
+  vmin: 100
+  vmax: 100
+  unit_code: rub_per_t
+- text: 100 $/т
+  operator: eq
+  vmin: 100
+  vmax: 100
+  unit_code: usd_per_t
+- text: 100 €/т
+  operator: eq
+  vmin: 100
+  vmax: 100
+  unit_code: eur_per_t
+- text: 100 руб/м³
+  operator: eq
+  vmin: 100
+  vmax: 100
+  unit_code: rub_per_m3
