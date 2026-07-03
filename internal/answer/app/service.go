@@ -89,7 +89,7 @@ func (service *Service) Ask(ctx context.Context, req *kmapv1.AskRequest, emit Em
 		return status.Error(codes.InvalidArgument, "question is required")
 	}
 
-	plan, err := buildPlan(question)
+	plan, err := buildPlan(question, req.GetFilters())
 	if err != nil {
 		return status.Errorf(codes.Internal, "build plan: %v", err)
 	}
@@ -190,9 +190,14 @@ func canonicalPlan(plan *kmapv1.QueryPlan) string {
 			constraint.GetParameter(), constraint.GetOp(), constraint.GetVmin(), constraint.GetVmax(), constraint.GetUnit()))
 	}
 	sort.Strings(constraints)
+	years := ""
+	if tr := plan.GetTimeRange(); tr != nil {
+		fields := tr.GetFields()
+		years = fmt.Sprintf("%g-%g", fields["year_from"].GetNumberValue(), fields["year_to"].GetNumberValue())
+	}
 	return strings.Join([]string{
 		plan.GetIntent(), plan.GetGeography(),
-		strings.Join(slugs, ","), strings.Join(constraints, ";"),
+		strings.Join(slugs, ","), strings.Join(constraints, ";"), years,
 	}, "\x1f")
 }
 

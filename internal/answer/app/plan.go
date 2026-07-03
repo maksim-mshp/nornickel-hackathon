@@ -20,7 +20,7 @@ type route struct {
 	properties []ref
 }
 
-func buildPlan(question string) (*kmapv1.QueryPlan, error) {
+func buildPlan(question string, filters *structpb.Struct) (*kmapv1.QueryPlan, error) {
 	selected := routeQuestion(question)
 	entities, err := entitiesStruct(selected)
 	if err != nil {
@@ -34,7 +34,7 @@ func buildPlan(question string) (*kmapv1.QueryPlan, error) {
 		return nil, err
 	}
 
-	return &kmapv1.QueryPlan{
+	plan := &kmapv1.QueryPlan{
 		Schema:           "queryplan/1",
 		Intent:           selected.intent,
 		Lang:             detectLang(question),
@@ -42,7 +42,131 @@ func buildPlan(question string) (*kmapv1.QueryPlan, error) {
 		ParamConstraints: extractConstraints(question),
 		Geography:        detectGeography(question),
 		Quality:          quality,
-	}, nil
+	}
+	if err := applyFilters(plan, filters); err != nil {
+		return nil, err
+	}
+	return plan, nil
+}
+
+func applyFilters(plan *kmapv1.QueryPlan, filters *structpb.Struct) error {
+	if filters == nil {
+		return nil
+	}
+	fields := filters.GetFields()
+
+	if geo, ok := filterString(fields, "geography"); ok && geo != "" {
+		plan.Geography = geo
+	}
+
+	if params := fields["params"].GetListValue(); params != nil {
+		index := map[string]int{}
+		for position, constraint := range plan.ParamConstraints {
+			index[constraint.GetParameter()] = position
+		}
+		for _, item := range params.GetValues() {
+			constraint := constraintFromFilter(item.GetStructValue())
+			if constraint == nil {
+				continue
+			}
+			if position, exists := index[constraint.Parameter]; exists {
+				plan.ParamConstraints[position] = constraint
+			} else {
+				index[constraint.Parameter] = len(plan.ParamConstraints)
+				plan.ParamConstraints = append(plan.ParamConstraints, constraint)
+			}
+		}
+	}
+
+	timeRange := map[string]any{}
+	if year, ok := filterNumber(fields, "year_from"); ok {
+		timeRange["year_from"] = year
+	}
+	if year, ok := filterNumber(fields, "year_to"); ok {
+		timeRange["year_to"] = year
+	}
+	if len(timeRange) > 0 {
+		encoded, err := structpb.NewStruct(timeRange)
+		if err != nil {
+			return err
+		}
+		plan.TimeRange = encoded
+	}
+	return nil
+}
+
+func constraintFromFilter(item *structpb.Struct) *kmapv1.ParamConstraint {
+	if item == nil {
+		return nil
+	}
+	fields := item.GetFields()
+	parameter, _ := filterString(fields, "parameter")
+	if parameter == "" {
+		return nil
+	}
+	op, _ := filterString(fields, "op")
+	if op == "" {
+		op = "eq"
+	}
+	unit, _ := filterString(fields, "unit")
+	value, hasValue := filterNumber(fields, "value")
+	vmin, hasMin := filterNumber(fields, "vmin")
+	vmax, hasMax := filterNumber(fields, "vmax")
+	if !hasMin && hasValue {
+		vmin, hasMin = value, true
+	}
+	if !hasMax && hasValue {
+		vmax, hasMax = value, true
+	}
+
+	constraint := &kmapv1.ParamConstraint{Parameter: parameter, Op: op, Unit: unit}
+	switch op {
+	case "range", "pm":
+		if !hasMin || !hasMax {
+			return nil
+		}
+		constraint.Op = "range"
+		constraint.Vmin, constraint.Vmax = vmin, vmax
+	case "lte", "lt", "to":
+		if !hasMax {
+			return nil
+		}
+		constraint.Vmax = vmax
+	case "gte", "gt", "from":
+		if !hasMin {
+			return nil
+		}
+		constraint.Vmin = vmin
+	default:
+		if !hasMin {
+			return nil
+		}
+		constraint.Vmin, constraint.Vmax = vmin, vmin
+	}
+	applySI(constraint)
+	return constraint
+}
+
+func filterString(fields map[string]*structpb.Value, key string) (string, bool) {
+	value, ok := fields[key]
+	if !ok {
+		return "", false
+	}
+	if str, isString := value.GetKind().(*structpb.Value_StringValue); isString {
+		return str.StringValue, true
+	}
+	return "", false
+}
+
+func filterNumber(fields map[string]*structpb.Value, key string) (float64, bool) {
+	value, ok := fields[key]
+	if !ok {
+		return 0, false
+	}
+	if number, isNumber := value.GetKind().(*structpb.Value_NumberValue); isNumber {
+		return number.NumberValue, true
+	}
+	return 0, false
 }
 
 func routeQuestion(question string) route {

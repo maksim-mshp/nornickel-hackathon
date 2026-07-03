@@ -35,6 +35,12 @@ func (server *Server) askHandler(w stdhttp.ResponseWriter, r *stdhttp.Request) {
 		return
 	}
 
+	filters, err := parseFilters(request.Filters)
+	if err != nil {
+		writeProblem(w, r, stdhttp.StatusBadRequest, "invalid_request", "Invalid request", err.Error())
+		return
+	}
+
 	flusher, ok := w.(stdhttp.Flusher)
 	if !ok {
 		writeProblem(w, r, stdhttp.StatusInternalServerError, "streaming_unsupported", "Streaming unsupported", "")
@@ -47,7 +53,12 @@ func (server *Server) askHandler(w stdhttp.ResponseWriter, r *stdhttp.Request) {
 	w.Header().Set("X-Accel-Buffering", "no")
 	w.WriteHeader(stdhttp.StatusOK)
 
-	stream, err := server.answer.Ask(r.Context(), &kmapv1.AskRequest{Question: request.Question, Lang: request.Lang})
+	stream, err := server.answer.Ask(r.Context(), &kmapv1.AskRequest{
+		Question:  request.Question,
+		Lang:      request.Lang,
+		Filters:   filters,
+		Principal: principalFromContext(r),
+	})
 	if err != nil {
 		writeSSEProblem(w, flusher, r, err)
 		return
@@ -67,6 +78,24 @@ func (server *Server) askHandler(w stdhttp.ResponseWriter, r *stdhttp.Request) {
 		}
 		flusher.Flush()
 	}
+}
+
+func parseFilters(raw json.RawMessage) (*structpb.Struct, error) {
+	if len(raw) == 0 {
+		return nil, nil
+	}
+	var decoded map[string]any
+	if err := json.Unmarshal(raw, &decoded); err != nil {
+		return nil, fmt.Errorf("invalid filters: %w", err)
+	}
+	if decoded == nil {
+		return nil, nil
+	}
+	filters, err := structpb.NewStruct(decoded)
+	if err != nil {
+		return nil, fmt.Errorf("invalid filters: %w", err)
+	}
+	return filters, nil
 }
 
 func writeAskEvent(w io.Writer, message *kmapv1.AskResponse) error {
