@@ -20,6 +20,43 @@ type Runtime struct {
 	Postgres    Postgres          `koanf:"postgres"`
 	NATS        NATS              `koanf:"nats"`
 	S3          S3                `koanf:"s3"`
+	LLM         LLM               `koanf:"llm"`
+	Cache       Cache             `koanf:"cache"`
+}
+
+type LLM struct {
+	DefaultProvider string                 `koanf:"default_provider"`
+	LogPrompts      bool                   `koanf:"log_prompts"`
+	Allowlist       []string               `koanf:"allowlist"`
+	Providers       map[string]LLMProvider `koanf:"providers"`
+	Tasks           map[string]LLMTask     `koanf:"tasks"`
+	Concurrency     LLMConcurrency         `koanf:"concurrency"`
+}
+
+type LLMProvider struct {
+	BaseURL string `koanf:"base_url"`
+	APIKey  string `koanf:"api_key"`
+}
+
+type LLMTask struct {
+	Model           string  `koanf:"model"`
+	FallbackModel   string  `koanf:"fallback_model"`
+	EscalateModel   string  `koanf:"escalate_model"`
+	MaxTokens       int     `koanf:"max_tokens"`
+	Temperature     float64 `koanf:"temperature"`
+	ReasoningEffort string  `koanf:"reasoning_effort"`
+	JSON            bool    `koanf:"json"`
+	Stream          bool    `koanf:"stream"`
+	TimeoutS        int     `koanf:"timeout_s"`
+}
+
+type LLMConcurrency struct {
+	Interactive int `koanf:"interactive"`
+	Batch       int `koanf:"batch"`
+}
+
+type Cache struct {
+	TTLHours int `koanf:"ttl_hours"`
 }
 
 type Postgres struct {
@@ -90,8 +127,10 @@ func Load(root string, env string, service string) (Bundle, error) {
 		filepath.Join(root, "base", service+".yml"),
 	}
 	optional := []string{
+		filepath.Join(root, "base", service+"-routes.yml"),
 		filepath.Join(root, env, "common.yml"),
 		filepath.Join(root, env, service+".yml"),
+		filepath.Join(root, env, service+"-routes.yml"),
 		filepath.Join(root, "secrets.yml"),
 	}
 
