@@ -1,54 +1,51 @@
 llm:
-  default_provider: do_gradient
+  default_provider: yandex
   log_prompts: false
+  providers:
+    yandex:
+      base_url: https://ai.api.cloud.yandex.net/v1
+      auth_scheme: api-key
   allowlist:
-    - openai-gpt-oss-20b
-    - openai-gpt-oss-120b
-    - deepseek-4-flash
-    - mimo-v2.5
-    - alibaba-qwen3-32b
-    - gemma-4-31B-it
-    - mistral-3-14B
-    - nvidia-nemotron-3-super-120b
-    - qwen3.5-397b-a17b
+    - gpt-oss-20b/latest
+    - gpt-oss-120b/latest
+    - deepseek-v4-flash/latest
+    - qwen3.6-35b-a3b/latest
+    - qwen3-235b-a22b-fp8/latest
   tasks:
     parse_query:
-      model: openai-gpt-oss-20b
+      model: gpt-oss-20b/latest
       max_tokens: 3000
       temperature: 0.1
-      reasoning_effort: low
       json: true
       timeout_s: 20
     extract_entities:
-      model: openai-gpt-oss-20b
-      escalate_model: openai-gpt-oss-120b
+      model: gpt-oss-20b/latest
+      escalate_model: gpt-oss-120b/latest
       max_tokens: 4000
       temperature: 0.1
-      reasoning_effort: low
       json: true
       timeout_s: 90
     bind_numbers:
-      model: openai-gpt-oss-20b
+      model: gpt-oss-20b/latest
       max_tokens: 2000
       temperature: 0.0
-      reasoning_effort: low
       json: true
       timeout_s: 60
     synthesize_answer:
-      model: deepseek-4-flash
-      fallback_model: openai-gpt-oss-120b
+      model: deepseek-v4-flash/latest
+      fallback_model: gpt-oss-120b/latest
       max_tokens: 3500
       temperature: 0.3
       stream: true
       timeout_s: 90
     judge_contradiction:
-      model: openai-gpt-oss-120b
+      model: gpt-oss-120b/latest
       max_tokens: 3000
       temperature: 0.1
       json: true
       timeout_s: 120
     suggest_aliases:
-      model: mimo-v2.5
+      model: qwen3.6-35b-a3b/latest
       max_tokens: 1500
       temperature: 0.2
       json: true
@@ -56,10 +53,3 @@ llm:
   concurrency:
     interactive: 8
     batch: 4
-
-embed:
-  backend: remote
-  model: bge-m3
-  rerank_model: bge-reranker-v2-m3
-  dims: 1024
-  batch_size: 32

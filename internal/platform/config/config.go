@@ -61,6 +61,7 @@ type LLMProvider struct {
 	BaseURL    string `koanf:"base_url"`
 	APIKey     string `koanf:"api_key"`
 	AuthScheme string `koanf:"auth_scheme"`
+	FolderID   string `koanf:"folder_id"`
 }
 
 type LLMTask struct {
