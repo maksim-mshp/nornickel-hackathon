@@ -30,7 +30,7 @@ func buildAssembly(cfg config.Bundle, _ *slog.Logger) (*runtime.Assembly, error)
 		return nil, errors.New("llm provider base_url and api_key are required")
 	}
 
-	service, err := app.New(llmCfg, openai.New(provider.BaseURL, provider.APIKey))
+	service, err := app.New(llmCfg, openai.New(provider.BaseURL, provider.APIKey, provider.AuthScheme))
 	if err != nil {
 		return nil, err
 	}

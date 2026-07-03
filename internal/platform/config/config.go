@@ -58,8 +58,9 @@ type LLM struct {
 }
 
 type LLMProvider struct {
-	BaseURL string `koanf:"base_url"`
-	APIKey  string `koanf:"api_key"`
+	BaseURL    string `koanf:"base_url"`
+	APIKey     string `koanf:"api_key"`
+	AuthScheme string `koanf:"auth_scheme"`
 }
 
 type LLMTask struct {
