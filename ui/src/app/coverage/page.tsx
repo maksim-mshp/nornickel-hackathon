@@ -1,7 +1,13 @@
-import type { Metadata } from "next";
+"use client";
+
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { getCoverageCells, type CoverageCellLive } from "@/shared/api/browse";
 import {
+  COVERAGE_CELLS,
   COVERAGE_KPIS,
+  COVERAGE_MATERIALS,
+  COVERAGE_PROCESSES,
   COVERAGE_RISKS,
   type CoverageKpi,
   type RiskItem,
@@ -9,13 +15,27 @@ import {
 import { Isolines } from "@/shared/ui/isolines";
 import { CoverageHeatmap } from "@/widgets/coverage/coverage-heatmap";
 
-export const metadata: Metadata = {
-  title: "Покрытие — kmap",
-};
-
 const nf = new Intl.NumberFormat("ru-RU");
 
+const OUTDATED = new Set(["stale", "устарело"]);
+const FOREIGN = new Set(["foreign_only", "no_ru_practice", "только зарубежные"]);
+const CONTRADICTORY = new Set(["contradictory", "противоречия"]);
+
 export default function CoveragePage() {
+  const [live, setLive] = useState<CoverageCellLive[] | null>(null);
+
+  useEffect(() => {
+    let alive = true;
+    getCoverageCells().then((cells) => {
+      if (alive) setLive(cells);
+    });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  const view = useMemo(() => buildView(live), [live]);
+
   return (
     <div className="mx-auto flex max-w-[1440px] flex-col gap-8 px-6 py-8">
       <section className="rise-in relative">
@@ -25,6 +45,7 @@ export default function CoveragePage() {
         </h1>
         <p className="mt-1 text-[13px] text-ink-1">
           Где база сильна, где противоречива, а где — пробелы
+          {live ? " · данные из базы" : ""}
         </p>
       </section>
 
@@ -32,7 +53,7 @@ export default function CoveragePage() {
         className="rise-in grid grid-cols-2 gap-3 lg:grid-cols-4"
         style={{ animationDelay: "40ms" }}
       >
-        {COVERAGE_KPIS.map((kpi) => (
+        {view.kpis.map((kpi) => (
           <KpiCard key={kpi.label} kpi={kpi} />
         ))}
       </section>
@@ -41,7 +62,11 @@ export default function CoveragePage() {
         <h2 className="mb-3 font-mono text-[11px] uppercase tracking-[0.2em] text-ink-2">
           Heatmap · материал × процесс
         </h2>
-        <CoverageHeatmap />
+        <CoverageHeatmap
+          cells={view.cells}
+          materials={view.materials}
+          processes={view.processes}
+        />
       </section>
 
       <section className="rise-in" style={{ animationDelay: "120ms" }}>
@@ -49,25 +74,59 @@ export default function CoveragePage() {
           Зоны риска
         </h2>
         <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-          <RiskColumn
-            title="Противоречивые кластеры"
-            tone="melt"
-            items={COVERAGE_RISKS.contradictory}
-          />
-          <RiskColumn
-            title="Устаревшие темы"
-            tone="anode"
-            items={COVERAGE_RISKS.outdated}
-          />
-          <RiskColumn
-            title="Только зарубежное"
-            tone="void"
-            items={COVERAGE_RISKS.foreignOnly}
-          />
+          <RiskColumn title="Противоречивые кластеры" tone="melt" items={view.risks.contradictory} />
+          <RiskColumn title="Устаревшие темы" tone="anode" items={view.risks.outdated} />
+          <RiskColumn title="Только зарубежное" tone="void" items={view.risks.foreignOnly} />
         </div>
       </section>
     </div>
   );
+}
+
+function buildView(live: CoverageCellLive[] | null) {
+  if (!live || live.length === 0) {
+    return {
+      cells: COVERAGE_CELLS,
+      materials: COVERAGE_MATERIALS,
+      processes: COVERAGE_PROCESSES,
+      kpis: COVERAGE_KPIS,
+      risks: COVERAGE_RISKS,
+    };
+  }
+
+  const materials = [...new Set(live.map((cell) => cell.material))].filter(Boolean);
+  const processes = [...new Set(live.map((cell) => cell.process))].filter(Boolean);
+  const totalFacts = live.reduce((sum, cell) => sum + cell.facts, 0);
+  const totalExperiments = live.reduce((sum, cell) => sum + cell.experiments, 0);
+  const gaps = live.filter((cell) => cell.reasons.length > 0).length;
+
+  const kpis: CoverageKpi[] = [
+    { label: "ячеек покрытия", value: live.length, trend: [live.length] },
+    { label: "подтверждённых фактов", value: totalFacts, trend: [totalFacts] },
+    { label: "экспериментов", value: totalExperiments, trend: [totalExperiments] },
+    { label: "пробелов", value: gaps, trend: [gaps] },
+  ];
+
+  const risk = (predicate: (reasons: string[]) => boolean): RiskItem[] =>
+    live
+      .filter((cell) => predicate(cell.reasons))
+      .map((cell) => ({
+        label: `${cell.material} × ${cell.process}`,
+        detail: cell.reasons.join(", "),
+        question: `Что известно про ${cell.process} для материала «${cell.material}»?`,
+      }));
+
+  return {
+    cells: live,
+    materials,
+    processes,
+    kpis,
+    risks: {
+      contradictory: risk((reasons) => reasons.some((r) => CONTRADICTORY.has(r))),
+      outdated: risk((reasons) => reasons.some((r) => OUTDATED.has(r))),
+      foreignOnly: risk((reasons) => reasons.some((r) => FOREIGN.has(r))),
+    },
+  };
 }
 
 function KpiCard({ kpi }: { kpi: CoverageKpi }) {
@@ -79,7 +138,7 @@ function KpiCard({ kpi }: { kpi: CoverageKpi }) {
       <p className="mt-1 font-mono text-[10px] uppercase tracking-wider text-ink-2">
         {kpi.label}
       </p>
-      <Sparkline points={kpi.trend} />
+      {kpi.trend.length > 1 && <Sparkline points={kpi.trend} />}
     </div>
   );
 }
@@ -124,10 +183,11 @@ function RiskColumn({
 }) {
   return (
     <div className={`rounded-sm border bg-bg-1 p-4 ${TONE_CLASSES[tone]}`}>
-      <h3 className="font-mono text-[10px] uppercase tracking-[0.2em]">
-        {title}
-      </h3>
+      <h3 className="font-mono text-[10px] uppercase tracking-[0.2em]">{title}</h3>
       <div className="mt-3 flex flex-col gap-3">
+        {items.length === 0 && (
+          <p className="text-[11px] text-ink-2">нет</p>
+        )}
         {items.map((item) => (
           <Link
             key={item.label}

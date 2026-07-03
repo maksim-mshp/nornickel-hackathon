@@ -195,3 +195,34 @@ export function getExperiments(): Promise<ExperimentRow[]> {
 export function getDocuments(): Promise<DocumentRow[]> {
   return getJSON("/v1/documents", DOCUMENTS);
 }
+
+export type CoverageCellLive = {
+  material: string;
+  process: string;
+  score: number;
+  facts: number;
+  experiments: number;
+  reasons: string[];
+};
+
+type CoverageApiCell = {
+  material?: string;
+  process?: string;
+  score?: number;
+  gap_flag?: boolean;
+  reasons?: string[] | null;
+  counters?: { facts?: number; experiments?: number; material?: string; process?: string };
+};
+
+export async function getCoverageCells(): Promise<CoverageCellLive[] | null> {
+  const items = await getJSON<CoverageApiCell[] | null>("/v1/coverage", null);
+  if (!Array.isArray(items) || items.length === 0) return null;
+  return items.map((cell) => ({
+    material: cell.counters?.material ?? cell.material ?? "",
+    process: cell.counters?.process ?? cell.process ?? "",
+    score: Math.round(cell.score ?? 0),
+    facts: cell.counters?.facts ?? 0,
+    experiments: cell.counters?.experiments ?? 0,
+    reasons: cell.reasons ?? [],
+  }));
+}

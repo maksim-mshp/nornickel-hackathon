@@ -9,11 +9,19 @@ import {
   type CoverageCell,
 } from "@/shared/api/mock/coverage-scenario";
 
-export function CoverageHeatmap() {
+export function CoverageHeatmap({
+  cells = COVERAGE_CELLS,
+  materials = COVERAGE_MATERIALS,
+  processes = COVERAGE_PROCESSES,
+}: {
+  cells?: CoverageCell[];
+  materials?: string[];
+  processes?: string[];
+}) {
   const [selected, setSelected] = useState<CoverageCell | null>(null);
 
   const cellFor = (material: string, process: string) =>
-    COVERAGE_CELLS.find(
+    cells.find(
       (cell) => cell.material === material && cell.process === process,
     );
 
@@ -24,7 +32,7 @@ export function CoverageHeatmap() {
           <thead>
             <tr>
               <th className="p-1" />
-              {COVERAGE_PROCESSES.map((process) => (
+              {processes.map((process) => (
                 <th
                   key={process}
                   className="p-1 pb-2 text-left font-mono text-[10px] font-normal uppercase tracking-wider text-ink-2"
@@ -35,12 +43,12 @@ export function CoverageHeatmap() {
             </tr>
           </thead>
           <tbody>
-            {COVERAGE_MATERIALS.map((material) => (
+            {materials.map((material) => (
               <tr key={material}>
                 <th className="max-w-32 p-1 pr-3 text-right font-mono text-[10px] font-normal text-ink-1">
                   {material}
                 </th>
-                {COVERAGE_PROCESSES.map((process) => {
+                {processes.map((process) => {
                   const cell = cellFor(material, process);
                   if (!cell) return <td key={process} />;
                   const empty = cell.score === 0;
