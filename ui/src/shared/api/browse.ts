@@ -166,8 +166,26 @@ const DOCUMENTS: DocumentRow[] = [
   { id: "doc_310", title: "Heap leaching of nickel laterites", docType: "article", lang: "en", geography: "foreign", accessLevel: "internal", status: "indexed", facts: 1, year: 2019 },
 ];
 
-export function getExperts(): Promise<ExpertProfile[]> {
-  return getJSON("/v1/experts", EXPERTS);
+export async function getExperts(
+  entityId = "process:nickel-electrowinning",
+): Promise<ExpertProfile[]> {
+  const items = await getJSON<Partial<ExpertProfile>[]>(
+    `/v1/experts?entity_id=${encodeURIComponent(entityId)}`,
+    EXPERTS,
+  );
+  if (!Array.isArray(items) || items.length === 0) return EXPERTS;
+  return items.map((item) => ({
+    id: item.id ?? "",
+    name: item.name ?? "",
+    lab: item.lab ?? "",
+    weight: item.weight ?? 0,
+    reports: item.reports ?? 0,
+    experiments: item.experiments ?? 0,
+    lastYear: item.lastYear ?? 0,
+    topics: item.topics ?? [],
+    activity: item.activity ?? [],
+    evidence: item.evidence ?? [],
+  }));
 }
 
 export function getExperiments(): Promise<ExperimentRow[]> {
