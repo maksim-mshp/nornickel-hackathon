@@ -4,6 +4,7 @@ import hashlib
 import io
 import json
 import logging
+import re
 import signal
 import uuid
 from datetime import datetime, timezone
@@ -19,8 +20,47 @@ logger = logging.getLogger("extract")
 
 PARSED = "kmap.doc.v1.parsed"
 EXTRACTED = "kmap.doc.v1.extracted"
-EXTRACTOR_VERSION = "numcore-py-1.0"
+EXTRACTOR_VERSION = "numcore-py-1.1"
 MAX_DELIVER = 5
+CHUNK_TARGET_CHARS = 4000
+CHUNK_OVERLAP_CHARS = 500
+CHUNK_MIN_CHARS = 400
+
+
+def _chunk_text(text: str) -> list[dict]:
+    text = text.strip()
+    total = len(text)
+    if total == 0:
+        return []
+    chunks: list[dict] = []
+    start = 0
+    ordinal = 0
+    while start < total:
+        end = min(start + CHUNK_TARGET_CHARS, total)
+        if end < total:
+            window = text[start:end]
+            boundary = max(window.rfind("\n\n"), window.rfind(". "), window.rfind("\n"))
+            if boundary > CHUNK_MIN_CHARS:
+                end = start + boundary + 1
+        body = text[start:end].strip()
+        if body:
+            lang = "ru" if re.search(r"[а-яё]", body, re.IGNORECASE) else "en"
+            chunks.append(
+                {
+                    "ordinal": ordinal,
+                    "text": body,
+                    "kind": "text",
+                    "lang": lang,
+                    "page_from": 1,
+                    "char_from": start,
+                    "char_to": end,
+                }
+            )
+            ordinal += 1
+        if end >= total:
+            break
+        start = max(end - CHUNK_OVERLAP_CHARS, start + 1)
+    return chunks
 
 
 async def _dead_letter(js, msg, reason: str) -> None:
@@ -93,7 +133,7 @@ def _bundle(document_id: str, text: str, facts: list[Fact]) -> dict:
         "document_id": document_id,
         "extractor_version": EXTRACTOR_VERSION,
         "entities": entities,
-        "chunks": [{"ordinal": 0, "text": text[:4000], "kind": "text", "page_from": 1}],
+        "chunks": _chunk_text(text),
         "numeric_facts": numeric_facts,
     }
 
