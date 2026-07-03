@@ -37,3 +37,8 @@ func New(ctx context.Context, cfg Config) (*Pool, error) {
 
 	return &Pool{Pool: pool}, nil
 }
+
+func (pool *Pool) Close() error {
+	pool.Pool.Close()
+	return nil
+}

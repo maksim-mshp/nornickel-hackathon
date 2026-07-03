@@ -2,69 +2,127 @@ package app
 
 import (
 	"context"
-	"sync"
+	"encoding/hex"
+	"fmt"
 
 	"github.com/google/uuid"
-	kmapv1 "github.com/maksim-mshp/nornickel-hackathon/contracts/gen/go/kmap/v1"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
+	"github.com/maksim-mshp/nornickel-hackathon/internal/ingest/domain"
+	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/events"
 )
 
+const eventSource = "kmap/ingest"
+
 type Service struct {
-	mu        sync.RWMutex
-	documents map[string]*kmapv1.GetStatusResponse
+	repository Repository
 }
 
-func NewService() *Service {
-	return &Service{documents: map[string]*kmapv1.GetStatusResponse{}}
+func NewService(repository Repository) *Service {
+	return &Service{repository: repository}
 }
 
-func (service *Service) RegisterDocument(_ context.Context, req *kmapv1.RegisterDocumentRequest) (*kmapv1.RegisterDocumentResponse, error) {
-	if len(req.GetSha256()) == 0 {
-		return nil, status.Error(codes.InvalidArgument, "sha256 is required")
+type RegisterCommand struct {
+	Title        string
+	BlobURI      string
+	SHA256       []byte
+	DocType      string
+	Lang         string
+	Geography    string
+	AccessLevel  string
+	Year         int
+	UploadedBy   string
+	Meta         map[string]any
+}
+
+type RegisterResult struct {
+	DocumentID uuid.UUID
+	Version    int
+	Status     string
+	Duplicate  bool
+}
+
+func (service *Service) RegisterDocument(ctx context.Context, cmd RegisterCommand) (RegisterResult, error) {
+	if len(cmd.SHA256) == 0 {
+		return RegisterResult{}, domain.ErrSHA256Required
+	}
+	if cmd.BlobURI == "" {
+		return RegisterResult{}, domain.ErrBlobURIRequired
+	}
+
+	meta, err := domain.NormalizeMeta(cmd.DocType, cmd.Geography, cmd.AccessLevel)
+	if err != nil {
+		return RegisterResult{}, err
+	}
+
+	if existingID, found, err := service.repository.FindIDBySHA256(ctx, cmd.SHA256); err != nil {
+		return RegisterResult{}, fmt.Errorf("dedup lookup: %w", err)
+	} else if found {
+		return RegisterResult{DocumentID: existingID, Version: 1, Status: domain.StatusRegistered, Duplicate: true}, nil
 	}
 
 	id, err := uuid.NewV7()
 	if err != nil {
-		return nil, status.Errorf(codes.Internal, "generate document id: %v", err)
+		return RegisterResult{}, fmt.Errorf("generate document id: %w", err)
 	}
 
-	ref := &kmapv1.DocumentRef{DocumentId: id.String(), Version: 1}
-	statusResp := &kmapv1.GetStatusResponse{
-		Document: ref,
-		Status:   "registered",
-		Stages: []*kmapv1.IngestStage{
-			{Stage: "register", Status: "done"},
-			{Stage: "parse", Status: "pending"},
-			{Stage: "extract", Status: "pending"},
-			{Stage: "commit", Status: "pending"},
-			{Stage: "epistemic", Status: "pending"},
-		},
+	doc := domain.Document{
+		ID:          id,
+		Title:       cmd.Title,
+		DocType:     meta.DocType,
+		Lang:        cmd.Lang,
+		Year:        cmd.Year,
+		Geography:   meta.Geography,
+		AccessLevel: meta.AccessLevel,
+		SourceURI:   cmd.BlobURI,
+		SHA256:      cmd.SHA256,
+		Status:      domain.StatusRegistered,
+		Version:     1,
+		UploadedBy:  cmd.UploadedBy,
+		Meta:        cmd.Meta,
+		BlobURI:     cmd.BlobURI,
 	}
 
-	service.mu.Lock()
-	service.documents[ref.GetDocumentId()] = statusResp
-	service.mu.Unlock()
+	envelope, err := service.buildEnvelope(doc)
+	if err != nil {
+		return RegisterResult{}, err
+	}
 
-	return &kmapv1.RegisterDocumentResponse{
-		DocumentId: ref.GetDocumentId(),
-		Version:    ref.GetVersion(),
-		Status:     statusResp.GetStatus(),
-	}, nil
+	saved, err := service.repository.Register(ctx, doc, envelope)
+	if err != nil {
+		return RegisterResult{}, err
+	}
+	return RegisterResult{DocumentID: saved.ID, Version: saved.Version, Status: saved.Status}, nil
 }
 
-func (service *Service) GetStatus(_ context.Context, req *kmapv1.GetStatusRequest) (*kmapv1.GetStatusResponse, error) {
-	documentID := req.GetDocument().GetDocumentId()
-	if documentID == "" {
-		return nil, status.Error(codes.InvalidArgument, "document_id is required")
-	}
+type StatusResult struct {
+	Document domain.Document
+	Stages   []domain.Stage
+}
 
-	service.mu.RLock()
-	resp, ok := service.documents[documentID]
-	service.mu.RUnlock()
-	if !ok {
-		return nil, status.Error(codes.NotFound, "document not found")
+func (service *Service) GetStatus(ctx context.Context, documentID uuid.UUID) (StatusResult, error) {
+	doc, stages, err := service.repository.GetStatus(ctx, documentID)
+	if err != nil {
+		return StatusResult{}, err
 	}
+	return StatusResult{Document: doc, Stages: stages}, nil
+}
 
-	return resp, nil
+func (service *Service) buildEnvelope(doc domain.Document) (events.Envelope, error) {
+	payload := map[string]any{
+		"document_id": doc.ID.String(),
+		"version":     doc.Version,
+		"sha256":      hex.EncodeToString(doc.SHA256),
+		"blob_uri":    doc.BlobURI,
+		"declared_meta": map[string]any{
+			"doc_type":     doc.DocType,
+			"lang":         doc.Lang,
+			"geography":    doc.Geography,
+			"access_level": doc.AccessLevel,
+		},
+	}
+	return events.New(events.Event{
+		Type:    events.DocumentRegistered,
+		Source:  eventSource,
+		Subject: doc.ID.String(),
+		Data:    payload,
+	})
 }
