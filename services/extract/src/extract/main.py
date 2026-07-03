@@ -15,7 +15,7 @@ from extract.numcore import Fact, extract_facts
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("extract")
 
-REGISTERED = "kmap.doc.v1.registered"
+PARSED = "kmap.doc.v1.parsed"
 EXTRACTED = "kmap.doc.v1.extracted"
 EXTRACTOR_VERSION = "numcore-py-1.0"
 
@@ -108,19 +108,20 @@ async def run() -> None:
             envelope = json.loads(msg.data)
             data = envelope.get("data", {})
             document_id = data.get("document_id")
-            blob_uri = data.get("blob_uri")
-            if not document_id or not blob_uri:
+            docir_uri = data.get("docir_uri")
+            if not document_id or not docir_uri:
                 await msg.ack()
                 return
 
-            bucket, key = _parse_uri(blob_uri)
+            bucket, key = _parse_uri(docir_uri)
             response = store.get_object(bucket, key)
             try:
                 raw = response.read()
             finally:
                 response.close()
                 response.release_conn()
-            text = raw.decode("utf-8", errors="ignore")
+            docir = json.loads(raw)
+            text = docir.get("full_text", "")
 
             facts = extract_facts(text)
             bundle = _bundle(document_id, text, facts)
@@ -139,8 +140,8 @@ async def run() -> None:
             logger.exception("extract failed: %s", error)
             await msg.nak()
 
-    await js.subscribe(REGISTERED, durable="kmap-extract", cb=handle, manual_ack=True)
-    logger.info("extract worker subscribed to %s", REGISTERED)
+    await js.subscribe(PARSED, durable="kmap-extract-parsed", cb=handle, manual_ack=True)
+    logger.info("extract worker subscribed to %s", PARSED)
 
     stop = asyncio.Event()
     loop = asyncio.get_running_loop()

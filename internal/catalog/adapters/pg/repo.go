@@ -5,9 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/catalog/app"
+	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/events"
+	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/outbox"
 )
 
 type Repo struct {
@@ -144,18 +147,28 @@ ON CONFLICT (src, dst, rel) DO UPDATE SET weight = kg.edges.weight + 1`,
 		return app.CommitResult{}, fmt.Errorf("update document status: %w", err)
 	}
 
-	payload, err := json.Marshal(map[string]any{
-		"document_id": bundle.DocumentID,
-		"fact_ids":    result.FactIDs,
-		"entity_ids":  result.EntityIDs,
+	envelope, err := events.New(events.Event{
+		Type:    events.FactsCommitted,
+		Source:  "kmap/catalog",
+		Subject: bundle.DocumentID,
+		Data: map[string]any{
+			"document_id": bundle.DocumentID,
+			"fact_ids":    result.FactIDs,
+			"entity_ids":  result.EntityIDs,
+		},
 	})
 	if err != nil {
-		return app.CommitResult{}, fmt.Errorf("marshal outbox payload: %w", err)
+		return app.CommitResult{}, fmt.Errorf("build facts.committed event: %w", err)
 	}
-	if _, err := tx.Exec(ctx, `
-INSERT INTO ops.outbox (aggregate_type, aggregate_id, event_type, payload)
-VALUES ('document', $1, 'kmap.facts.v1.committed', $2)`,
-		bundle.DocumentID, payload); err != nil {
+	documentUUID, err := uuid.Parse(bundle.DocumentID)
+	if err != nil {
+		return app.CommitResult{}, fmt.Errorf("parse document id: %w", err)
+	}
+	if err := outbox.Append(ctx, tx, outbox.Record{
+		Envelope:      envelope,
+		AggregateType: "document",
+		AggregateID:   &documentUUID,
+	}); err != nil {
 		return app.CommitResult{}, fmt.Errorf("write outbox: %w", err)
 	}
 
