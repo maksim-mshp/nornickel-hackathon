@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/config"
@@ -60,7 +61,7 @@ func TestCompleteFlagsInvalidJSON(t *testing.T) {
 
 	cfg := llmConfig(map[string]config.LLMTask{
 		"extract": {Model: "openai-gpt-oss-20b", JSON: true, TimeoutS: 5},
-	}, nil)
+	}, []string{"openai-gpt-oss-20b"})
 	client := &fakeChatClient{result: &ChatResult{Content: "not json", Model: "m"}}
 	service, _ := New(cfg, client)
 
@@ -102,13 +103,63 @@ func TestCompletePropagatesEmptyResponse(t *testing.T) {
 
 	cfg := llmConfig(map[string]config.LLMTask{
 		"parse_query": {Model: "openai-gpt-oss-20b", JSON: true, TimeoutS: 5},
-	}, nil)
+	}, []string{"openai-gpt-oss-20b"})
 	client := &fakeChatClient{result: &ChatResult{Content: "", Model: "m"}}
 	service, _ := New(cfg, client)
 
 	_, err := service.Complete(t.Context(), "parse_query", nil)
 	if !errors.Is(err, ErrEmptyResponse) {
 		t.Fatalf("expected ErrEmptyResponse, got %v", err)
+	}
+}
+
+type funcChatClient struct {
+	fn    func(model string) (*ChatResult, error)
+	calls []string
+}
+
+func (client *funcChatClient) Complete(_ context.Context, model string, _ []Message, _ Options) (*ChatResult, error) {
+	client.calls = append(client.calls, model)
+	return client.fn(model)
+}
+
+func TestAllowlistFailsClosedOnEmpty(t *testing.T) {
+	t.Parallel()
+
+	cfg := llmConfig(map[string]config.LLMTask{
+		"parse_query": {Model: "some-model", TimeoutS: 5},
+	}, nil)
+	service, _ := New(cfg, &fakeChatClient{result: &ChatResult{Content: "x", Model: "some-model"}})
+
+	_, err := service.Complete(t.Context(), "parse_query", nil)
+	if !errors.Is(err, ErrModelNotAllowed) {
+		t.Fatalf("empty allowlist must fail closed, got %v", err)
+	}
+}
+
+func TestFailoverToFallbackModel(t *testing.T) {
+	t.Parallel()
+
+	cfg := llmConfig(map[string]config.LLMTask{
+		"synthesize_answer": {Model: "primary", FallbackModel: "backup", TimeoutS: 5},
+	}, []string{"primary", "backup"})
+	client := &funcChatClient{fn: func(model string) (*ChatResult, error) {
+		if model == "primary" {
+			return nil, errors.New("upstream unavailable")
+		}
+		return &ChatResult{Content: "synthesized", Model: model}, nil
+	}}
+	service, _ := New(cfg, client)
+
+	result, err := service.Complete(t.Context(), "synthesize_answer", map[string]any{"prompt": "q"})
+	if err != nil {
+		t.Fatalf("complete: %v", err)
+	}
+	if result.Model != "backup" {
+		t.Fatalf("expected failover to backup, got %q", result.Model)
+	}
+	if !slices.Contains(client.calls, "primary") {
+		t.Fatal("primary should have been attempted before failover")
 	}
 }
 

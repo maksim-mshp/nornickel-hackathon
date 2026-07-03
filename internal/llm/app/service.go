@@ -4,10 +4,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"slices"
 	"time"
 
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/config"
+)
+
+const (
+	maxAttemptsPerModel = 2
+	retryBaseDelay      = 25 * time.Millisecond
 )
 
 type Service struct {
@@ -30,40 +36,83 @@ func (service *Service) Complete(ctx context.Context, task string, payload map[s
 	if !ok {
 		return nil, fmt.Errorf("%w: %s", ErrUnknownTask, task)
 	}
-	if !service.allowed(taskCfg.Model) {
+	models := service.modelChain(taskCfg)
+	if len(models) == 0 {
 		return nil, fmt.Errorf("%w: %s", ErrModelNotAllowed, taskCfg.Model)
 	}
 
-	ctx, cancel := context.WithTimeout(ctx, timeout(taskCfg))
-	defer cancel()
+	messages := messagesFromPayload(payload)
+	opts := Options{Temperature: taskCfg.Temperature, MaxTokens: taskCfg.MaxTokens, JSON: taskCfg.JSON}
 
-	chat, err := service.client.Complete(ctx, taskCfg.Model, messagesFromPayload(payload), Options{
-		Temperature: taskCfg.Temperature,
-		MaxTokens:   taskCfg.MaxTokens,
-		JSON:        taskCfg.JSON,
-	})
-	if err != nil {
-		return nil, err
+	var lastErr error
+	for _, model := range models {
+		chat, err := service.attempt(ctx, model, messages, opts, taskCfg)
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		if chat.Content == "" {
+			lastErr = ErrEmptyResponse
+			continue
+		}
+		return &Result{
+			Content:      chat.Content,
+			Model:        chat.Model,
+			InputTokens:  chat.InputTokens,
+			OutputTokens: chat.OutputTokens,
+			IsJSON:       taskCfg.JSON,
+			Valid:        !taskCfg.JSON || isValidJSON(chat.Content),
+		}, nil
 	}
-	if chat.Content == "" {
-		return nil, ErrEmptyResponse
-	}
+	return nil, lastErr
+}
 
-	return &Result{
-		Content:      chat.Content,
-		Model:        chat.Model,
-		InputTokens:  chat.InputTokens,
-		OutputTokens: chat.OutputTokens,
-		IsJSON:       taskCfg.JSON,
-		Valid:        !taskCfg.JSON || isValidJSON(chat.Content),
-	}, nil
+func (service *Service) attempt(ctx context.Context, model string, messages []Message, opts Options, taskCfg config.LLMTask) (*ChatResult, error) {
+	var lastErr error
+	for i := range maxAttemptsPerModel {
+		if i > 0 {
+			if err := sleepBackoff(ctx, i); err != nil {
+				return nil, err
+			}
+		}
+		attemptCtx, cancel := context.WithTimeout(ctx, timeout(taskCfg))
+		chat, err := service.client.Complete(attemptCtx, model, messages, opts)
+		cancel()
+		if err == nil {
+			return chat, nil
+		}
+		lastErr = err
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+	}
+	return nil, lastErr
+}
+
+func (service *Service) modelChain(taskCfg config.LLMTask) []string {
+	chain := make([]string, 0, 3)
+	for _, model := range []string{taskCfg.Model, taskCfg.FallbackModel, taskCfg.EscalateModel} {
+		if model != "" && service.allowed(model) && !slices.Contains(chain, model) {
+			chain = append(chain, model)
+		}
+	}
+	return chain
 }
 
 func (service *Service) allowed(model string) bool {
-	if len(service.config.Allowlist) == 0 {
-		return true
-	}
 	return slices.Contains(service.config.Allowlist, model)
+}
+
+func sleepBackoff(ctx context.Context, attempt int) error {
+	delay := retryBaseDelay*time.Duration(attempt) + time.Duration(rand.Int63n(int64(retryBaseDelay)))
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-timer.C:
+		return nil
+	}
 }
 
 func timeout(task config.LLMTask) time.Duration {
