@@ -193,6 +193,16 @@ services:
     command: ["--config", "/configs", "--env", "demo"]
     restart: unless-stopped
 
+  ui:
+    build:
+      context: ../../ui
+    profiles: [app]
+    depends_on:
+      - gateway
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
+
 volumes:
   pg_data:
   nats_data:
