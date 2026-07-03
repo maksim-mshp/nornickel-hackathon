@@ -109,6 +109,22 @@ ON CONFLICT DO NOTHING`
 
 const documentContextSQL = `SELECT year, geography::text FROM core.documents WHERE id = $1`
 const updateDocStatusSQL = `UPDATE core.documents SET status = 'indexed', updated_at = now() WHERE id = $1`
+
+const recomputeEdgesSQL = `
+INSERT INTO kg.edges (src, dst, rel, weight, provenance)
+SELECT f.subject_id, f.parameter_id, 'OPERATES_AT',
+       count(*)::int,
+       coalesce(jsonb_agg(DISTINCT f.document_id) FILTER (WHERE f.document_id IS NOT NULL), '[]'::jsonb)
+FROM kg.numeric_facts f
+WHERE (f.subject_id, f.parameter_id) IN (
+        SELECT DISTINCT subject_id, parameter_id
+        FROM kg.numeric_facts
+        WHERE document_id = $1 AND subject_id IS NOT NULL AND parameter_id IS NOT NULL
+      )
+  AND f.superseded_by IS NULL
+GROUP BY f.subject_id, f.parameter_id
+ON CONFLICT (src, dst, rel) DO UPDATE
+  SET weight = EXCLUDED.weight, provenance = EXCLUDED.provenance, updated_at = now()`
 const markDocFailedSQL = `
 UPDATE core.documents
 SET status = 'failed',
@@ -202,6 +218,10 @@ func (repository *Repository) Commit(ctx context.Context, cmd app.CommitCommand,
 		); err != nil {
 			return fmt.Errorf("insert numeric fact: %w", err)
 		}
+	}
+
+	if _, err := tx.Exec(ctx, recomputeEdgesSQL, cmd.DocumentID); err != nil {
+		return fmt.Errorf("recompute edges: %w", err)
 	}
 
 	if _, err := tx.Exec(ctx, updateDocStatusSQL, cmd.DocumentID); err != nil {
