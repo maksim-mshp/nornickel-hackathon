@@ -7,11 +7,15 @@ linters:
     - errcheck
     - revive
     - gocritic
+    - gosec
     - sqlclosecheck
     - rowserrcheck
     - unconvert
     - misspell
   settings:
+    gosec:
+      excludes:
+        - G115
     revive:
       rules:
         - name: package-comments

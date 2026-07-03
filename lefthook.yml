@@ -1,0 +1,15 @@
+pre-commit:
+  parallel: true
+  commands:
+    go:
+      glob: "*.go"
+      run: golangci-lint run --fix
+    python:
+      glob: "*.py"
+      run: ruff check --fix {staged_files}
+
+commit-msg:
+  commands:
+    conventional:
+      run: |
+        head -1 {1} | grep -qE '^(feat|fix|docs|refactor|test|perf|ci|chore)(\(.+\))?: .+'
