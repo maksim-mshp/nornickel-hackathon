@@ -1,10 +1,98 @@
-import type { AskEvent } from "@/shared/api/types";
+import type { AnswerDoc, AskEvent, EvidencePack, QueryPlan } from "@/shared/api/types";
 import {
   CATHOLYTE_ANSWER,
   CATHOLYTE_PACK,
   CATHOLYTE_PLAN,
   CATHOLYTE_SUMMARY,
 } from "@/shared/api/mock/catholyte-scenario";
+
+const ASK_ENDPOINT = "/v1/ask";
+
+export async function* askStream(
+  question: string,
+  signal?: AbortSignal,
+): AsyncGenerator<AskEvent> {
+  let response: Response;
+  try {
+    response = await fetch(ASK_ENDPOINT, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "text/event-stream",
+      },
+      body: JSON.stringify({ question }),
+      signal,
+    });
+  } catch (error) {
+    if ((error as Error).name === "AbortError") throw error;
+    yield* mockAskStream(question, signal);
+    return;
+  }
+
+  if (!response.ok || !response.body) {
+    yield* mockAskStream(question, signal);
+    return;
+  }
+
+  yield* parseSSE(response.body, signal);
+}
+
+async function* parseSSE(
+  body: ReadableStream<Uint8Array>,
+  signal?: AbortSignal,
+): AsyncGenerator<AskEvent> {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+
+  try {
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      let boundary = buffer.indexOf("\n\n");
+      while (boundary !== -1) {
+        const frame = buffer.slice(0, boundary);
+        buffer = buffer.slice(boundary + 2);
+        const event = parseFrame(frame);
+        if (event) yield event;
+        boundary = buffer.indexOf("\n\n");
+      }
+    }
+  } finally {
+    if (signal?.aborted) await reader.cancel().catch(() => {});
+  }
+}
+
+function parseFrame(frame: string): AskEvent | null {
+  let event = "";
+  const dataLines: string[] = [];
+  for (const line of frame.split("\n")) {
+    if (line.startsWith("event:")) {
+      event = line.slice(6).trim();
+    } else if (line.startsWith("data:")) {
+      dataLines.push(line.slice(5).trimStart());
+    }
+  }
+  if (!event || dataLines.length === 0) return null;
+
+  const data = JSON.parse(dataLines.join("\n"));
+  switch (event) {
+    case "plan":
+      return { type: "plan", plan: data as QueryPlan };
+    case "evidence":
+      return { type: "evidence", pack: data as EvidencePack };
+    case "answer.delta":
+      return { type: "answer.delta", text: String(data.text ?? "") };
+    case "answer.done":
+      return { type: "answer.done", answer: data as AnswerDoc };
+    case "error":
+      return { type: "error", message: String(data.message ?? "Ошибка ответа") };
+    default:
+      return null;
+  }
+}
 
 const PLAN_DELAY_MS = 600;
 const EVIDENCE_DELAY_MS = 900;
@@ -31,7 +119,7 @@ function splitDeltas(text: string): string[] {
   return chunks;
 }
 
-export async function* askStream(
+export async function* mockAskStream(
   question: string,
   signal?: AbortSignal,
 ): AsyncGenerator<AskEvent> {
