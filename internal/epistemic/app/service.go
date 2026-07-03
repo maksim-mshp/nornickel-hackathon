@@ -47,6 +47,7 @@ type Repo interface {
 	Coverage(ctx context.Context, domain string) ([]CoverageCell, error)
 	Contradictions(ctx context.Context, status string, entityID string) ([]Contradiction, error)
 	DecideContradiction(ctx context.Context, id string, status string, rationale string) (Contradiction, error)
+	RecalculateFacts(ctx context.Context, factIDs []string) ([]string, error)
 }
 
 type Service struct {
@@ -55,6 +56,10 @@ type Service struct {
 
 func NewService(repo Repo) *Service {
 	return &Service{repo: repo}
+}
+
+func (service *Service) RecalculateFacts(ctx context.Context, factIDs []string) ([]string, error) {
+	return service.repo.RecalculateFacts(ctx, factIDs)
 }
 
 func (service *Service) GetCoverage(ctx context.Context, req *kmapv1.GetCoverageRequest) (*kmapv1.GetCoverageResponse, error) {

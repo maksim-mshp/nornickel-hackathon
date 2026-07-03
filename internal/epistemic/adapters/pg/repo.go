@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/epistemic/app"
 )
@@ -111,6 +112,122 @@ RETURNING id::text, status, dtype, coalesce(severity, 0)`
 		return app.Contradiction{}, fmt.Errorf("update contradiction: %w", err)
 	}
 	return contradiction, nil
+}
+
+func (repo *Repo) RecalculateFacts(ctx context.Context, factIDs []string) ([]string, error) {
+	if len(factIDs) == 0 {
+		return nil, nil
+	}
+	tx, err := repo.pool.Begin(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("begin tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	clusterKeys, err := upsertClusters(ctx, tx, factIDs)
+	if err != nil {
+		return nil, err
+	}
+	if err := rebuildCoverage(ctx, tx, factIDs); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, fmt.Errorf("commit tx: %w", err)
+	}
+	return clusterKeys, nil
+}
+
+func upsertClusters(ctx context.Context, tx pgx.Tx, factIDs []string) ([]string, error) {
+	const query = `
+WITH facts AS (
+  SELECT f.id, f.subject_id, f.parameter_id, coalesce(f.condition_hash, '\x'::bytea) AS condition_hash,
+         decode(md5(f.subject_id::text || ':' || f.parameter_id::text || ':' || encode(coalesce(f.condition_hash, '\x'::bytea), 'hex')), 'hex') AS ckey
+  FROM kg.numeric_facts f
+  WHERE f.id::text = ANY($1)
+),
+upserted AS (
+  INSERT INTO epi.clusters (ckey, subject_id, parameter_id, kind, condition_class, size, dirty)
+  SELECT ckey, subject_id, parameter_id, 'numeric', '{}'::jsonb, 0, true
+  FROM facts
+  ON CONFLICT (ckey) DO UPDATE SET dirty = true, updated_at = now()
+  RETURNING id, ckey
+),
+members AS (
+  INSERT INTO epi.cluster_members (cluster_id, fact_kind, fact_id)
+  SELECT u.id, 'numeric', f.id
+  FROM facts f
+  JOIN upserted u ON u.ckey = f.ckey
+  ON CONFLICT DO NOTHING
+  RETURNING cluster_id
+),
+sizes AS (
+  UPDATE epi.clusters c
+  SET size = counted.size, updated_at = now()
+  FROM (
+    SELECT cluster_id, count(*)::int AS size
+    FROM epi.cluster_members
+    WHERE cluster_id IN (SELECT id FROM upserted)
+    GROUP BY cluster_id
+  ) counted
+  WHERE c.id = counted.cluster_id
+  RETURNING c.ckey
+)
+SELECT encode(ckey, 'hex') FROM sizes`
+	rows, err := tx.Query(ctx, query, factIDs)
+	if err != nil {
+		return nil, fmt.Errorf("upsert clusters: %w", err)
+	}
+	defer rows.Close()
+	var keys []string
+	for rows.Next() {
+		var key string
+		if err := rows.Scan(&key); err != nil {
+			return nil, fmt.Errorf("scan cluster key: %w", err)
+		}
+		keys = append(keys, key)
+	}
+	return keys, rows.Err()
+}
+
+func rebuildCoverage(ctx context.Context, tx pgx.Tx, factIDs []string) error {
+	const query = `
+WITH affected AS (
+  SELECT DISTINCT subject_id AS entity_id
+  FROM kg.numeric_facts
+  WHERE id::text = ANY($1)
+),
+deleted AS (
+  DELETE FROM epi.coverage_cells cc
+  USING affected a
+  WHERE cc.process_id = a.entity_id
+),
+stats AS (
+  SELECT f.subject_id AS process_id,
+         count(DISTINCT f.document_id)::int AS docs,
+         count(*)::int AS facts,
+         count(*) FILTER (WHERE f.validation_status IN ('multi_source','expert_validated'))::int AS validated_facts,
+         count(DISTINCT f.document_id) FILTER (WHERE f.geography = 'ru')::int AS ru_docs,
+         count(DISTINCT f.document_id) FILTER (WHERE f.geography = 'foreign')::int AS foreign_docs,
+         max(f.doc_year)::int AS last_source_year
+  FROM kg.numeric_facts f
+  WHERE f.subject_id IN (SELECT entity_id FROM affected)
+    AND f.superseded_by IS NULL
+  GROUP BY f.subject_id
+)
+INSERT INTO epi.coverage_cells
+  (domain, process_id, condition_key, docs, facts, validated_facts, ru_docs, foreign_docs, last_source_year,
+   score, score_components, gap_flag, gap_reasons, computed_at)
+SELECT 'default', process_id, '', docs, facts, validated_facts, ru_docs, foreign_docs, last_source_year,
+       LEAST(1.0, (docs::real / 5.0) + (validated_facts::real / 10.0)),
+       jsonb_build_object('docs', docs, 'validated', validated_facts),
+       docs < 2,
+       CASE WHEN docs < 2 THEN ARRAY['insufficient_documents']::text[] ELSE '{}'::text[] END,
+       now()
+FROM stats`
+	if _, err := tx.Exec(ctx, query, factIDs); err != nil {
+		return fmt.Errorf("rebuild coverage: %w", err)
+	}
+	return nil
 }
 
 func decodeMap(raw []byte) map[string]float64 {
