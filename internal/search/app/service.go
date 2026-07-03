@@ -99,6 +99,9 @@ func (service *Service) GetEntity(ctx context.Context, req *kmapv1.GetEntityRequ
 	if err != nil {
 		return nil, status.Errorf(codes.Internal, "get entity: %v", err)
 	}
+	if entity == nil {
+		return nil, status.Errorf(codes.NotFound, "entity not found: %s", req.GetEntityId())
+	}
 	return &kmapv1.GetEntityResponse{Entity: entity}, nil
 }
 

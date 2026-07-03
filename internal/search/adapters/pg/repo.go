@@ -3,6 +3,7 @@ package pg
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
@@ -500,6 +501,9 @@ GROUP BY e.id, e.slug, e.canonical_name, e.canonical_name_en, e.etype`
 	item := &kmapv1.EntityCard{}
 	var facts, relations uint32
 	if err := q.QueryRow(ctx, sql, entityID).Scan(&item.Id, &item.Slug, &item.NameRu, &item.NameEn, &item.Type, &facts, &relations); err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			return nil, nil
+		}
 		return nil, fmt.Errorf("query entity: %w", err)
 	}
 	counters, err := structpb.NewStruct(map[string]any{"facts": float64(facts), "relations": float64(relations)})

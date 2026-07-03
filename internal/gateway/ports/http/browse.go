@@ -4,11 +4,20 @@ import (
 	"encoding/json"
 	"math"
 	stdhttp "net/http"
+	"net/url"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	kmapv1 "github.com/maksim-mshp/nornickel-hackathon/contracts/gen/go/kmap/v1"
 )
+
+func pathParam(r *stdhttp.Request, key string) string {
+	value := chi.URLParam(r, key)
+	if decoded, err := url.PathUnescape(value); err == nil {
+		return decoded
+	}
+	return value
+}
 
 type itemsResponse[T any] struct {
 	Items      []T    `json:"items"`
@@ -156,7 +165,7 @@ func (server *Server) entitiesHandler(w stdhttp.ResponseWriter, r *stdhttp.Reque
 
 func (server *Server) entityHandler(w stdhttp.ResponseWriter, r *stdhttp.Request) {
 	resp, err := server.search.GetEntity(r.Context(), &kmapv1.GetEntityRequest{
-		EntityId:  chi.URLParam(r, "id"),
+		EntityId:  pathParam(r, "id"),
 		Principal: principalFromContext(r),
 	})
 	if err != nil {
@@ -168,7 +177,7 @@ func (server *Server) entityHandler(w stdhttp.ResponseWriter, r *stdhttp.Request
 
 func (server *Server) entityFactsHandler(w stdhttp.ResponseWriter, r *stdhttp.Request) {
 	resp, err := server.search.ListEntityFacts(r.Context(), &kmapv1.ListEntityFactsRequest{
-		EntityId:  chi.URLParam(r, "id"),
+		EntityId:  pathParam(r, "id"),
 		Parameter: r.URL.Query().Get("param"),
 		Page:      pageRequest(r),
 		Principal: principalFromContext(r),
