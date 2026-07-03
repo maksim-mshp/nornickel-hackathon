@@ -94,6 +94,10 @@ func (repository *Repository) Commit(ctx context.Context, cmd app.CommitCommand,
 		return err
 	}
 
+	if _, err := tx.Exec(ctx, `SELECT pg_advisory_xact_lock(hashtextextended($1, 0))`, cmd.DocumentID.String()); err != nil {
+		return fmt.Errorf("acquire document lock: %w", err)
+	}
+
 	var docYear *int
 	var docGeography string
 	err = tx.QueryRow(ctx, documentContextSQL, cmd.DocumentID).Scan(&docYear, &docGeography)
