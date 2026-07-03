@@ -61,3 +61,12 @@ tasks:
       - go install github.com/golang-migrate/migrate/v4/cmd/migrate@latest -tags "postgres"
       - go install github.com/evilmartians/lefthook@latest
       - go install gotest.tools/gotestsum@latest
+
+  py-test:
+    dir: services/extract
+    cmds:
+      - python -m pytest tests -q
+
+  py-lint:
+    cmds:
+      - ruff check services

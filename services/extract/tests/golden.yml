@@ -1,0 +1,88 @@
+- text: "скорость 0,8 м/с"
+  operator: eq
+  vmin: 0.8
+  vmax: 0.8
+  unit_code: m_per_s
+  parameter_slug: parameter:flow-rate
+- text: "0,6–0,9 м/с"
+  operator: range
+  vmin: 0.6
+  vmax: 0.9
+  unit_code: m_per_s
+- text: "0.6-0.9 m/s"
+  operator: range
+  vmin: 0.6
+  vmax: 0.9
+  unit_code: m_per_s
+- text: "температура 60—80 °C"
+  operator: range
+  vmin: 60
+  vmax: 80
+  unit_code: celsius
+  vmin_si: 333.15
+  vmax_si: 353.15
+  parameter_slug: parameter:temperature
+- text: "не более 1000 мг/дм³"
+  operator: lte
+  vmax: 1000
+  unit_code: mg_per_dm3
+  vmax_si: 1.0
+- text: "≤500 мг/дм³"
+  operator: lte
+  vmax: 500
+  unit_code: mg_per_dm3
+- text: "до 300 мг/л"
+  operator: lte
+  vmax: 300
+  unit_code: mg_per_l
+- text: "не менее 95 %"
+  operator: gte
+  vmin: 95
+  unit_code: percent
+  parameter_slug: parameter:ratio
+- text: "≥100 мг/л"
+  operator: gte
+  vmin: 100
+  unit_code: mg_per_l
+- text: "свыше 0,7 м/с"
+  operator: gte
+  vmin: 0.7
+  unit_code: m_per_s
+- text: "выше 0,7 м/с"
+  operator: gte
+  vmin: 0.7
+  unit_code: m_per_s
+- text: "от 250 мг/л"
+  operator: gte
+  vmin: 250
+  unit_code: mg_per_l
+- text: "65 ± 2 °C"
+  operator: range
+  vmin: 63
+  vmax: 67
+  unit_code: celsius
+- text: "плотность тока 250 а/м²"
+  operator: eq
+  vmin: 250
+  vmax: 250
+  unit_code: a_per_m2
+  parameter_slug: parameter:current-density
+- text: "давление 1,5 МПа"
+  operator: eq
+  vmin: 1.5
+  vmax: 1.5
+  unit_code: mpa
+  vmin_si: 1500000.0
+  parameter_slug: parameter:pressure
+- text: "прирост 4,2 %"
+  operator: eq
+  vmin: 4.2
+  vmax: 4.2
+  unit_code: percent
+- text: "давление 1,5–2,0 МПа"
+  operator: range
+  vmin: 1.5
+  vmax: 2.0
+  unit_code: mpa
+  vmin_si: 1500000.0
+  vmax_si: 2000000.0
