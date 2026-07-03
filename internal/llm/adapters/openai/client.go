@@ -9,6 +9,7 @@ import (
 	"github.com/openai/openai-go"
 	"github.com/openai/openai-go/option"
 	"github.com/openai/openai-go/responses"
+	"github.com/openai/openai-go/shared"
 )
 
 const jsonInstruction = "Верни ответ строго как валидный JSON без пояснений и текста вокруг."
@@ -56,8 +57,11 @@ func (client *Client) Complete(ctx context.Context, model string, messages []app
 	if opts.MaxTokens > 0 {
 		params.MaxOutputTokens = openai.Int(int64(opts.MaxTokens))
 	}
-	if opts.Temperature != 0 {
+	if opts.Temperature >= 0 {
 		params.Temperature = openai.Float(opts.Temperature)
+	}
+	if opts.ReasoningEffort != "" {
+		params.Reasoning = shared.ReasoningParam{Effort: shared.ReasoningEffort(opts.ReasoningEffort)}
 	}
 
 	response, err := client.client.Responses.New(ctx, params)

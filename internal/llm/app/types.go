@@ -18,9 +18,10 @@ type Message struct {
 }
 
 type Options struct {
-	Temperature float64
-	MaxTokens   int
-	JSON        bool
+	Temperature     float64
+	MaxTokens       int
+	JSON            bool
+	ReasoningEffort string
 }
 
 type ChatResult struct {

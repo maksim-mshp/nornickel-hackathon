@@ -42,7 +42,12 @@ func (service *Service) Complete(ctx context.Context, task string, payload map[s
 	}
 
 	messages := messagesFromPayload(payload)
-	opts := Options{Temperature: taskCfg.Temperature, MaxTokens: taskCfg.MaxTokens, JSON: taskCfg.JSON}
+	opts := Options{
+		Temperature:     taskCfg.Temperature,
+		MaxTokens:       taskCfg.MaxTokens,
+		JSON:            taskCfg.JSON,
+		ReasoningEffort: taskCfg.ReasoningEffort,
+	}
 
 	var lastErr error
 	for _, model := range models {
