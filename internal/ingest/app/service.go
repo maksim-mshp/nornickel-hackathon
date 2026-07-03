@@ -106,14 +106,14 @@ func (service *Service) GetStatus(ctx context.Context, documentID uuid.UUID) (St
 	return StatusResult{Document: doc, Stages: stages}, nil
 }
 
-func (service *Service) ListDocuments(ctx context.Context, limit uint32) ([]DocumentSummary, error) {
+func (service *Service) ListDocuments(ctx context.Context, cursor string, limit uint32) ([]DocumentSummary, string, error) {
 	if limit == 0 {
 		limit = 50
 	}
 	if limit > 100 {
 		limit = 100
 	}
-	return service.repository.ListDocuments(ctx, limit)
+	return service.repository.ListDocuments(ctx, cursor, limit)
 }
 
 func (service *Service) buildEnvelope(doc domain.Document) (events.Envelope, error) {

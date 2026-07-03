@@ -12,7 +12,7 @@ type Repository interface {
 	FindIDBySHA256(ctx context.Context, sha256 []byte) (uuid.UUID, bool, error)
 	Register(ctx context.Context, doc domain.Document, envelope events.Envelope) (domain.Document, error)
 	GetStatus(ctx context.Context, documentID uuid.UUID) (domain.Document, []domain.Stage, error)
-	ListDocuments(ctx context.Context, limit uint32) ([]DocumentSummary, error)
+	ListDocuments(ctx context.Context, cursor string, limit uint32) ([]DocumentSummary, string, error)
 }
 
 type DocumentSummary struct {

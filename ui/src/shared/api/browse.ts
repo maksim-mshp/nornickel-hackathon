@@ -196,8 +196,30 @@ export function getExperiments(): Promise<ExperimentRow[]> {
   return getJSON("/v1/experiments", EXPERIMENTS);
 }
 
-export function getDocuments(): Promise<DocumentRow[]> {
-  return getJSON("/v1/documents", DOCUMENTS);
+export async function getDocuments(): Promise<DocumentRow[]> {
+  try {
+    const all: DocumentRow[] = [];
+    let cursor = "";
+    for (let page = 0; page < 100; page++) {
+      const url = cursor
+        ? `/v1/documents?limit=100&cursor=${encodeURIComponent(cursor)}`
+        : "/v1/documents?limit=100";
+      const response = await fetch(url, {
+        headers: { Accept: "application/json", ...authHeaders() },
+      });
+      if (!response.ok) return all;
+      const data = (await response.json()) as {
+        items?: DocumentRow[];
+        next_cursor?: string;
+      };
+      if (Array.isArray(data.items)) all.push(...data.items);
+      cursor = data.next_cursor ?? "";
+      if (!cursor) break;
+    }
+    return all;
+  } catch {
+    return DOCUMENTS;
+  }
 }
 
 export async function openDocumentSource(id: string): Promise<boolean> {

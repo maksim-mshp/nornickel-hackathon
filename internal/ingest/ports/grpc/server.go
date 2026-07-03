@@ -77,7 +77,7 @@ func (server *Server) GetStatus(ctx context.Context, req *kmapv1.GetStatusReques
 }
 
 func (server *Server) ListDocuments(ctx context.Context, req *kmapv1.ListDocumentsRequest) (*kmapv1.ListDocumentsResponse, error) {
-	items, err := server.service.ListDocuments(ctx, req.GetPage().GetLimit())
+	items, next, err := server.service.ListDocuments(ctx, req.GetPage().GetCursor(), req.GetPage().GetLimit())
 	if err != nil {
 		return nil, mapError(err)
 	}
@@ -95,7 +95,7 @@ func (server *Server) ListDocuments(ctx context.Context, req *kmapv1.ListDocumen
 			Year:        item.Year,
 		})
 	}
-	return &kmapv1.ListDocumentsResponse{Items: out, Page: &kmapv1.PageResponse{}}, nil
+	return &kmapv1.ListDocumentsResponse{Items: out, Page: &kmapv1.PageResponse{NextCursor: next}}, nil
 }
 
 func toProtoStages(stages []domain.Stage) []*kmapv1.IngestStage {
