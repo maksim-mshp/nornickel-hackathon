@@ -33,11 +33,12 @@ export default function ReviewPage() {
       getReviewEntities(),
       getReviewOrphans(),
       getContradictions("suspected"),
-    ]).then(([e, o, c]) => {
+      getContradictions("judge_confirmed"),
+    ]).then(([e, o, suspected, judged]) => {
       if (!alive) return;
       setEntities(e);
       setOrphans(o);
-      setContradictions(c);
+      setContradictions([...suspected, ...judged]);
     });
     return () => {
       alive = false;
