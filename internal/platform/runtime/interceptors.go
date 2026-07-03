@@ -19,16 +19,17 @@ type contextKey string
 const requestIDKey contextKey = "request_id"
 
 func (app *App) grpcServerOptions() []grpc.ServerOption {
+	signingKey := []byte(app.cfg.Runtime.Auth.SigningKey)
 	return []grpc.ServerOption{
 		grpc.ChainUnaryInterceptor(
 			app.requestIDUnaryInterceptor,
-			auth.UnaryServerInterceptor(),
+			auth.UnaryServerInterceptor(signingKey),
 			app.loggingUnaryInterceptor,
 			grpc_recovery.UnaryServerInterceptor(grpc_recovery.WithRecoveryHandler(app.recoverPanic)),
 		),
 		grpc.ChainStreamInterceptor(
 			app.requestIDStreamInterceptor,
-			auth.StreamServerInterceptor(),
+			auth.StreamServerInterceptor(signingKey),
 			app.loggingStreamInterceptor,
 			grpc_recovery.StreamServerInterceptor(grpc_recovery.WithRecoveryHandler(app.recoverPanic)),
 		),

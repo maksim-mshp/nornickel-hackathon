@@ -36,10 +36,11 @@ func build(cfg config.Bundle, logger *slog.Logger) (*runtime.Assembly, error) {
 		return nil, errors.New("grpc_clients.search is required")
 	}
 
+	signingKey := []byte(cfg.Runtime.Auth.SigningKey)
 	conn, err := grpc.NewClient(target,
 		grpc.WithTransportCredentials(insecure.NewCredentials()),
-		grpc.WithChainUnaryInterceptor(auth.UnaryClientInterceptor()),
-		grpc.WithChainStreamInterceptor(auth.StreamClientInterceptor()),
+		grpc.WithChainUnaryInterceptor(auth.UnaryClientInterceptor(signingKey)),
+		grpc.WithChainStreamInterceptor(auth.StreamClientInterceptor(signingKey)),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("create search grpc client: %w", err)
@@ -61,7 +62,7 @@ func build(cfg config.Bundle, logger *slog.Logger) (*runtime.Assembly, error) {
 	if llmTarget := cfg.Runtime.GRPCClients["llm"]; llmTarget != "" {
 		llmConn, llmErr := grpc.NewClient(llmTarget,
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
-			grpc.WithChainUnaryInterceptor(auth.UnaryClientInterceptor()),
+			grpc.WithChainUnaryInterceptor(auth.UnaryClientInterceptor(signingKey)),
 		)
 		if llmErr != nil {
 			_ = conn.Close()

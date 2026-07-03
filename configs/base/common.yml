@@ -9,6 +9,9 @@ postgres:
 nats:
   url: nats://nats:4222
 
+auth:
+  signing_key: kmap-dev-principal-signing-key-change-in-prod
+
 s3:
   endpoint: minio:9000
   access_key: kmap

@@ -72,6 +72,7 @@ func NewServer(cfg config.Bundle, logger *slog.Logger) (*Server, error) {
 		}
 	}
 
+	signingKey := []byte(cfg.Runtime.Auth.SigningKey)
 	for _, name := range []string{"search", "ingest", "answer", "catalog", "epistemic"} {
 		target := targets[name]
 		if target == "" {
@@ -80,8 +81,8 @@ func NewServer(cfg config.Bundle, logger *slog.Logger) (*Server, error) {
 		}
 		conn, err := grpc.NewClient(target,
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
-			grpc.WithChainUnaryInterceptor(auth.UnaryClientInterceptor()),
-			grpc.WithChainStreamInterceptor(auth.StreamClientInterceptor()),
+			grpc.WithChainUnaryInterceptor(auth.UnaryClientInterceptor(signingKey)),
+			grpc.WithChainStreamInterceptor(auth.StreamClientInterceptor(signingKey)),
 		)
 		if err != nil {
 			closeAll()

@@ -26,9 +26,10 @@ type Runtime struct {
 }
 
 type Auth struct {
-	Mode string   `koanf:"mode"`
-	Demo AuthDemo `koanf:"demo"`
-	OIDC AuthOIDC `koanf:"oidc"`
+	Mode       string   `koanf:"mode"`
+	SigningKey string   `koanf:"signing_key"`
+	Demo       AuthDemo `koanf:"demo"`
+	OIDC       AuthOIDC `koanf:"oidc"`
 }
 
 type AuthDemo struct {
