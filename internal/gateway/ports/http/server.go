@@ -55,11 +55,12 @@ type Server struct {
 }
 
 type problem struct {
-	Type     string `json:"type"`
-	Title    string `json:"title"`
-	Status   int    `json:"status"`
-	Detail   string `json:"detail,omitempty"`
-	Instance string `json:"instance,omitempty"`
+	Type      string `json:"type"`
+	Title     string `json:"title"`
+	Status    int    `json:"status"`
+	Detail    string `json:"detail,omitempty"`
+	Instance  string `json:"instance,omitempty"`
+	RequestID string `json:"request_id,omitempty"`
 }
 
 func NewServer(cfg config.Bundle, logger *slog.Logger) (*Server, error) {
@@ -407,11 +408,12 @@ func grpcHTTPStatus(code codes.Code) int {
 
 func writeProblem(w stdhttp.ResponseWriter, r *stdhttp.Request, statusCode int, problemType string, title string, detail string) {
 	writeJSON(w, statusCode, problem{
-		Type:     "https://kmap.local/problems/" + problemType,
-		Title:    title,
-		Status:   statusCode,
-		Detail:   detail,
-		Instance: r.URL.Path,
+		Type:      "https://kmap.local/problems/" + problemType,
+		Title:     title,
+		Status:    statusCode,
+		Detail:    detail,
+		Instance:  r.URL.Path,
+		RequestID: r.Header.Get("X-Request-Id"),
 	})
 }
 

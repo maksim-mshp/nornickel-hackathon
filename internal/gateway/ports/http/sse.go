@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	kmapv1 "github.com/maksim-mshp/nornickel-hackathon/contracts/gen/go/kmap/v1"
+	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/structpb"
 )
 
@@ -48,7 +49,7 @@ func (server *Server) askHandler(w stdhttp.ResponseWriter, r *stdhttp.Request) {
 
 	stream, err := server.answer.Ask(r.Context(), &kmapv1.AskRequest{Question: request.Question, Lang: request.Lang})
 	if err != nil {
-		writeSSEError(w, flusher, err.Error())
+		writeSSEProblem(w, flusher, r, err)
 		return
 	}
 
@@ -58,7 +59,7 @@ func (server *Server) askHandler(w stdhttp.ResponseWriter, r *stdhttp.Request) {
 			return
 		}
 		if err != nil {
-			writeSSEError(w, flusher, err.Error())
+			writeSSEProblem(w, flusher, r, err)
 			return
 		}
 		if err := writeAskEvent(w, message); err != nil {
@@ -92,9 +93,28 @@ func writeSSE(w io.Writer, event string, data any) error {
 	return err
 }
 
-func writeSSEError(w io.Writer, flusher stdhttp.Flusher, message string) {
-	_ = writeSSE(w, "error", map[string]any{"message": message})
+func writeSSEProblem(w io.Writer, flusher stdhttp.Flusher, r *stdhttp.Request, err error) {
+	_ = writeSSE(w, "error", sseProblem(r, err))
 	flusher.Flush()
+}
+
+func sseProblem(r *stdhttp.Request, err error) problem {
+	code := stdhttp.StatusBadGateway
+	title := "Upstream error"
+	problemType := "upstream_error"
+	if st, ok := status.FromError(err); ok {
+		code = grpcHTTPStatus(st.Code())
+		title = st.Message()
+		problemType = st.Code().String()
+	}
+	return problem{
+		Type:      "https://kmap.local/problems/" + problemType,
+		Title:     title,
+		Status:    code,
+		Detail:    err.Error(),
+		Instance:  r.URL.Path,
+		RequestID: r.Header.Get("X-Request-Id"),
+	}
 }
 
 func mapPlan(plan *kmapv1.QueryPlan) map[string]any {

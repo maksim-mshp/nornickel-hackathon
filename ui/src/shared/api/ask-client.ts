@@ -90,7 +90,10 @@ function parseFrame(frame: string): AskEvent | null {
     case "answer.done":
       return { type: "answer.done", answer: data as AnswerDoc };
     case "error":
-      return { type: "error", message: String(data.message ?? "Ошибка ответа") };
+      return {
+        type: "error",
+        message: String(data.detail ?? data.title ?? data.message ?? "Ошибка ответа"),
+      };
     default:
       return null;
   }
