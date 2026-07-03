@@ -396,10 +396,52 @@ type EntityCardApi = {
   type?: string;
   synonyms?: string[] | null;
   counters?: Record<string, number> | null;
-  relations?: { rel?: string; dst?: string; weight?: number }[] | null;
   experts?: Partial<ExpertProfile>[] | null;
   timeline?: { year?: number; facts?: number }[] | null;
 };
+
+type GraphNodeApi = { id?: string; label?: string };
+type GraphEdgeApi = { src?: string; dst?: string; rel?: string; weight?: number };
+type GraphApi = { nodes?: GraphNodeApi[] | null; edges?: GraphEdgeApi[] | null };
+
+const REL_LABELS: Record<string, string> = {
+  OPERATES_AT: "параметры",
+  USES_MATERIAL: "материалы",
+  USES_EQUIPMENT: "оборудование",
+  USES_PROCESS: "процессы",
+  PRODUCES_PROPERTY: "свойства",
+  IMPROVES: "влияние",
+  APPLICABLE_FOR: "применимость",
+  MENTIONED_IN: "упоминания",
+  RELATED_TO: "связи",
+};
+
+async function graphRelations(
+  anchorId: string,
+  slug: string,
+): Promise<{ group: string; items: { slug: string; name: string; weight: number }[] }[]> {
+  const graph = await getJSON<GraphApi | null>(
+    `/v1/graph?entity_id=${encodeURIComponent(slug)}&depth=1&top_n=40`,
+    null,
+  );
+  if (!graph || !Array.isArray(graph.edges)) return [];
+  const labels = new Map<string, string>();
+  for (const node of graph.nodes ?? []) {
+    if (node.id) labels.set(node.id, node.label ?? labelFromSlug(node.id));
+  }
+  const groups = new Map<string, { group: string; items: { slug: string; name: string; weight: number }[] }>();
+  for (const edge of graph.edges) {
+    const neighbor = edge.src === anchorId ? edge.dst : edge.src;
+    if (!neighbor || neighbor === anchorId) continue;
+    const rel = edge.rel ?? "RELATED_TO";
+    const group = REL_LABELS[rel] ?? rel.toLowerCase();
+    if (!groups.has(group)) groups.set(group, { group, items: [] });
+    const items = groups.get(group)!.items;
+    if (items.some((existing) => existing.slug === neighbor)) continue;
+    items.push({ slug: neighbor, name: labels.get(neighbor) ?? labelFromSlug(neighbor), weight: edge.weight ?? 0.5 });
+  }
+  return [...groups.values()];
+}
 
 function labelFromSlug(slug: string): string {
   const after = slug.includes(":") ? slug.slice(slug.indexOf(":") + 1) : slug;
@@ -426,14 +468,7 @@ export async function getEntityCard(slug: string): Promise<EntityCardLive | null
   if (!data || (!data.slug && !data.nameRu && !data.id)) return null;
 
   const counters = data.counters ?? {};
-  const groups = new Map<string, { group: string; items: { slug: string; name: string; weight: number }[] }>();
-  for (const edge of data.relations ?? []) {
-    const dst = edge.dst ?? "";
-    if (!dst) continue;
-    const group = edge.rel ?? "связи";
-    if (!groups.has(group)) groups.set(group, { group, items: [] });
-    groups.get(group)!.items.push({ slug: dst, name: labelFromSlug(dst), weight: edge.weight ?? 0.5 });
-  }
+  const relations = data.id ? await graphRelations(data.id, data.slug ?? slug) : [];
 
   return {
     slug: data.slug ?? slug,
@@ -447,7 +482,7 @@ export async function getEntityCard(slug: string): Promise<EntityCardLive | null
       experiments: counters.experiments ?? 0,
       experts: counters.experts ?? 0,
     },
-    relations: [...groups.values()],
+    relations,
     experts: (data.experts ?? []).map((item) => ({
       id: item.id ?? "",
       name: item.name ?? "",
