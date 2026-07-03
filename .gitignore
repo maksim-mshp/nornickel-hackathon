@@ -461,3 +461,5 @@ out/
 
 !ui/src/shared/lib/
 !ui/src/shared/lib/**
+
+shots/
