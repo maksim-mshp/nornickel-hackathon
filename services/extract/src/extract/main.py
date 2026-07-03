@@ -20,6 +20,16 @@ logger = logging.getLogger("extract")
 PARSED = "kmap.doc.v1.parsed"
 EXTRACTED = "kmap.doc.v1.extracted"
 EXTRACTOR_VERSION = "numcore-py-1.0"
+MAX_DELIVER = 5
+
+
+async def _dead_letter(js, msg, reason: str) -> None:
+    subject = "kmap.dlq." + msg.subject.removeprefix("kmap.")
+    await js.publish(
+        subject,
+        msg.data,
+        headers={"Kmap-Dlq-Reason": reason, "Kmap-Dlq-Origin": msg.subject},
+    )
 
 
 def _minio(cfg: Config) -> Minio:
@@ -112,6 +122,10 @@ async def run() -> None:
         await js.add_stream(name="KMAP_DOCS", subjects=["kmap.doc.v1.>"])
     except Exception:
         pass
+    try:
+        await js.add_stream(name="KMAP_DLQ", subjects=["kmap.dlq.>"])
+    except Exception:
+        pass
 
     async def handle(msg) -> None:
         try:
@@ -148,7 +162,11 @@ async def run() -> None:
             await msg.ack()
         except Exception as error:
             logger.exception("extract failed: %s", error)
-            await msg.nak()
+            if msg.metadata.num_delivered >= MAX_DELIVER:
+                await _dead_letter(js, msg, str(error))
+                await msg.term()
+            else:
+                await msg.nak()
 
     await js.subscribe(PARSED, durable="kmap-extract-parsed", cb=handle, manual_ack=True)
     logger.info("extract worker subscribed to %s", PARSED)

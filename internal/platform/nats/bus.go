@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/events"
@@ -14,6 +15,7 @@ const (
 	defaultReconnectWait = 2 * time.Second
 	defaultConnectWait   = 10 * time.Second
 	defaultStreamMaxAge  = 72 * time.Hour
+	defaultMaxDeliver    = 5
 )
 
 type StreamSpec struct {
@@ -32,14 +34,16 @@ func DefaultStreams() []StreamSpec {
 }
 
 type Config struct {
-	URL     string
-	Name    string
-	Streams []StreamSpec
+	URL        string
+	Name       string
+	Streams    []StreamSpec
+	MaxDeliver int
 }
 
 type Bus struct {
-	conn *natsclient.Conn
-	js   natsclient.JetStreamContext
+	conn       *natsclient.Conn
+	js         natsclient.JetStreamContext
+	maxDeliver int
 }
 
 func New(_ context.Context, cfg Config) (*Bus, error) {
@@ -67,7 +71,12 @@ func New(_ context.Context, cfg Config) (*Bus, error) {
 		return nil, fmt.Errorf("init jetstream: %w", err)
 	}
 
-	bus := &Bus{conn: conn, js: js}
+	maxDeliver := cfg.MaxDeliver
+	if maxDeliver <= 0 {
+		maxDeliver = defaultMaxDeliver
+	}
+
+	bus := &Bus{conn: conn, js: js, maxDeliver: maxDeliver}
 	if err := bus.ensureStreams(cfg.Streams); err != nil {
 		conn.Close()
 		return nil, err
@@ -131,7 +140,7 @@ func (bus *Bus) Subscribe(ctx context.Context, sub events.Subscription) error {
 		natsclient.ManualAck(),
 		natsclient.DeliverAll(),
 		natsclient.AckWait(15 * time.Minute),
-		natsclient.MaxDeliver(-1),
+		natsclient.MaxDeliver(bus.maxDeliver),
 	}
 
 	handler := func(msg *natsclient.Msg) {
@@ -164,6 +173,7 @@ func (bus *Bus) Subscribe(ctx context.Context, sub events.Subscription) error {
 func (bus *Bus) handle(ctx context.Context, handler events.Handler, msg *natsclient.Msg) {
 	env, err := events.Unmarshal(msg.Data)
 	if err != nil {
+		bus.deadLetter(msg, "decode: "+err.Error())
 		_ = msg.Term()
 		return
 	}
@@ -179,10 +189,30 @@ func (bus *Bus) handle(ctx context.Context, handler events.Handler, msg *natscli
 	case events.Ack:
 		_ = msg.Ack()
 	case events.Nack:
+		if message.Delivered >= uint64(bus.maxDeliver) {
+			bus.deadLetter(msg, "max deliveries exceeded")
+			_ = msg.Term()
+			return
+		}
 		_ = msg.Nak()
 	case events.Term:
+		bus.deadLetter(msg, "terminated by handler")
 		_ = msg.Term()
 	}
+}
+
+func (bus *Bus) deadLetter(msg *natsclient.Msg, reason string) {
+	if events.IsDLQ(msg.Subject) {
+		return
+	}
+	out := &natsclient.Msg{
+		Subject: events.DLQ(strings.TrimPrefix(msg.Subject, "kmap.")),
+		Data:    msg.Data,
+		Header:  natsclient.Header{},
+	}
+	out.Header.Set("Kmap-Dlq-Reason", reason)
+	out.Header.Set("Kmap-Dlq-Origin", msg.Subject)
+	_, _ = bus.js.PublishMsg(out)
 }
 
 func (bus *Bus) Close() error {
