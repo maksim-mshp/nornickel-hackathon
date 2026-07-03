@@ -1,0 +1,396 @@
+parameters:
+  velocity:
+    slug: parameter:flow-rate
+    name: скорость потока
+    si_unit: m/s
+    plausible_min: 0.0
+    plausible_max: 50.0
+  temperature:
+    slug: parameter:temperature
+    name: температура
+    si_unit: K
+    plausible_min: 213.15
+    plausible_max: 1973.15
+  pressure:
+    slug: parameter:pressure
+    name: давление
+    si_unit: Pa
+    plausible_min: 0.0
+    plausible_max: 1000000000.0
+  current_density:
+    slug: parameter:current-density
+    name: плотность тока
+    si_unit: A/m^2
+    plausible_min: 0.0
+    plausible_max: 100000.0
+  ratio:
+    slug: parameter:ratio
+    name: доля
+    si_unit: '%'
+    plausible_min: 0.0
+    plausible_max: 1000.0
+  acidity:
+    slug: parameter:ph
+    name: показатель pH
+    si_unit: pH
+    plausible_min: 0.0
+    plausible_max: 14.0
+  mass_concentration:
+    slug: parameter:concentration
+    name: концентрация
+    si_unit: kg/m^3
+    plausible_min: 0.0
+    plausible_max: 5000.0
+  mass_fraction:
+    slug: parameter:content
+    name: содержание
+    si_unit: kg/kg
+    plausible_min: 0.0
+    plausible_max: 1.0
+  molar_concentration:
+    slug: parameter:molar-concentration
+    name: молярная концентрация
+    si_unit: mol/m^3
+    plausible_min: 0.0
+    plausible_max: 100000.0
+  mass_flow:
+    slug: parameter:throughput
+    name: производительность
+    si_unit: kg/s
+    plausible_min: 0.0
+    plausible_max: 10000.0
+  volumetric_flow:
+    slug: parameter:volumetric-flow
+    name: объёмный расход
+    si_unit: m^3/s
+    plausible_min: 0.0
+    plausible_max: 1000.0
+  specific_energy:
+    slug: parameter:energy-intensity
+    name: удельный расход энергии
+    si_unit: J/kg
+    plausible_min: 0.0
+    plausible_max: 1000000000.0
+  length:
+    slug: parameter:size
+    name: размер
+    si_unit: m
+    plausible_min: 0.0
+    plausible_max: 10000.0
+  duration:
+    slug: parameter:duration
+    name: длительность
+    si_unit: s
+    plausible_min: 0.0
+    plausible_max: 1000000000.0
+  rotational_speed:
+    slug: parameter:rotation-speed
+    name: частота вращения
+    si_unit: 1/s
+    plausible_min: 0.0
+    plausible_max: 100000.0
+  cost:
+    slug: parameter:cost
+    name: удельная стоимость
+    si_unit: currency
+    plausible_min: null
+    plausible_max: null
+
+units:
+  - code: m_per_s
+    names: ["м/с", "m/s"]
+    dimension: velocity
+    si_factor: 1.0
+  - code: cm_per_s
+    names: ["см/с", "cm/s"]
+    dimension: velocity
+    si_factor: 0.01
+  - code: mm_per_s
+    names: ["мм/с", "mm/s"]
+    dimension: velocity
+    si_factor: 0.001
+  - code: m_per_min
+    names: ["м/мин", "m/min"]
+    dimension: velocity
+    si_factor: 0.016666666666666666
+  - code: m_per_h
+    names: ["м/ч", "m/h"]
+    dimension: velocity
+    si_factor: 0.0002777777777777778
+
+  - code: celsius
+    names: ["°C", "℃", "град", "degC"]
+    dimension: temperature
+    si_factor: 1.0
+    si_offset: 273.15
+  - code: kelvin
+    names: ["K", "К"]
+    dimension: temperature
+    si_factor: 1.0
+  - code: fahrenheit
+    names: ["°F", "degF"]
+    dimension: temperature
+    si_factor: 0.5555555555555556
+    si_offset: 255.3722222222222
+
+  - code: pa
+    names: ["Па", "Pa"]
+    dimension: pressure
+    si_factor: 1.0
+  - code: kpa
+    names: ["кПа", "kPa"]
+    dimension: pressure
+    si_factor: 1000.0
+  - code: mpa
+    names: ["МПа", "MPa"]
+    dimension: pressure
+    si_factor: 1000000.0
+  - code: bar
+    names: ["бар", "bar"]
+    dimension: pressure
+    si_factor: 100000.0
+  - code: mbar
+    names: ["мбар", "mbar"]
+    dimension: pressure
+    si_factor: 100.0
+  - code: atm
+    names: ["атм", "atm"]
+    dimension: pressure
+    si_factor: 101325.0
+  - code: mmhg
+    names: ["мм рт. ст.", "мм рт.ст.", "ммрт.ст.", "mmHg"]
+    dimension: pressure
+    si_factor: 133.322
+  - code: kgf_per_cm2
+    names: ["кгс/см²", "кгс/см2"]
+    dimension: pressure
+    si_factor: 98066.5
+  - code: psi
+    names: ["psi", "фунт/дюйм²"]
+    dimension: pressure
+    si_factor: 6894.757
+
+  - code: a_per_m2
+    names: ["А/м²", "А/м2", "A/m2"]
+    dimension: current_density
+    si_factor: 1.0
+  - code: a_per_dm2
+    names: ["А/дм²", "А/дм2", "A/dm2"]
+    dimension: current_density
+    si_factor: 100.0
+  - code: a_per_cm2
+    names: ["А/см²", "А/см2", "A/cm2"]
+    dimension: current_density
+    si_factor: 10000.0
+  - code: ma_per_cm2
+    names: ["мА/см²", "мА/см2", "mA/cm2"]
+    dimension: current_density
+    si_factor: 10.0
+  - code: ma_per_dm2
+    names: ["мА/дм²", "мА/дм2", "mA/dm2"]
+    dimension: current_density
+    si_factor: 0.1
+
+  - code: percent
+    names: ["%", "проц.", "об.%", "об. %", "мас.%", "мас. %", "масс.%", "wt.%", "wt%", "ат.%", "at.%", "%об", "%мас"]
+    dimension: ratio
+    si_factor: 1.0
+  - code: permille
+    names: ["‰"]
+    dimension: ratio
+    si_factor: 0.1
+
+  - code: ph
+    names: ["pH", "рН", "ph"]
+    dimension: acidity
+    si_factor: 1.0
+
+  - code: mg_per_l
+    names: ["мг/л", "mg/L", "mg/l"]
+    dimension: mass_concentration
+    si_factor: 0.001
+  - code: mg_per_dm3
+    names: ["мг/дм³", "мг/дм3", "mg/dm3"]
+    dimension: mass_concentration
+    si_factor: 0.001
+  - code: g_per_l
+    names: ["г/л", "g/L", "g/l"]
+    dimension: mass_concentration
+    si_factor: 1.0
+  - code: g_per_dm3
+    names: ["г/дм³", "г/дм3", "g/dm3"]
+    dimension: mass_concentration
+    si_factor: 1.0
+  - code: kg_per_m3
+    names: ["кг/м³", "кг/м3", "kg/m3"]
+    dimension: mass_concentration
+    si_factor: 1.0
+  - code: g_per_m3
+    names: ["г/м³", "г/м3", "g/m3"]
+    dimension: mass_concentration
+    si_factor: 0.001
+  - code: mg_per_m3
+    names: ["мг/м³", "мг/м3", "mg/m3"]
+    dimension: mass_concentration
+    si_factor: 0.000001
+  - code: mcg_per_l
+    names: ["мкг/л", "µg/L", "ug/L"]
+    dimension: mass_concentration
+    si_factor: 0.000001
+
+  - code: ppm
+    names: ["ppm", "млн⁻¹", "мг/кг"]
+    dimension: mass_fraction
+    si_factor: 0.000001
+  - code: ppb
+    names: ["ppb", "мкг/кг"]
+    dimension: mass_fraction
+    si_factor: 0.000000001
+  - code: g_per_t
+    names: ["г/т", "g/t"]
+    dimension: mass_fraction
+    si_factor: 0.000001
+  - code: mg_per_g
+    names: ["мг/г", "mg/g"]
+    dimension: mass_fraction
+    si_factor: 0.001
+  - code: g_per_kg
+    names: ["г/кг", "g/kg"]
+    dimension: mass_fraction
+    si_factor: 0.001
+
+  - code: mol_per_l
+    names: ["моль/л", "моль/дм³", "моль/дм3", "mol/L"]
+    dimension: molar_concentration
+    si_factor: 1000.0
+  - code: mmol_per_l
+    names: ["ммоль/л", "mmol/L"]
+    dimension: molar_concentration
+    si_factor: 1.0
+  - code: mol_per_m3
+    names: ["моль/м³", "моль/м3", "mol/m3"]
+    dimension: molar_concentration
+    si_factor: 1.0
+
+  - code: t_per_day
+    names: ["т/сут", "т/сутки", "t/day"]
+    dimension: mass_flow
+    si_factor: 0.011574074074074073
+  - code: t_per_h
+    names: ["т/ч", "t/h"]
+    dimension: mass_flow
+    si_factor: 0.2777777777777778
+  - code: t_per_year
+    names: ["т/год", "t/year"]
+    dimension: mass_flow
+    si_factor: 0.00003170979198376458
+  - code: kg_per_h
+    names: ["кг/ч", "kg/h"]
+    dimension: mass_flow
+    si_factor: 0.0002777777777777778
+  - code: kg_per_s
+    names: ["кг/с", "kg/s"]
+    dimension: mass_flow
+    si_factor: 1.0
+
+  - code: m3_per_h
+    names: ["м³/ч", "м3/ч", "m3/h"]
+    dimension: volumetric_flow
+    si_factor: 0.0002777777777777778
+  - code: m3_per_day
+    names: ["м³/сут", "м3/сут", "m3/day"]
+    dimension: volumetric_flow
+    si_factor: 0.000011574074074074073
+  - code: m3_per_s
+    names: ["м³/с", "м3/с", "m3/s"]
+    dimension: volumetric_flow
+    si_factor: 1.0
+  - code: l_per_h
+    names: ["л/ч", "L/h"]
+    dimension: volumetric_flow
+    si_factor: 0.0000002777777777777778
+  - code: l_per_min
+    names: ["л/мин", "L/min"]
+    dimension: volumetric_flow
+    si_factor: 0.000016666666666666667
+  - code: l_per_s
+    names: ["л/с", "L/s"]
+    dimension: volumetric_flow
+    si_factor: 0.001
+
+  - code: kwh_per_t
+    names: ["кВт·ч/т", "кВтч/т", "kWh/t"]
+    dimension: specific_energy
+    si_factor: 3600.0
+  - code: kwh_per_kg
+    names: ["кВт·ч/кг", "кВтч/кг", "kWh/kg"]
+    dimension: specific_energy
+    si_factor: 3600000.0
+  - code: mj_per_t
+    names: ["МДж/т", "MJ/t"]
+    dimension: specific_energy
+    si_factor: 1000.0
+  - code: kj_per_kg
+    names: ["кДж/кг", "kJ/kg"]
+    dimension: specific_energy
+    si_factor: 1000.0
+
+  - code: mm
+    names: ["мм", "mm"]
+    dimension: length
+    si_factor: 0.001
+  - code: cm
+    names: ["см", "cm"]
+    dimension: length
+    si_factor: 0.01
+  - code: um
+    names: ["мкм", "µm", "um"]
+    dimension: length
+    si_factor: 0.000001
+  - code: nm
+    names: ["нм", "nm"]
+    dimension: length
+    si_factor: 0.000000001
+
+  - code: hour
+    names: ["ч", "час", "часов", "h"]
+    dimension: duration
+    si_factor: 3600.0
+  - code: minute
+    names: ["мин", "min"]
+    dimension: duration
+    si_factor: 60.0
+  - code: second
+    names: ["сек", "s"]
+    dimension: duration
+    si_factor: 1.0
+  - code: day
+    names: ["сут", "сутки", "суток"]
+    dimension: duration
+    si_factor: 86400.0
+
+  - code: rpm
+    names: ["об/мин", "rpm"]
+    dimension: rotational_speed
+    si_factor: 0.016666666666666666
+  - code: rps
+    names: ["об/с", "rps"]
+    dimension: rotational_speed
+    si_factor: 1.0
+
+  - code: rub_per_t
+    names: ["руб/т", "руб./т", "₽/т"]
+    dimension: cost
+    si_factor: 1.0
+  - code: usd_per_t
+    names: ["$/т", "USD/t"]
+    dimension: cost
+    si_factor: 1.0
+  - code: eur_per_t
+    names: ["€/т", "EUR/t"]
+    dimension: cost
+    si_factor: 1.0
+  - code: rub_per_m3
+    names: ["руб/м³", "руб/м3", "₽/м³"]
+    dimension: cost
+    si_factor: 1.0

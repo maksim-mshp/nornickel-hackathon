@@ -45,11 +45,11 @@
   vmin: 100
   unit_code: mg_per_l
 - text: "свыше 0,7 м/с"
-  operator: gte
+  operator: gt
   vmin: 0.7
   unit_code: m_per_s
 - text: "выше 0,7 м/с"
-  operator: gte
+  operator: gt
   vmin: 0.7
   unit_code: m_per_s
 - text: "от 250 мг/л"

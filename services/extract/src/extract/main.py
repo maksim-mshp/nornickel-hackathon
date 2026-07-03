@@ -84,7 +84,8 @@ def _bundle(document_id: str, text: str, facts: list[Fact]) -> dict:
             "geography": "unknown",
             "extraction_method": "deterministic",
             "extractor_version": EXTRACTOR_VERSION,
-            "confidence": 0.95,
+            "confidence": fact.confidence,
+            "flags": fact.flags,
         }
         for fact in facts
     ]
