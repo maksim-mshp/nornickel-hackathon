@@ -260,10 +260,19 @@ VALUES ('entity', $1, $2, 'merged', $3)`, entityID, defaultString(actor, "system
 }
 
 func (repository *Repository) MarkDocumentFailed(ctx context.Context, documentID uuid.UUID, reason string) error {
-	if _, err := repository.pool.Exec(ctx, markDocFailedSQL, documentID, reason); err != nil {
+	tx, err := repository.pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	if err := platformpg.SetRLS(ctx, tx, platformpg.Principal{UserID: "system", DocAccess: auth.AccessRestricted}); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, markDocFailedSQL, documentID, reason); err != nil {
 		return fmt.Errorf("mark document failed: %w", err)
 	}
-	return nil
+	return tx.Commit(ctx)
 }
 
 func factTable(kind string) (string, error) {
