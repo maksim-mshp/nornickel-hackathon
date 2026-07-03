@@ -1,4 +1,6 @@
 import asyncio
+import base64
+import hashlib
 import io
 import json
 import logging
@@ -35,6 +37,11 @@ def _parse_uri(uri: str) -> tuple[str, str]:
     return bucket, key
 
 
+def _condition_hash(conditions: dict[str, str]) -> str:
+    canonical = json.dumps(conditions, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+    return base64.b64encode(hashlib.sha256(canonical.encode("utf-8")).digest()).decode("ascii")
+
+
 def _bundle(document_id: str, text: str, facts: list[Fact]) -> dict:
     short = document_id.replace("-", "")[:8]
     subject_slug = f"topic:doc-{short}"
@@ -59,6 +66,7 @@ def _bundle(document_id: str, text: str, facts: list[Fact]) -> dict:
             "vmin_si": fact.vmin_si,
             "vmax_si": fact.vmax_si,
             "conditions": fact.conditions,
+            "condition_hash": _condition_hash(fact.conditions),
             "quote": fact.quote,
             "page": 1,
             "geography": "unknown",
