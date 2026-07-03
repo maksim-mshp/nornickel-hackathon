@@ -8,3 +8,35 @@ grpc_clients:
   catalog: catalog:9092
   epistemic: epistemic:9096
   ingest: ingest:9091
+auth:
+  mode: demo
+  demo:
+    tokens:
+      demo-researcher:
+        sub: demo-researcher
+        name: Исследователь
+        roles: [researcher]
+      demo-analyst:
+        sub: demo-analyst
+        name: Аналитик
+        roles: [analyst]
+      demo-manager:
+        sub: demo-manager
+        name: Руководитель R&D
+        roles: [manager]
+      demo-expert:
+        sub: demo-expert
+        name: Эксперт-валидатор
+        roles: [expert]
+      demo-admin:
+        sub: demo-admin
+        name: Администратор
+        roles: [admin]
+      demo-partner:
+        sub: demo-partner
+        name: Внешний партнёр
+        roles: [partner]
+  oidc:
+    issuer: http://keycloak:8080/realms/kmap
+    audience: kmap-gateway
+    doc_access_claim: doc_access

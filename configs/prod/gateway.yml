@@ -1,0 +1,9 @@
+http:
+  cors_origins:
+    - https://kmap.local
+auth:
+  mode: oidc
+  oidc:
+    issuer: http://keycloak:8080/realms/kmap
+    audience: kmap-gateway
+    doc_access_claim: doc_access

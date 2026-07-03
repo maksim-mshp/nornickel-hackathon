@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"fmt"
+	"sync"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 )
@@ -14,31 +15,46 @@ type OIDCConfig struct {
 }
 
 type OIDCVerifier struct {
-	verifier       *oidc.IDTokenVerifier
+	config         OIDCConfig
 	docAccessClaim string
+	mu             sync.Mutex
+	verifier       *oidc.IDTokenVerifier
 }
 
-func NewOIDCVerifier(ctx context.Context, config OIDCConfig) (*OIDCVerifier, error) {
+func NewOIDCVerifier(config OIDCConfig) (*OIDCVerifier, error) {
 	if config.Issuer == "" {
 		return nil, fmt.Errorf("oidc issuer is required")
 	}
-	provider, err := oidc.NewProvider(ctx, config.Issuer)
-	if err != nil {
-		return nil, fmt.Errorf("oidc discovery: %w", err)
-	}
-	oidcConfig := &oidc.Config{ClientID: config.Audience, SkipClientIDCheck: config.Audience == ""}
 	docAccessClaim := config.DocAccessClaim
 	if docAccessClaim == "" {
 		docAccessClaim = "doc_access"
 	}
-	return &OIDCVerifier{
-		verifier:       provider.Verifier(oidcConfig),
-		docAccessClaim: docAccessClaim,
-	}, nil
+	return &OIDCVerifier{config: config, docAccessClaim: docAccessClaim}, nil
+}
+
+func (verifier *OIDCVerifier) ensure(ctx context.Context) (*oidc.IDTokenVerifier, error) {
+	verifier.mu.Lock()
+	defer verifier.mu.Unlock()
+	if verifier.verifier != nil {
+		return verifier.verifier, nil
+	}
+	provider, err := oidc.NewProvider(ctx, verifier.config.Issuer)
+	if err != nil {
+		return nil, fmt.Errorf("oidc discovery: %w", err)
+	}
+	verifier.verifier = provider.Verifier(&oidc.Config{
+		ClientID:          verifier.config.Audience,
+		SkipClientIDCheck: verifier.config.Audience == "",
+	})
+	return verifier.verifier, nil
 }
 
 func (verifier *OIDCVerifier) Verify(ctx context.Context, token string) (Principal, error) {
-	idToken, err := verifier.verifier.Verify(ctx, token)
+	inner, err := verifier.ensure(ctx)
+	if err != nil {
+		return Principal{}, ErrUnauthorized
+	}
+	idToken, err := inner.Verify(ctx, token)
 	if err != nil {
 		return Principal{}, ErrUnauthorized
 	}

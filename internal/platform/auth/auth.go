@@ -3,6 +3,7 @@ package auth
 import (
 	"context"
 	"errors"
+	"slices"
 )
 
 const (
@@ -43,21 +44,11 @@ type Principal struct {
 }
 
 func (principal Principal) HasRole(role string) bool {
-	for _, item := range principal.Roles {
-		if item == role {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(principal.Roles, role)
 }
 
 func (principal Principal) HasAnyRole(roles ...string) bool {
-	for _, role := range roles {
-		if principal.HasRole(role) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(roles, principal.HasRole)
 }
 
 func KnownRoles(roles []string) []string {

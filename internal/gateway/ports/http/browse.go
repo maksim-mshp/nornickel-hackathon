@@ -141,7 +141,7 @@ func (server *Server) entitiesHandler(w stdhttp.ResponseWriter, r *stdhttp.Reque
 		Type:      r.URL.Query().Get("type"),
 		Query:     r.URL.Query().Get("q"),
 		Page:      pageRequest(r),
-		Principal: principalFromRequest(r),
+		Principal: principalFromContext(r),
 	})
 	if err != nil {
 		writeGRPCProblem(w, r, err)
@@ -157,7 +157,7 @@ func (server *Server) entitiesHandler(w stdhttp.ResponseWriter, r *stdhttp.Reque
 func (server *Server) entityHandler(w stdhttp.ResponseWriter, r *stdhttp.Request) {
 	resp, err := server.search.GetEntity(r.Context(), &kmapv1.GetEntityRequest{
 		EntityId:  chi.URLParam(r, "id"),
-		Principal: principalFromRequest(r),
+		Principal: principalFromContext(r),
 	})
 	if err != nil {
 		writeGRPCProblem(w, r, err)
@@ -176,7 +176,7 @@ func (server *Server) experimentsHandler(w stdhttp.ResponseWriter, r *stdhttp.Re
 		Value:     floatValue(r.URL.Query().Get("value")),
 		Unit:      r.URL.Query().Get("unit"),
 		Page:      pageRequest(r),
-		Principal: principalFromRequest(r),
+		Principal: principalFromContext(r),
 	})
 	if err != nil {
 		writeGRPCProblem(w, r, err)
@@ -194,7 +194,7 @@ func (server *Server) expertsHandler(w stdhttp.ResponseWriter, r *stdhttp.Reques
 		Topic:     r.URL.Query().Get("topic"),
 		EntityId:  r.URL.Query().Get("entity_id"),
 		Page:      pageRequest(r),
-		Principal: principalFromRequest(r),
+		Principal: principalFromContext(r),
 	}
 	resp, err := server.search.ListExperts(r.Context(), req)
 	if err != nil {
@@ -212,7 +212,7 @@ func (server *Server) expertsHandler(w stdhttp.ResponseWriter, r *stdhttp.Reques
 func (server *Server) documentsHandler(w stdhttp.ResponseWriter, r *stdhttp.Request) {
 	resp, err := server.ingest.ListDocuments(r.Context(), &kmapv1.ListDocumentsRequest{
 		Page:      pageRequest(r),
-		Principal: principalFromRequest(r),
+		Principal: principalFromContext(r),
 	})
 	if err != nil {
 		writeGRPCProblem(w, r, err)
@@ -285,7 +285,7 @@ func (server *Server) coverageHandler(w stdhttp.ResponseWriter, r *stdhttp.Reque
 		Domain:    r.URL.Query().Get("domain"),
 		Axis1:     defaultString(r.URL.Query().Get("axis1"), "material"),
 		Axis2:     defaultString(r.URL.Query().Get("axis2"), "process"),
-		Principal: principalFromRequest(r),
+		Principal: principalFromContext(r),
 	})
 	if err != nil {
 		writeGRPCProblem(w, r, err)
@@ -305,7 +305,7 @@ func (server *Server) contradictionsHandler(w stdhttp.ResponseWriter, r *stdhttp
 		EntityId:  r.URL.Query().Get("entity_id"),
 		Status:    r.URL.Query().Get("status"),
 		Page:      pageRequest(r),
-		Principal: principalFromRequest(r),
+		Principal: principalFromContext(r),
 	})
 	if err != nil {
 		writeGRPCProblem(w, r, err)
@@ -324,7 +324,7 @@ func (server *Server) graphHandler(w stdhttp.ResponseWriter, r *stdhttp.Request)
 		EntityId:  r.URL.Query().Get("entity_id"),
 		Depth:     boundedUint(r.URL.Query().Get("depth"), 1, 3, 1),
 		TopN:      boundedUint(r.URL.Query().Get("top_n"), 1, 100, 50),
-		Principal: principalFromRequest(r),
+		Principal: principalFromContext(r),
 	})
 	if err != nil {
 		writeGRPCProblem(w, r, err)
@@ -347,7 +347,7 @@ func (server *Server) updateFactStatusHandler(w stdhttp.ResponseWriter, r *stdht
 		FactKind:  defaultString(body.FactKind, "numeric"),
 		Status:    body.Status,
 		Comment:   body.Comment,
-		Principal: principalFromRequest(r),
+		Principal: principalFromContext(r),
 	})
 	if err != nil {
 		writeGRPCProblem(w, r, err)
@@ -369,7 +369,7 @@ func (server *Server) mergeEntityHandler(w stdhttp.ResponseWriter, r *stdhttp.Re
 		EntityId:  chi.URLParam(r, "id"),
 		IntoId:    body.IntoID,
 		Comment:   body.Comment,
-		Principal: principalFromRequest(r),
+		Principal: principalFromContext(r),
 	})
 	if err != nil {
 		writeGRPCProblem(w, r, err)
@@ -391,7 +391,7 @@ func (server *Server) decideContradictionHandler(w stdhttp.ResponseWriter, r *st
 		ContradictionId: chi.URLParam(r, "id"),
 		Decision:        body.Decision,
 		Comment:         body.Comment,
-		Principal:       principalFromRequest(r),
+		Principal:       principalFromContext(r),
 	})
 	if err != nil {
 		writeGRPCProblem(w, r, err)

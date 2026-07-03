@@ -14,8 +14,11 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	kmapv1 "github.com/maksim-mshp/nornickel-hackathon/contracts/gen/go/kmap/v1"
+	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/audit"
+	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/auth"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/blob"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/config"
+	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/pg"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials/insecure"
@@ -37,6 +40,10 @@ type Server struct {
 	catalog     kmapv1.CatalogServiceClient
 	epistemic   kmapv1.EpistemicServiceClient
 	blob        blob.Store
+	verifier    auth.Verifier
+	audit       *audit.Writer
+	logger      *slog.Logger
+	pool        *pg.Pool
 	rawBucket   string
 	corsOrigins []string
 	conns       []*grpc.ClientConn
@@ -50,7 +57,7 @@ type problem struct {
 	Instance string `json:"instance,omitempty"`
 }
 
-func NewServer(cfg config.Bundle, _ *slog.Logger) (*Server, error) {
+func NewServer(cfg config.Bundle, logger *slog.Logger) (*Server, error) {
 	targets := cfg.Runtime.GRPCClients
 	conns := map[string]*grpc.ClientConn{}
 	closeAll := func() {
@@ -94,6 +101,21 @@ func NewServer(cfg config.Bundle, _ *slog.Logger) (*Server, error) {
 		return nil, fmt.Errorf("ensure raw bucket: %w", err)
 	}
 
+	verifier, err := buildVerifier(cfg.Runtime.Auth)
+	if err != nil {
+		closeAll()
+		return nil, fmt.Errorf("build auth verifier: %w", err)
+	}
+
+	pool, err := pg.New(context.Background(), pg.Config{
+		DSN:      cfg.Runtime.Postgres.DSN,
+		MaxConns: cfg.Runtime.Postgres.MaxConns,
+	})
+	if err != nil {
+		closeAll()
+		return nil, fmt.Errorf("connect postgres: %w", err)
+	}
+
 	return &Server{
 		search:      kmapv1.NewSearchServiceClient(conns["search"]),
 		ingest:      kmapv1.NewIngestServiceClient(conns["ingest"]),
@@ -101,6 +123,10 @@ func NewServer(cfg config.Bundle, _ *slog.Logger) (*Server, error) {
 		catalog:     kmapv1.NewCatalogServiceClient(conns["catalog"]),
 		epistemic:   kmapv1.NewEpistemicServiceClient(conns["epistemic"]),
 		blob:        blobStore,
+		verifier:    verifier,
+		audit:       audit.NewWriter(pool.Pool),
+		logger:      logger,
+		pool:        pool,
 		rawBucket:   rawBucket,
 		corsOrigins: cfg.Runtime.HTTP.CorsOrigins,
 		conns:       []*grpc.ClientConn{conns["search"], conns["ingest"], conns["answer"], conns["catalog"], conns["epistemic"]},
@@ -108,21 +134,21 @@ func NewServer(cfg config.Bundle, _ *slog.Logger) (*Server, error) {
 }
 
 func (server *Server) RegisterHTTP(router chi.Router) {
-	router.Post("/v1/ask", server.cors(server.askHandler))
-	router.Post("/v1/search", server.cors(server.searchHandler))
-	router.Get("/v1/entities", server.cors(server.entitiesHandler))
-	router.Get("/v1/entities/{id}", server.cors(server.entityHandler))
-	router.Get("/v1/experiments", server.cors(server.experimentsHandler))
-	router.Get("/v1/experts", server.cors(server.expertsHandler))
-	router.Get("/v1/coverage", server.cors(server.coverageHandler))
-	router.Get("/v1/contradictions", server.cors(server.contradictionsHandler))
-	router.Get("/v1/graph", server.cors(server.graphHandler))
-	router.Get("/v1/documents", server.cors(server.documentsHandler))
-	router.Post("/v1/documents", server.cors(server.uploadDocumentHandler))
-	router.Get("/v1/documents/{document_id}/status", server.cors(server.documentStatusHandler))
-	router.Post("/v1/facts/{id}/status", server.cors(server.updateFactStatusHandler))
-	router.Post("/v1/entities/{id}/merge", server.cors(server.mergeEntityHandler))
-	router.Post("/v1/contradictions/{id}/decision", server.cors(server.decideContradictionHandler))
+	router.Post("/v1/ask", server.secure(auth.OpAsk, server.askHandler))
+	router.Post("/v1/search", server.secure(auth.OpSearch, server.searchHandler))
+	router.Get("/v1/entities", server.secure(auth.OpBrowse, server.entitiesHandler))
+	router.Get("/v1/entities/{id}", server.secure(auth.OpBrowse, server.entityHandler))
+	router.Get("/v1/experiments", server.secure(auth.OpBrowse, server.experimentsHandler))
+	router.Get("/v1/experts", server.secure(auth.OpBrowse, server.expertsHandler))
+	router.Get("/v1/coverage", server.secure(auth.OpBrowse, server.coverageHandler))
+	router.Get("/v1/contradictions", server.secure(auth.OpBrowse, server.contradictionsHandler))
+	router.Get("/v1/graph", server.secure(auth.OpBrowse, server.graphHandler))
+	router.Get("/v1/documents", server.secure(auth.OpBrowse, server.documentsHandler))
+	router.Post("/v1/documents", server.secure(auth.OpDocumentUpload, server.uploadDocumentHandler))
+	router.Get("/v1/documents/{document_id}/status", server.secure(auth.OpBrowse, server.documentStatusHandler))
+	router.Post("/v1/facts/{id}/status", server.secure(auth.OpFactDecision, server.updateFactStatusHandler))
+	router.Post("/v1/entities/{id}/merge", server.secure(auth.OpEntityMerge, server.mergeEntityHandler))
+	router.Post("/v1/contradictions/{id}/decision", server.secure(auth.OpContradictionDecision, server.decideContradictionHandler))
 	router.Options("/v1/*", server.corsPreflight)
 }
 
@@ -130,6 +156,9 @@ func (server *Server) Close() error {
 	var result error
 	for _, conn := range server.conns {
 		result = errors.Join(result, conn.Close())
+	}
+	if server.pool != nil {
+		result = errors.Join(result, server.pool.Close())
 	}
 	return result
 }
@@ -178,7 +207,7 @@ func (server *Server) uploadDocumentHandler(w stdhttp.ResponseWriter, r *stdhttp
 		BlobUri:      upload.blobURI,
 		Sha256:       upload.sha256,
 		DeclaredMeta: meta,
-		Principal:    principalFromRequest(r),
+		Principal:    principalFromContext(r),
 	}
 
 	resp, err := server.ingest.RegisterDocument(r.Context(), request)
@@ -199,7 +228,7 @@ func (server *Server) documentStatusHandler(w stdhttp.ResponseWriter, r *stdhttp
 
 	resp, err := server.ingest.GetStatus(r.Context(), &kmapv1.GetStatusRequest{
 		Document:  &kmapv1.DocumentRef{DocumentId: documentID},
-		Principal: principalFromRequest(r),
+		Principal: principalFromContext(r),
 	})
 	if err != nil {
 		writeGRPCProblem(w, r, err)
@@ -285,14 +314,6 @@ func metaStruct(meta map[string]any) *structpb.Struct {
 		return &structpb.Struct{Fields: map[string]*structpb.Value{}}
 	}
 	return st
-}
-
-func principalFromRequest(r *stdhttp.Request) *kmapv1.Principal {
-	userID := r.Header.Get("x-user-id")
-	if userID == "" {
-		userID = "demo"
-	}
-	return &kmapv1.Principal{UserId: userID, Roles: []string{"researcher"}, DocAccess: "internal"}
 }
 
 func readBody(w stdhttp.ResponseWriter, r *stdhttp.Request) ([]byte, error) {

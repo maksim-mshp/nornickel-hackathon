@@ -19,6 +19,3 @@ s3:
     docir: kmap-docir
     bundles: kmap-bundles
     exports: kmap-exports
-
-auth:
-  mode: demo

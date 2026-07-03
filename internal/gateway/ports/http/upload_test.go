@@ -13,6 +13,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	kmapv1 "github.com/maksim-mshp/nornickel-hackathon/contracts/gen/go/kmap/v1"
+	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/auth"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/blob"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -95,6 +96,7 @@ func TestUploadDocumentStreamsToBlobAndRegisters(t *testing.T) {
 		"title":    "Ni electrowinning",
 		"doc_type": "report",
 	})
+	req = req.WithContext(auth.WithPrincipal(req.Context(), auth.Principal{UserID: "analyst-1", Roles: []string{auth.RoleAnalyst}, DocAccess: auth.AccessInternal}))
 	rec := httptest.NewRecorder()
 	server.uploadDocumentHandler(rec, req)
 
@@ -115,8 +117,8 @@ func TestUploadDocumentStreamsToBlobAndRegisters(t *testing.T) {
 	if ingest.gotRequest.GetTitle() != "Ni electrowinning" {
 		t.Fatalf("expected title from metadata, got %q", ingest.gotRequest.GetTitle())
 	}
-	if ingest.gotRequest.GetPrincipal().GetUserId() != "demo" {
-		t.Fatalf("expected demo principal, got %q", ingest.gotRequest.GetPrincipal().GetUserId())
+	if ingest.gotRequest.GetPrincipal().GetUserId() != "analyst-1" {
+		t.Fatalf("expected analyst-1 principal, got %q", ingest.gotRequest.GetPrincipal().GetUserId())
 	}
 
 	bucket, key, err := blob.ParseURI(ingest.gotRequest.GetBlobUri())
@@ -185,7 +187,9 @@ func TestDocumentStatusReturnsIngestStatus(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/v1/documents/0197-doc/status", nil)
 	routeCtx := chi.NewRouteContext()
 	routeCtx.URLParams.Add("document_id", "0197-doc")
-	req = req.WithContext(context.WithValue(req.Context(), chi.RouteCtxKey, routeCtx))
+	ctx := context.WithValue(req.Context(), chi.RouteCtxKey, routeCtx)
+	ctx = auth.WithPrincipal(ctx, auth.Principal{UserID: "researcher-1", Roles: []string{auth.RoleResearcher}, DocAccess: auth.AccessInternal})
+	req = req.WithContext(ctx)
 	rec := httptest.NewRecorder()
 
 	server.documentStatusHandler(rec, req)
@@ -196,8 +200,8 @@ func TestDocumentStatusReturnsIngestStatus(t *testing.T) {
 	if ingest.gotStatusRequest.GetDocument().GetDocumentId() != "0197-doc" {
 		t.Fatalf("expected document id 0197-doc, got %q", ingest.gotStatusRequest.GetDocument().GetDocumentId())
 	}
-	if ingest.gotStatusRequest.GetPrincipal().GetUserId() != "demo" {
-		t.Fatalf("expected demo principal, got %q", ingest.gotStatusRequest.GetPrincipal().GetUserId())
+	if ingest.gotStatusRequest.GetPrincipal().GetUserId() != "researcher-1" {
+		t.Fatalf("expected researcher-1 principal, got %q", ingest.gotStatusRequest.GetPrincipal().GetUserId())
 	}
 	if !strings.Contains(rec.Body.String(), `"status":"registered"`) {
 		t.Fatalf("expected registered status in response, got %s", rec.Body.String())
