@@ -22,6 +22,30 @@ type Runtime struct {
 	S3          S3                `koanf:"s3"`
 	LLM         LLM               `koanf:"llm"`
 	Cache       Cache             `koanf:"cache"`
+	Auth        Auth              `koanf:"auth"`
+}
+
+type Auth struct {
+	Mode string   `koanf:"mode"`
+	Demo AuthDemo `koanf:"demo"`
+	OIDC AuthOIDC `koanf:"oidc"`
+}
+
+type AuthDemo struct {
+	Tokens map[string]AuthDemoToken `koanf:"tokens"`
+}
+
+type AuthDemoToken struct {
+	Sub       string   `koanf:"sub"`
+	Name      string   `koanf:"name"`
+	Roles     []string `koanf:"roles"`
+	DocAccess string   `koanf:"doc_access"`
+}
+
+type AuthOIDC struct {
+	Issuer         string `koanf:"issuer"`
+	Audience       string `koanf:"audience"`
+	DocAccessClaim string `koanf:"doc_access_claim"`
 }
 
 type LLM struct {
