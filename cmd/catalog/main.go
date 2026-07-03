@@ -54,7 +54,7 @@ func build(cfg config.Bundle, logger *slog.Logger) (*runtime.Assembly, error) {
 		return nil, err
 	}
 
-	service := app.NewService(catalogpg.NewRepo(pool.Pool), store)
+	service := app.New(catalogpg.NewRepository(pool.Pool), store)
 	worker := catalogconsumer.NewWorker(bus, service, logger)
 	return &runtime.Assembly{
 		GRPCServices: []runtime.GRPCService{cataloggrpc.NewServer(service)},

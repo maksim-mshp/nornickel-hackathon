@@ -3,6 +3,7 @@ package grpc
 import (
 	"context"
 
+	"github.com/google/uuid"
 	kmapv1 "github.com/maksim-mshp/nornickel-hackathon/contracts/gen/go/kmap/v1"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/catalog/app"
 	"google.golang.org/grpc"
@@ -27,9 +28,10 @@ func (server *Server) CommitExtraction(ctx context.Context, req *kmapv1.CommitEx
 		return nil, err
 	}
 	return &kmapv1.CommitExtractionResponse{
-		DocumentId: result.DocumentID,
-		FactIds:    result.FactIDs,
-		EntityIds:  result.EntityIDs,
+		DocumentId:  result.DocumentID.String(),
+		FactIds:     uuidStrings(result.FactIDs),
+		EntityIds:   uuidStrings(result.EntityIDs),
+		ClusterKeys: result.ClusterKeys,
 	}, nil
 }
 
@@ -44,7 +46,7 @@ func (server *Server) ResolveEntities(ctx context.Context, req *kmapv1.ResolveEn
 			Input:         resolution.Input,
 			EntityId:      resolution.EntityID,
 			Slug:          resolution.Slug,
-			CanonicalName: resolution.CanonicalName,
+			CanonicalName: resolution.Name,
 			Confidence:    resolution.Confidence,
 			Status:        resolution.Status,
 		})
@@ -64,4 +66,12 @@ func (server *Server) UpdateFactStatus(ctx context.Context, req *kmapv1.UpdateFa
 		return nil, err
 	}
 	return &kmapv1.UpdateFactStatusResponse{Fact: &kmapv1.Fact{Id: req.GetFactId(), Kind: req.GetFactKind()}}, nil
+}
+
+func uuidStrings(ids []uuid.UUID) []string {
+	out := make([]string, 0, len(ids))
+	for _, id := range ids {
+		out = append(out, id.String())
+	}
+	return out
 }
