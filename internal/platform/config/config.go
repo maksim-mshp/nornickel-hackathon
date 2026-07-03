@@ -19,6 +19,7 @@ type Runtime struct {
 	GRPCClients map[string]string `koanf:"grpc_clients"`
 	Postgres    Postgres          `koanf:"postgres"`
 	NATS        NATS              `koanf:"nats"`
+	S3          S3                `koanf:"s3"`
 }
 
 type Postgres struct {
