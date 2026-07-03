@@ -193,6 +193,15 @@ services:
     command: ["--config", "/configs", "--env", "demo"]
     restart: unless-stopped
 
+  embed:
+    build:
+      context: ../../services/embed
+    profiles: [app]
+    volumes:
+      - ../../configs:/configs:ro
+    command: ["--config", "/configs", "--env", "demo"]
+    restart: unless-stopped
+
   parse:
     build:
       context: ../../services/parse

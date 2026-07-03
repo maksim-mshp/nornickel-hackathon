@@ -1,0 +1,9 @@
+grpc:
+  addr: ":9097"
+health:
+  addr: ":8097"
+embed:
+  backend: deterministic
+  remote:
+    endpoint: https://inference.do-ai.run/v1
+    model: bge-m3
