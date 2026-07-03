@@ -11,8 +11,8 @@ type Server struct {
 	service *app.Service
 }
 
-func NewServer(search kmapv1.SearchServiceClient) *Server {
-	return &Server{service: app.NewService(search)}
+func NewServer(search kmapv1.SearchServiceClient, options ...app.Option) *Server {
+	return &Server{service: app.NewService(search, options...)}
 }
 
 func (server *Server) RegisterGRPC(registrar grpc.ServiceRegistrar) {

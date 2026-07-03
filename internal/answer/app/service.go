@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"fmt"
 
@@ -18,20 +19,51 @@ type SearchClient interface {
 	Search(ctx context.Context, in *kmapv1.SearchRequest, opts ...grpc.CallOption) (*kmapv1.SearchResponse, error)
 }
 
+type CachedAnswer struct {
+	Plan     *kmapv1.QueryPlan
+	Evidence *kmapv1.EvidencePack
+	Answer   *kmapv1.AnswerDoc
+}
+
+type Cache interface {
+	Get(ctx context.Context, key []byte) (*CachedAnswer, bool, error)
+	Put(ctx context.Context, key []byte, value *CachedAnswer) error
+}
+
 type Emit func(*kmapv1.AskResponse) error
 
 type Service struct {
 	search SearchClient
+	cache  Cache
 }
 
-func NewService(search SearchClient) *Service {
-	return &Service{search: search}
+type Option func(*Service)
+
+func WithCache(cache Cache) Option {
+	return func(service *Service) {
+		service.cache = cache
+	}
+}
+
+func NewService(search SearchClient, options ...Option) *Service {
+	service := &Service{search: search}
+	for _, option := range options {
+		option(service)
+	}
+	return service
 }
 
 func (service *Service) Ask(ctx context.Context, req *kmapv1.AskRequest, emit Emit) error {
 	question := req.GetQuestion()
 	if question == "" {
 		return status.Error(codes.InvalidArgument, "question is required")
+	}
+
+	key := cacheKey(question, req.GetPrincipal().GetDocAccess())
+	if service.cache != nil {
+		if cached, ok, err := service.cache.Get(ctx, key); err == nil && ok {
+			return replayCached(ctx, cached, emit)
+		}
 	}
 
 	plan, err := buildPlan(question)
@@ -76,7 +108,35 @@ func (service *Service) Ask(ctx context.Context, req *kmapv1.AskRequest, emit Em
 			Degraded:       guard.violations > 0,
 		},
 	}
+
+	if service.cache != nil && guard.violations == 0 {
+		_ = service.cache.Put(ctx, key, &CachedAnswer{Plan: plan, Evidence: pack, Answer: answer})
+	}
+
 	return emit(&kmapv1.AskResponse{Type: "answer.done", Answer: answer})
+}
+
+func replayCached(ctx context.Context, cached *CachedAnswer, emit Emit) error {
+	if err := emit(&kmapv1.AskResponse{Type: "plan", Plan: cached.Plan}); err != nil {
+		return err
+	}
+	if err := emit(&kmapv1.AskResponse{Type: "evidence", Evidence: cached.Evidence}); err != nil {
+		return err
+	}
+	for _, delta := range chunkDeltas(cached.Answer.GetSummary(), deltaWordsPerChunk) {
+		if err := ctx.Err(); err != nil {
+			return err
+		}
+		if err := emit(&kmapv1.AskResponse{Type: "answer.delta", Delta: delta}); err != nil {
+			return err
+		}
+	}
+	return emit(&kmapv1.AskResponse{Type: "answer.done", Answer: cached.Answer})
+}
+
+func cacheKey(question string, docAccess string) []byte {
+	digest := sha256.Sum256([]byte(question + "\x00" + docAccess))
+	return digest[:]
 }
 
 func methodsStruct(methods []methodView) (*structpb.Struct, error) {

@@ -1,16 +1,21 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"os"
+	"time"
 
 	kmapv1 "github.com/maksim-mshp/nornickel-hackathon/contracts/gen/go/kmap/v1"
+	answerpg "github.com/maksim-mshp/nornickel-hackathon/internal/answer/adapters/pg"
+	answerapp "github.com/maksim-mshp/nornickel-hackathon/internal/answer/app"
 	answergrpc "github.com/maksim-mshp/nornickel-hackathon/internal/answer/ports/grpc"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/auth"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/config"
+	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/pg"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/runtime"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
@@ -38,9 +43,19 @@ func build(cfg config.Bundle, _ *slog.Logger) (*runtime.Assembly, error) {
 		return nil, fmt.Errorf("create search grpc client: %w", err)
 	}
 
-	server := answergrpc.NewServer(kmapv1.NewSearchServiceClient(conn))
+	pool, err := pg.New(context.Background(), pg.Config{
+		DSN:      cfg.Runtime.Postgres.DSN,
+		MaxConns: cfg.Runtime.Postgres.MaxConns,
+	})
+	if err != nil {
+		_ = conn.Close()
+		return nil, fmt.Errorf("connect postgres: %w", err)
+	}
+
+	cache := answerpg.NewCache(pool.Pool, time.Duration(cfg.Runtime.Cache.TTLHours)*time.Hour)
+	server := answergrpc.NewServer(kmapv1.NewSearchServiceClient(conn), answerapp.WithCache(cache))
 	return &runtime.Assembly{
 		GRPCServices: []runtime.GRPCService{server},
-		Closers:      []io.Closer{conn},
+		Closers:      []io.Closer{conn, pool},
 	}, nil
 }
