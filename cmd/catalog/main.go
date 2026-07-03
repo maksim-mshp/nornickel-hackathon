@@ -14,6 +14,7 @@ import (
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/blob"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/config"
 	natsbus "github.com/maksim-mshp/nornickel-hackathon/internal/platform/nats"
+	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/outbox"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/pg"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/runtime"
 )
@@ -56,10 +57,14 @@ func build(cfg config.Bundle, logger *slog.Logger) (*runtime.Assembly, error) {
 
 	service := app.New(catalogpg.NewRepository(pool.Pool), store)
 	worker := catalogconsumer.NewWorker(bus, service, logger)
+
+	outboxStore := outbox.NewStore(pool.Pool)
+	relay := outbox.NewRelay(outboxStore, bus, logger)
+
 	return &runtime.Assembly{
 		GRPCServices: []runtime.GRPCService{cataloggrpc.NewServer(service)},
 		Closers:      []io.Closer{pool, bus},
-		Workers:      []runtime.Worker{worker},
+		Workers:      []runtime.Worker{worker, relay},
 	}, nil
 }
 
