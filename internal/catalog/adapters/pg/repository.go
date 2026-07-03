@@ -191,7 +191,7 @@ func (repository *Repository) Commit(ctx context.Context, cmd app.CommitCommand,
 		if _, err := tx.Exec(ctx, insertChunkSQL,
 			insert.UUID, cmd.DocumentID, cmd.Version, chunk.Ordinal, chunk.Text, kind,
 			nullableInt(chunk.PageFrom), nullableInt(chunk.PageTo),
-			nullableInt(chunk.CharFrom), nullableInt(chunk.CharTo),
+			chunk.CharFrom, chunk.CharTo,
 			nullableString(chunk.Lang), stringArray(chunk.SectionPath),
 			vectorLiteral(chunk.Embedding),
 		); err != nil {
