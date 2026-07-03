@@ -9,6 +9,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
+	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/audit"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/blob"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/pg"
 )
@@ -60,6 +61,18 @@ func (server *Server) documentFileHandler(w stdhttp.ResponseWriter, r *stdhttp.R
 	defer func() {
 		_ = object.Close()
 	}()
+
+	if server.audit != nil {
+		_ = server.audit.Write(r.Context(), audit.Record{
+			ActorID:    principal.GetUserId(),
+			Action:     "document.view_source",
+			ObjectType: "document",
+			ObjectID:   documentID,
+			RequestID:  r.Header.Get("X-Request-Id"),
+			IP:         clientIP(r),
+			Details:    map[string]any{"roles": principal.GetRoles()},
+		})
+	}
 
 	head := make([]byte, 512)
 	n, readErr := io.ReadFull(object, head)
