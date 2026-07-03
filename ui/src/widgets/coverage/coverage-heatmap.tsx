@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState } from "react";
 import {
   COVERAGE_CELLS,
@@ -118,12 +119,12 @@ function CellDetails({ cell }: { cell: CoverageCell }) {
           ))}
         </div>
       )}
-      <a
+      <Link
         href={`/?q=${encodeURIComponent(question)}`}
         className="mt-1 w-fit rounded-sm border border-electrolyte/40 px-3 py-1.5 text-[12px] text-electrolyte transition-colors hover:bg-electrolyte hover:text-bg-0"
       >
         сформировать запрос →
-      </a>
+      </Link>
     </div>
   );
 }

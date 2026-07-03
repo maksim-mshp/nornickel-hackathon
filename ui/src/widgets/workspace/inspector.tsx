@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { FactValue } from "@/entities/fact/fact-value";
 import {
   ProvenanceStamp,
@@ -22,6 +22,10 @@ export function Inspector({
 }) {
   const [tab, setTab] = useState<"quote" | "graph">("quote");
   const graphReady = Boolean(plan && pack);
+
+  useEffect(() => {
+    if (fact) setTab("quote");
+  }, [fact]);
 
   return (
     <div className="flex h-full flex-col">

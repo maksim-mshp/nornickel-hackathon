@@ -1,3 +1,4 @@
+import Link from "next/link";
 import type { QueryPlan } from "@/shared/api/types";
 
 const INTENT_LABELS: Record<QueryPlan["intent"], string> = {
@@ -43,7 +44,7 @@ export function PlanChip({ plan }: { plan: QueryPlan }) {
       </div>
       <div className="mt-2 flex flex-wrap gap-1.5">
         {entities.map((entity) => (
-          <a
+          <Link
             key={entity.slug}
             href={`/entity/${encodeURIComponent(entity.slug)}`}
             title="Открыть паспорт сущности"
@@ -53,7 +54,7 @@ export function PlanChip({ plan }: { plan: QueryPlan }) {
               {entity.slug.split(":")[0]}
             </span>
             {entity.name}
-          </a>
+          </Link>
         ))}
         {plan.paramConstraints.map((constraint) => (
           <span

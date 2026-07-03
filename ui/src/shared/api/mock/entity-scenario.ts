@@ -74,8 +74,49 @@ const NICKEL_ELECTROWINNING: EntityCard = {
   ],
 };
 
+const CATHOLYTE: EntityCard = {
+  slug: "material:catholyte",
+  type: "материал",
+  nameRu: "католит",
+  nameEn: "catholyte",
+  synonyms: [
+    { value: "катодный электролит", pending: false },
+    { value: "catholyte solution", pending: true },
+  ],
+  counters: { documents: 41, facts: 486, experiments: 27, experts: 6 },
+  consensus: CATHOLYTE_PACK.consensus,
+  relations: [
+    {
+      group: "процессы",
+      items: [
+        { slug: "process:nickel-electrowinning", name: "электроэкстракция никеля", weight: 0.9 },
+        { slug: "process:desalination", name: "обессоливание", weight: 0.4 },
+      ],
+    },
+    {
+      group: "параметры",
+      items: [
+        { slug: "parameter:catholyte-flow-rate", name: "скорость циркуляции", weight: 0.9 },
+        { slug: "parameter:nickel-concentration", name: "концентрация Ni²⁺", weight: 0.7 },
+        { slug: "parameter:ph", name: "pH", weight: 0.6 },
+      ],
+    },
+  ],
+  experts: CATHOLYTE_PACK.experts,
+  timeline: [
+    { year: 2019, facts: 42 },
+    { year: 2020, facts: 58 },
+    { year: 2021, facts: 74 },
+    { year: 2022, facts: 96 },
+    { year: 2023, facts: 141 },
+    { year: 2024, facts: 51 },
+    { year: 2025, facts: 24 },
+  ],
+};
+
 const ENTITIES: Record<string, EntityCard> = {
   [NICKEL_ELECTROWINNING.slug]: NICKEL_ELECTROWINNING,
+  [CATHOLYTE.slug]: CATHOLYTE,
 };
 
 export function getEntity(slug: string): EntityCard | null {

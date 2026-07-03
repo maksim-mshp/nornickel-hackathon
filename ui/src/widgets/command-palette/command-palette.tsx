@@ -1,6 +1,6 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ROLE_ROUTES, useRole } from "@/shared/lib/role";
 import { toggleTheme } from "@/shared/lib/theme";
@@ -28,7 +28,21 @@ const NAV_LABELS: Record<string, string> = {
 
 export function CommandPalette() {
   const router = useRouter();
+  const pathname = usePathname();
   const role = useRole((store) => store.role);
+
+  const askQuestion = useCallback(
+    (question: string) => {
+      if (pathname === "/") {
+        window.dispatchEvent(
+          new CustomEvent("kmap:ask", { detail: question }),
+        );
+      } else {
+        router.push(`/?q=${encodeURIComponent(question)}`);
+      }
+    },
+    [pathname, router],
+  );
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [cursor, setCursor] = useState(0);
@@ -70,7 +84,7 @@ export function CommandPalette() {
         label: `${preset.code} · ${preset.title}`,
         hint: preset.question,
         keywords: `${preset.code} ${preset.title} ${preset.question}`.toLowerCase(),
-        run: () => router.push(`/?q=${encodeURIComponent(preset.question)}`),
+        run: () => askQuestion(preset.question),
       })),
       ...ROLE_ROUTES[role].map((href) => ({
         id: `nav${href}`,
@@ -87,7 +101,7 @@ export function CommandPalette() {
         run: () => toggleTheme(),
       },
     ],
-    [role, router],
+    [role, router, askQuestion],
   );
 
   const trimmed = query.trim();
@@ -106,7 +120,7 @@ export function CommandPalette() {
 
   const runAt = (index: number) => {
     if (askEntry && index === 0) {
-      router.push(`/?q=${encodeURIComponent(trimmed)}`);
+      askQuestion(trimmed);
     } else {
       filtered[askEntry ? index - 1 : index]?.run();
     }

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import {
   COVERAGE_KPIS,
   COVERAGE_RISKS,
@@ -128,7 +129,7 @@ function RiskColumn({
       </h3>
       <div className="mt-3 flex flex-col gap-3">
         {items.map((item) => (
-          <a
+          <Link
             key={item.label}
             href={`/?q=${encodeURIComponent(item.question)}`}
             className="group block"
@@ -137,7 +138,7 @@ function RiskColumn({
               {item.label}
             </p>
             <p className="mt-0.5 text-[11px] text-ink-2">{item.detail}</p>
-          </a>
+          </Link>
         ))}
       </div>
     </div>

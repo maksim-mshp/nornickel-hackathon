@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { getEntity } from "@/shared/api/mock/entity-scenario";
 import { ConsensusSpectrum } from "@/widgets/consensus-spectrum/consensus-spectrum";
@@ -72,13 +73,13 @@ export default function EntityPage() {
         </div>
       </section>
 
-      <a
+      <Link
         href={`/?q=${encodeURIComponent(`Что известно про ${entity.nameRu}?`)}`}
         className="rise-in w-fit rounded-sm bg-electrolyte px-4 py-2 text-[13px] font-medium text-bg-0 transition-colors hover:bg-electrolyte/90"
         style={{ animationDelay: "40ms" }}
       >
         Спросить об этом →
-      </a>
+      </Link>
 
       <div
         className="rise-in grid grid-cols-1 gap-6 xl:grid-cols-[1fr_320px_320px]"

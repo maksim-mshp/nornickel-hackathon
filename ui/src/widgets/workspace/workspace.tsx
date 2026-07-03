@@ -14,25 +14,29 @@ export function Workspace() {
   const { state, ask } = useAsk();
   const [input, setInput] = useState("");
   const [selectedFact, setSelectedFact] = useState<Fact | null>(null);
-  const autoAsked = useRef(false);
+  const lastAsked = useRef("");
 
-  useEffect(() => {
-    if (autoAsked.current) return;
-    autoAsked.current = true;
-    const q = new URLSearchParams(window.location.search).get("q");
-    if (q?.trim()) {
-      setInput(q.trim());
-      ask(q.trim());
-    }
-  }, [ask]);
-
-  const submit = (question: string) => {
+  const runQuestion = useRef((question: string, force = false) => {
     const trimmed = question.trim();
-    if (!trimmed) return;
+    if (!trimmed || (!force && trimmed === lastAsked.current)) return;
+    lastAsked.current = trimmed;
     setInput(trimmed);
     setSelectedFact(null);
+    window.history.replaceState(null, "", `/?q=${encodeURIComponent(trimmed)}`);
     ask(trimmed);
-  };
+  });
+
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search).get("q");
+    if (q) runQuestion.current(q);
+    const onAskEvent = (event: Event) => {
+      runQuestion.current((event as CustomEvent<string>).detail ?? "");
+    };
+    window.addEventListener("kmap:ask", onAskEvent);
+    return () => window.removeEventListener("kmap:ask", onAskEvent);
+  }, []);
+
+  const submit = (question: string) => runQuestion.current(question, true);
 
   return (
     <div className="glow-panel mx-auto flex max-w-[1440px] flex-col gap-6 px-6 py-8">
