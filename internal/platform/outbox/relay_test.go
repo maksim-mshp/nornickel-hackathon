@@ -51,6 +51,36 @@ func (publisher *fakePublisher) Publish(_ context.Context, env events.Envelope) 
 	return nil
 }
 
+type fakeHeaderPublisher struct {
+	fakePublisher
+	headers []map[string]string
+}
+
+func (publisher *fakeHeaderPublisher) PublishWithHeaders(_ context.Context, env events.Envelope, headers map[string]string) error {
+	publisher.mu.Lock()
+	defer publisher.mu.Unlock()
+	publisher.published = append(publisher.published, env)
+	publisher.headers = append(publisher.headers, headers)
+	return nil
+}
+
+func TestRelayForwardsHeadersWhenSupported(t *testing.T) {
+	t.Parallel()
+
+	record := newTestRecord(t, "a")
+	record.Headers = map[string]string{"traceparent": "00-trace-span-01"}
+	store := &fakeStore{records: []Record{record}}
+	publisher := &fakeHeaderPublisher{}
+	relay := NewRelay(store, publisher, slog.Default())
+
+	if err := relay.drain(context.Background()); err != nil {
+		t.Fatalf("drain failed: %v", err)
+	}
+	if len(publisher.headers) != 1 || publisher.headers[0]["traceparent"] != "00-trace-span-01" {
+		t.Fatalf("expected traceparent forwarded to broker, got %v", publisher.headers)
+	}
+}
+
 func newTestRecord(t *testing.T, subject string) Record {
 	t.Helper()
 	env, err := events.New(events.Event{

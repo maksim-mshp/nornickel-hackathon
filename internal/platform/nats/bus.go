@@ -109,6 +109,10 @@ func (bus *Bus) ensureStreams(specs []StreamSpec) error {
 }
 
 func (bus *Bus) Publish(ctx context.Context, env events.Envelope) error {
+	return bus.PublishWithHeaders(ctx, env, nil)
+}
+
+func (bus *Bus) PublishWithHeaders(ctx context.Context, env events.Envelope, headers map[string]string) error {
 	if err := ctx.Err(); err != nil {
 		return err
 	}
@@ -118,6 +122,12 @@ func (bus *Bus) Publish(ctx context.Context, env events.Envelope) error {
 	}
 	msg := &natsclient.Msg{Subject: env.Type, Data: data, Header: natsclient.Header{}}
 	msg.Header.Set(natsclient.MsgIdHdr, env.ID)
+	for key, value := range headers {
+		if key == "" || value == "" || key == natsclient.MsgIdHdr {
+			continue
+		}
+		msg.Header.Set(key, value)
+	}
 	if _, err := bus.js.PublishMsg(msg); err != nil {
 		return fmt.Errorf("publish %s: %w", env.Type, err)
 	}

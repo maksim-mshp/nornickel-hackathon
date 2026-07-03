@@ -10,7 +10,10 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/events"
+	"google.golang.org/grpc/metadata"
 )
+
+const traceParentHeader = "traceparent"
 
 const (
 	DefaultBatch    = 100
@@ -41,11 +44,28 @@ func Append(ctx context.Context, tx pgx.Tx, record Record) error {
 	if headers == nil {
 		headers = map[string]string{}
 	}
+	if _, ok := headers[traceParentHeader]; !ok {
+		if trace := incomingTraceParent(ctx); trace != "" {
+			headers[traceParentHeader] = trace
+		}
+	}
 	if _, err := tx.Exec(ctx, appendSQL, id, record.AggregateType, record.AggregateID,
 		record.Envelope.Type, payload, headers, record.Envelope.Time); err != nil {
 		return fmt.Errorf("insert outbox: %w", err)
 	}
 	return nil
+}
+
+func incomingTraceParent(ctx context.Context) string {
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return ""
+	}
+	values := md.Get(traceParentHeader)
+	if len(values) == 0 {
+		return ""
+	}
+	return values[0]
 }
 
 type Store interface {

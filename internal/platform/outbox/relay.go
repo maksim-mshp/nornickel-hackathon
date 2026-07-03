@@ -65,9 +65,20 @@ func (relay *Relay) Run(ctx context.Context) error {
 	}
 }
 
+type headerPublisher interface {
+	PublishWithHeaders(ctx context.Context, env events.Envelope, headers map[string]string) error
+}
+
+func (relay *Relay) publish(ctx context.Context, record Record) error {
+	if hp, ok := relay.publisher.(headerPublisher); ok && len(record.Headers) > 0 {
+		return hp.PublishWithHeaders(ctx, record.Envelope, record.Headers)
+	}
+	return relay.publisher.Publish(ctx, record.Envelope)
+}
+
 func (relay *Relay) drain(ctx context.Context) error {
 	published, err := relay.store.Drain(ctx, relay.batch, func(ctx context.Context, record Record) error {
-		if publishErr := relay.publisher.Publish(ctx, record.Envelope); publishErr != nil {
+		if publishErr := relay.publish(ctx, record); publishErr != nil {
 			relay.logger.Warn("outbox publish failed", "event", record.Envelope.Type, "error", publishErr)
 			return publishErr
 		}
