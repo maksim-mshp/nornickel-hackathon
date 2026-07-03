@@ -4,8 +4,41 @@ import math
 import random
 import re
 import urllib.request
+from collections import OrderedDict
 
 DIMENSIONS = 1024
+
+
+class CachingEmbedder:
+    def __init__(self, inner, capacity: int) -> None:
+        self._inner = inner
+        self._capacity = max(0, capacity)
+        self._cache: OrderedDict[str, list[float]] = OrderedDict()
+
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        if self._capacity == 0:
+            return self._inner.embed(texts)
+        result: list[list[float] | None] = [None] * len(texts)
+        missing_texts: list[str] = []
+        missing_slots: list[tuple[int, str]] = []
+        for index, text in enumerate(texts):
+            key = hashlib.sha256(text.encode("utf-8")).hexdigest()
+            cached = self._cache.get(key)
+            if cached is None:
+                missing_texts.append(text)
+                missing_slots.append((index, key))
+            else:
+                self._cache.move_to_end(key)
+                result[index] = cached
+        if missing_texts:
+            vectors = self._inner.embed(missing_texts)
+            for (index, key), vector in zip(missing_slots, vectors):
+                result[index] = vector
+                self._cache[key] = vector
+                self._cache.move_to_end(key)
+                while len(self._cache) > self._capacity:
+                    self._cache.popitem(last=False)
+        return [vector for vector in result if vector is not None]
 
 
 class DeterministicEmbedder:

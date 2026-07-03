@@ -3,7 +3,9 @@ grpc:
 health:
   addr: ":8097"
 embed:
-  backend: deterministic
+  backend: remote
   remote:
     base_url: https://inference.do-ai.run/v1
     model: bge-m3
+    reranker_model: bge-reranker-v2-m3
+  cache_size: 4096

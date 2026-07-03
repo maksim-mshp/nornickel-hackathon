@@ -12,7 +12,9 @@ class Config:
     backend: str
     remote_endpoint: str
     remote_model: str
+    reranker_model: str
     api_key: str
+    cache_size: int
 
 
 def _deep_merge(base: dict, overlay: dict) -> dict:
@@ -47,8 +49,10 @@ def load() -> Config:
     return Config(
         grpc_addr=merged.get("grpc", {}).get("addr", ":9097"),
         health_addr=merged.get("health", {}).get("addr", ":8097"),
-        backend=embed.get("backend", "deterministic"),
+        backend=embed.get("backend", "remote"),
         remote_endpoint=remote.get("base_url", "") or remote.get("endpoint", ""),
         remote_model=remote.get("model", "bge-m3"),
+        reranker_model=remote.get("reranker_model", "bge-reranker-v2-m3"),
         api_key=remote.get("api_key", ""),
+        cache_size=int(embed.get("cache_size", 4096)),
     )

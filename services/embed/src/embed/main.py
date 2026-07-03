@@ -7,7 +7,7 @@ import grpc
 from grpc_reflection.v1alpha import reflection
 
 from embed.config import Config, load
-from embed.embedder import DeterministicEmbedder, RemoteEmbedder
+from embed.embedder import CachingEmbedder, DeterministicEmbedder, RemoteEmbedder
 from embed.server import EmbedServicer
 from kmap.v1 import embed_pb2, embed_pb2_grpc
 
@@ -22,9 +22,14 @@ def _bind(addr: str) -> str:
 def _build_backend(cfg: Config):
     if cfg.backend == "remote" and cfg.api_key and cfg.remote_endpoint:
         logger.info("embed backend: remote (%s)", cfg.remote_model)
-        return RemoteEmbedder(cfg.remote_endpoint, cfg.api_key, cfg.remote_model)
-    logger.info("embed backend: deterministic")
-    return DeterministicEmbedder()
+        inner = RemoteEmbedder(cfg.remote_endpoint, cfg.api_key, cfg.remote_model)
+    else:
+        if cfg.backend == "remote":
+            logger.warning("embed backend: remote configured but no key/endpoint — offline fallback to deterministic")
+        else:
+            logger.info("embed backend: deterministic")
+        inner = DeterministicEmbedder()
+    return CachingEmbedder(inner, cfg.cache_size)
 
 
 def _start_health(addr: str) -> None:
