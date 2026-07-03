@@ -20,9 +20,11 @@ import (
 )
 
 type Server struct {
-	search kmapv1.SearchServiceClient
-	ingest kmapv1.IngestServiceClient
-	conns  []*grpc.ClientConn
+	search      kmapv1.SearchServiceClient
+	ingest      kmapv1.IngestServiceClient
+	answer      kmapv1.AnswerServiceClient
+	corsOrigins []string
+	conns       []*grpc.ClientConn
 }
 
 type problem struct {
@@ -34,35 +36,42 @@ type problem struct {
 }
 
 func NewServer(cfg config.Bundle, _ *slog.Logger) (*Server, error) {
-	searchTarget := cfg.Runtime.GRPCClients["search"]
-	if searchTarget == "" {
-		return nil, errors.New("grpc_clients.search is required")
-	}
-	ingestTarget := cfg.Runtime.GRPCClients["ingest"]
-	if ingestTarget == "" {
-		return nil, errors.New("grpc_clients.ingest is required")
+	targets := cfg.Runtime.GRPCClients
+	conns := map[string]*grpc.ClientConn{}
+	closeAll := func() {
+		for _, conn := range conns {
+			_ = conn.Close()
+		}
 	}
 
-	searchConn, err := grpc.NewClient(searchTarget, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		return nil, fmt.Errorf("create search grpc client: %w", err)
-	}
-	ingestConn, err := grpc.NewClient(ingestTarget, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	if err != nil {
-		_ = searchConn.Close()
-		return nil, fmt.Errorf("create ingest grpc client: %w", err)
+	for _, name := range []string{"search", "ingest", "answer"} {
+		target := targets[name]
+		if target == "" {
+			closeAll()
+			return nil, fmt.Errorf("grpc_clients.%s is required", name)
+		}
+		conn, err := grpc.NewClient(target, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		if err != nil {
+			closeAll()
+			return nil, fmt.Errorf("create %s grpc client: %w", name, err)
+		}
+		conns[name] = conn
 	}
 
 	return &Server{
-		search: kmapv1.NewSearchServiceClient(searchConn),
-		ingest: kmapv1.NewIngestServiceClient(ingestConn),
-		conns:  []*grpc.ClientConn{searchConn, ingestConn},
+		search:      kmapv1.NewSearchServiceClient(conns["search"]),
+		ingest:      kmapv1.NewIngestServiceClient(conns["ingest"]),
+		answer:      kmapv1.NewAnswerServiceClient(conns["answer"]),
+		corsOrigins: cfg.Runtime.HTTP.CorsOrigins,
+		conns:       []*grpc.ClientConn{conns["search"], conns["ingest"], conns["answer"]},
 	}, nil
 }
 
 func (server *Server) RegisterHTTP(router chi.Router) {
-	router.Post("/v1/search", server.searchHandler)
-	router.Post("/v1/documents", server.registerDocumentHandler)
+	router.Post("/v1/ask", server.cors(server.askHandler))
+	router.Post("/v1/search", server.cors(server.searchHandler))
+	router.Post("/v1/documents", server.cors(server.registerDocumentHandler))
+	router.Options("/v1/*", server.corsPreflight)
 }
 
 func (server *Server) Close() error {

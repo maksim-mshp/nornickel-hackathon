@@ -51,7 +51,8 @@ type Log struct {
 }
 
 type HTTP struct {
-	Addr string `koanf:"addr"`
+	Addr        string   `koanf:"addr"`
+	CorsOrigins []string `koanf:"cors_origins"`
 }
 
 type GRPC struct {
