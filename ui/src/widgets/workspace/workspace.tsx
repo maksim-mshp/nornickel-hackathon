@@ -97,6 +97,8 @@ function SearchForm({
       <div className="flex h-12 flex-1 items-center gap-3 rounded-sm border border-line-strong bg-bg-1 px-4">
         <IconSearch className="text-ink-2" />
         <input
+          name="q"
+          aria-label="Поисковый запрос"
           value={input}
           onChange={(event) => onInput(event.target.value)}
           placeholder="Например: какая скорость циркуляции католита оптимальна при электроэкстракции никеля?"
@@ -152,6 +154,8 @@ function Landing({
             <IconSearch className="shrink-0 text-ink-2" />
             <input
               autoFocus
+              name="q"
+              aria-label="Поисковый запрос"
               value={input}
               onChange={(event) => onInput(event.target.value)}
               placeholder="Задайте технический вопрос…"

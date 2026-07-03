@@ -54,6 +54,8 @@ export default function ExpertsPage() {
       >
         <div className="flex h-10 flex-1 items-center gap-2 rounded-sm border border-line bg-bg-1 px-3">
           <input
+            name="expert-search"
+            aria-label="Поиск экспертов"
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder="Тема, сущность или ФИО: электроэкстракция, циркуляция католита…"

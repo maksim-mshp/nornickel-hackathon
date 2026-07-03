@@ -180,6 +180,8 @@ export default function DictionariesPage() {
         </h2>
         <div className="flex flex-wrap items-center gap-3">
           <input
+            name="numcore-test"
+            aria-label="Тест numcore: распарсить пример"
             value={test}
             onChange={(event) => setTest(event.target.value)}
             placeholder="0,8–1,0 м/с · ≤1000 мг/дм³ · 65±2 °C · ≥95 %"

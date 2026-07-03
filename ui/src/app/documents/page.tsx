@@ -167,7 +167,13 @@ function Dropzone() {
       <span className="text-[12px] text-ink-1">
         PDF · DOCX · TXT · CSV/XLSX · множественная загрузка и манифест каталога
       </span>
-      <input type="file" multiple className="hidden" />
+      <input
+        type="file"
+        name="document-upload"
+        aria-label="Загрузка документов"
+        multiple
+        className="hidden"
+      />
     </label>
   );
 }

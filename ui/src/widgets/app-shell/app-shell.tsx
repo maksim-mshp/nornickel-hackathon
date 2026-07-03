@@ -139,6 +139,7 @@ function LanguageSwitcher() {
   const t = useTranslations("header");
   return (
     <select
+      name="locale"
       value={locale}
       onChange={(event) => setLocale(event.target.value as Locale)}
       aria-label={t("language")}
@@ -181,6 +182,7 @@ function RoleSwitcher() {
         {ROLE_LABELS[shown][0]}
       </span>
       <select
+        name="demo-role"
         value={shown}
         onChange={(e) => setRole(e.target.value as DemoRole)}
         aria-label="Demo-роль"

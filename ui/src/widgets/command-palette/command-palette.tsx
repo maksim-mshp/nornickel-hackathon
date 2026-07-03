@@ -145,6 +145,8 @@ export function CommandPalette() {
           <IconSearch className="shrink-0 text-ink-2" width={16} height={16} />
           <input
             ref={inputRef}
+            name="command-palette"
+            aria-label="Командная палитра: спросить или перейти"
             value={query}
             onChange={(event) => {
               setQuery(event.target.value);
