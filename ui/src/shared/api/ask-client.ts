@@ -8,34 +8,41 @@ import {
 import { authHeaders } from "@/shared/lib/role";
 
 const ASK_ENDPOINT = "/v1/ask";
+const MAX_CONNECT_RETRIES = 2;
+const RETRY_BASE_MS = 400;
+
+async function connectAsk(question: string, signal?: AbortSignal): Promise<Response | null> {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      const response = await fetch(ASK_ENDPOINT, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "text/event-stream",
+          ...authHeaders(),
+        },
+        body: JSON.stringify({ question }),
+        signal,
+      });
+      if (response.ok && response.body) return response;
+      if (attempt >= MAX_CONNECT_RETRIES) return null;
+    } catch (error) {
+      if ((error as Error).name === "AbortError") throw error;
+      if (attempt >= MAX_CONNECT_RETRIES) return null;
+    }
+    await sleep(RETRY_BASE_MS * 2 ** attempt, signal);
+  }
+}
 
 export async function* askStream(
   question: string,
   signal?: AbortSignal,
 ): AsyncGenerator<AskEvent> {
-  let response: Response;
-  try {
-    response = await fetch(ASK_ENDPOINT, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "text/event-stream",
-        ...authHeaders(),
-      },
-      body: JSON.stringify({ question }),
-      signal,
-    });
-  } catch (error) {
-    if ((error as Error).name === "AbortError") throw error;
+  const response = await connectAsk(question, signal);
+  if (!response?.body) {
     yield* mockAskStream(question, signal);
     return;
   }
-
-  if (!response.ok || !response.body) {
-    yield* mockAskStream(question, signal);
-    return;
-  }
-
   yield* parseSSE(response.body, signal);
 }
 
