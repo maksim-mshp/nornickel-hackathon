@@ -1,0 +1,21 @@
+[project]
+name = "kmap-eval"
+version = "0.1.0"
+requires-python = ">=3.13"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["ruff>=0.6"]
+
+[project.scripts]
+kmap-eval = "eval.main:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/eval"]
+
+[tool.ruff]
+line-length = 120

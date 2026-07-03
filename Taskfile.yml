@@ -70,3 +70,8 @@ tasks:
   py-lint:
     cmds:
       - ruff check services
+
+  eval:
+    dir: services/eval
+    cmds:
+      - python -m eval.main --base http://localhost:8080
