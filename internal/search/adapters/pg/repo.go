@@ -102,7 +102,8 @@ WHERE (f.subject_id = ANY($1) OR f.parameter_id = ANY($1)) AND f.superseded_by I
   AND f.validation_status NOT IN ('needs_unit_review', 'rejected', 'deprecated')
   AND ($2 = '' OR f.geography::text = $2)
   AND (
-    cardinality($3::text[]) = 0
+    $3::text[] IS NULL
+    OR cardinality($3::text[]) = 0
     OR p.slug <> ALL($3::text[])
     OR EXISTS (
       SELECT 1 FROM unnest($3::text[], $4::float8[], $5::float8[]) AS c(slug, lo, hi)
