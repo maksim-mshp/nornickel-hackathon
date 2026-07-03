@@ -34,6 +34,12 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-dvh flex-col">
+      <a
+        href="#main"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded-sm focus:bg-electrolyte focus:px-3 focus:py-1.5 focus:text-bg-0"
+      >
+        К содержимому
+      </a>
       <Header />
       <div className="flex min-h-0 flex-1">
         <nav
@@ -67,7 +73,9 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             <span className="font-mono">v0.1</span>
           </div>
         </nav>
-        <main className="min-w-0 flex-1 overflow-auto">{children}</main>
+        <main id="main" className="min-w-0 flex-1 overflow-auto">
+          {children}
+        </main>
       </div>
     </div>
   );

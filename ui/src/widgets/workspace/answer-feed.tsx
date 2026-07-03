@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { copyShareLink, exportCsv, exportMarkdown } from "@/features/ask/export";
 import type { AskState } from "@/features/ask/use-ask";
 import type { Fact } from "@/shared/api/types";
 import { ConsensusSpectrum } from "@/widgets/consensus-spectrum/consensus-spectrum";
@@ -25,7 +26,8 @@ export function AnswerFeed({
   onAsk: (question: string) => void;
 }) {
   const [tab, setTab] = useState<TabKey>("summary");
-  const { plan, pack, answer, summaryText, phase } = state;
+  const [shared, setShared] = useState(false);
+  const { plan, pack, answer, summaryText, phase, error, question } = state;
 
   const selectRef = (ref: string) => {
     const fact = pack?.facts.find((f) => f.ref === ref);
@@ -149,8 +151,59 @@ export function AnswerFeed({
           ))}
       </div>
 
-      {answer && <GuardSeal guard={answer.guard} />}
+      {phase === "error" && (
+        <div className="flex items-center gap-3 border border-dashed border-melt/60 bg-melt/5 px-4 py-2.5 text-melt">
+          <span className="font-mono text-base leading-none">⚠</span>
+          <span className="text-[12px]">
+            {error ?? "Сервис ответа недоступен"} — факты из evidence остаются
+            доступны, синтез можно перезапустить
+          </span>
+        </div>
+      )}
+
+      {answer && (
+        <>
+          <GuardSeal guard={answer.guard} />
+          <div className="flex items-center gap-2">
+            <FooterAction
+              label="экспорт MD"
+              onClick={() => pack && exportMarkdown(question, answer, pack)}
+            />
+            <FooterAction
+              label="экспорт CSV"
+              onClick={() => pack && exportCsv(pack)}
+            />
+            <FooterAction
+              label={shared ? "ссылка скопирована ✓" : "поделиться"}
+              onClick={async () => {
+                if (await copyShareLink(question)) {
+                  setShared(true);
+                  setTimeout(() => setShared(false), 2500);
+                }
+              }}
+            />
+          </div>
+        </>
+      )}
     </div>
+  );
+}
+
+function FooterAction({
+  label,
+  onClick,
+}: {
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className="rounded-sm border border-line px-3 py-1.5 font-mono text-[11px] text-ink-1 transition-colors hover:border-electrolyte hover:text-electrolyte"
+    >
+      {label}
+    </button>
   );
 }
 
