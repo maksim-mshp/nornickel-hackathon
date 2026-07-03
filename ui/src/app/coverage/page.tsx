@@ -5,6 +5,7 @@ import {
   type CoverageKpi,
   type RiskItem,
 } from "@/shared/api/mock/coverage-scenario";
+import { Isolines } from "@/shared/ui/isolines";
 import { CoverageHeatmap } from "@/widgets/coverage/coverage-heatmap";
 
 export const metadata: Metadata = {
@@ -16,7 +17,8 @@ const nf = new Intl.NumberFormat("ru-RU");
 export default function CoveragePage() {
   return (
     <div className="mx-auto flex max-w-[1440px] flex-col gap-8 px-6 py-8">
-      <section className="rise-in">
+      <section className="rise-in relative">
+        <Isolines />
         <h1 className="font-display text-xl font-extrabold text-ink-0">
           Карта покрытия знаний
         </h1>

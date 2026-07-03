@@ -5,6 +5,7 @@ import { useAsk } from "@/features/ask/use-ask";
 import type { Fact } from "@/shared/api/types";
 import { PRESETS, type Preset } from "@/shared/config/presets";
 import { IconGraph, IconSearch, IconStamp } from "@/shared/ui/icons";
+import { Isolines } from "@/shared/ui/isolines";
 import { AnswerFeed } from "./answer-feed";
 import { Inspector } from "./inspector";
 import { QueryPassport } from "./query-passport";
@@ -86,7 +87,8 @@ export function Workspace() {
 
 function EmptyState({ onAsk }: { onAsk: (question: string) => void }) {
   return (
-    <div className="mx-auto flex w-full max-w-4xl flex-col gap-8 py-4">
+    <div className="relative mx-auto flex w-full max-w-4xl flex-col gap-8 py-4">
+      <Isolines />
       <section className="rise-in">
         <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-electrolyte">
           Единая карта знаний R&D
@@ -123,8 +125,10 @@ function EmptyState({ onAsk }: { onAsk: (question: string) => void }) {
       >
         <IconGraph className="shrink-0 text-void" />
         <p>
-          Демо-режим: ответы собираются из mock-сценария, подключение к API —
-          после готовности бэкенда.
+          <span className="text-ink-1">Что нового в базе:</span> проиндексирован
+          отчёт «Режимы диафрагменных ячеек» (2023) — +212 фактов, 1 новое
+          противоречие по циркуляции католита. Демо-режим: ответы собираются из
+          mock-сценария, подключение к API — после готовности бэкенда.
         </p>
       </section>
     </div>

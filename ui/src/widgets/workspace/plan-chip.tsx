@@ -43,15 +43,17 @@ export function PlanChip({ plan }: { plan: QueryPlan }) {
       </div>
       <div className="mt-2 flex flex-wrap gap-1.5">
         {entities.map((entity) => (
-          <span
+          <a
             key={entity.slug}
-            className="inline-flex items-center gap-1.5 rounded-sm border border-electrolyte/30 bg-bg-2 px-2 py-1 text-[12px] text-ink-0"
+            href={`/entity/${encodeURIComponent(entity.slug)}`}
+            title="Открыть паспорт сущности"
+            className="inline-flex items-center gap-1.5 rounded-sm border border-electrolyte/30 bg-bg-2 px-2 py-1 text-[12px] text-ink-0 transition-colors hover:border-electrolyte"
           >
             <span className="font-mono text-[9px] uppercase text-ink-2">
               {entity.slug.split(":")[0]}
             </span>
             {entity.name}
-          </span>
+          </a>
         ))}
         {plan.paramConstraints.map((constraint) => (
           <span

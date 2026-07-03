@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { ROLE_LABELS, useRole, type DemoRole } from "@/shared/lib/role";
+import { Isolines } from "@/shared/ui/isolines";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -13,7 +14,8 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="glow-panel flex min-h-full flex-col items-center justify-center gap-8 px-6 py-16">
+    <div className="glow-panel relative flex min-h-full flex-col items-center justify-center gap-8 px-6 py-16">
+      <Isolines />
       <div className="flex flex-col items-center gap-3">
         <span className="stamp-frame flex h-14 w-14 items-center justify-center bg-bg-1 font-display text-2xl font-extrabold text-electrolyte">
           k
