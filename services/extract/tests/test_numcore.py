@@ -39,3 +39,37 @@ def test_range_uses_first_match_priority() -> None:
     assert facts[0].operator == "range"
     assert facts[0].vmin == pytest.approx(60)
     assert facts[0].vmax == pytest.approx(70)
+
+
+def test_worded_range_keeps_both_bounds() -> None:
+    facts = extract_facts("скорость поддерживали от 0.6 до 0.9 м/с в ячейке")
+    assert len(facts) == 1
+    assert facts[0].operator == "range"
+    assert facts[0].vmin == pytest.approx(0.6)
+    assert facts[0].vmax == pytest.approx(0.9)
+    assert facts[0].unit_code == "m_per_s"
+
+
+def test_unicode_minus_normalized_to_range() -> None:
+    facts = extract_facts("температура 60−80 °C держалась")
+    assert len(facts) == 1
+    assert facts[0].operator == "range"
+    assert facts[0].vmin == pytest.approx(60)
+    assert facts[0].vmax == pytest.approx(80)
+
+
+def test_nonbreaking_space_normalized() -> None:
+    facts = extract_facts("порог 250 мг/л не превышен")
+    assert facts
+    assert facts[0].operator == "eq"
+    assert facts[0].vmin == pytest.approx(250)
+    assert facts[0].unit_code == "mg_per_l"
+
+
+def test_span_offsets_captured() -> None:
+    text = "скорость 0.8 м/с при нагрузке"
+    facts = extract_facts(text)
+    assert facts
+    fact = facts[0]
+    assert fact.char_to > fact.char_from
+    assert text[fact.char_from : fact.char_to] == fact.value_raw
