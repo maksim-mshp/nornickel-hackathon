@@ -84,11 +84,11 @@ func (bus *Bus) ensureStreams(specs []StreamSpec) error {
 			return fmt.Errorf("invalid stream spec: %+v", spec)
 		}
 		config := &natsclient.StreamConfig{
-			Name:     spec.Name,
-			Subjects: spec.Subjects,
-			Storage:  natsclient.FileStorage,
+			Name:      spec.Name,
+			Subjects:  spec.Subjects,
+			Storage:   natsclient.FileStorage,
 			Retention: natsclient.LimitsPolicy,
-			MaxAge:   defaultStreamMaxAge,
+			MaxAge:    defaultStreamMaxAge,
 		}
 		if _, err := bus.js.AddStream(config); err != nil {
 			if _, updateErr := bus.js.UpdateStream(config); updateErr != nil {

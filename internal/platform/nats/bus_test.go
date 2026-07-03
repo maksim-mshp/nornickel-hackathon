@@ -5,9 +5,9 @@ import (
 	"testing"
 	"time"
 
-	natsserver "github.com/nats-io/nats-server/v2/server"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/events"
 	natsbus "github.com/maksim-mshp/nornickel-hackathon/internal/platform/nats"
+	natsserver "github.com/nats-io/nats-server/v2/server"
 )
 
 func startJetStream(t *testing.T) string {
