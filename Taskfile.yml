@@ -20,6 +20,10 @@ tasks:
     cmds:
       - migrate -path db/migrations -database "postgres://kmap:kmap@localhost:5432/kmap?sslmode=disable" down 1
 
+  seed:
+    cmds:
+      - docker compose -f deploy/compose/docker-compose.yml exec -T postgres psql -U kmap -d kmap -v ON_ERROR_STOP=1 < db/seeds/demo.sql
+
   gen:
     cmds:
       - buf generate --template buf.gen.yml

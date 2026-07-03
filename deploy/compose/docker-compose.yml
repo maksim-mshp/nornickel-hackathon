@@ -72,6 +72,19 @@ services:
       - ../../db/migrations:/migrations:ro
     command: ["-path", "/migrations", "-database", "postgres://kmap:kmap@postgres:5432/kmap?sslmode=disable", "up"]
 
+  seed:
+    image: pgvector/pgvector:pg18
+    profiles: [app]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      - ../../db/seeds:/seeds:ro
+    entrypoint: ["psql", "postgres://kmap:kmap@postgres:5432/kmap?sslmode=disable", "-v", "ON_ERROR_STOP=1", "-f", "/seeds/demo.sql"]
+    restart: "no"
+
   gateway:
     build:
       context: ../..
