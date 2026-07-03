@@ -5,12 +5,16 @@ import urllib.request
 from eval.gold import GOLD
 
 
-def _ask(base: str, question: str, timeout: float) -> dict:
+def _ask(base: str, question: str, timeout: float, token: str) -> dict:
     payload = json.dumps({"question": question}).encode("utf-8")
     request = urllib.request.Request(
         base.rstrip("/") + "/v1/ask",
         data=payload,
-        headers={"Content-Type": "application/json", "Accept": "text/event-stream"},
+        headers={
+            "Content-Type": "application/json",
+            "Accept": "text/event-stream",
+            "Authorization": f"Bearer {token}",
+        },
         method="POST",
     )
     result = {"plan": None, "evidence": None, "answer": None}
@@ -64,6 +68,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--base", default="http://localhost:8080")
     parser.add_argument("--timeout", type=float, default=20.0)
+    parser.add_argument("--token", default="demo-researcher")
     args = parser.parse_args()
 
     rows = []
@@ -72,7 +77,7 @@ def main() -> None:
     passed = 0
     for case in GOLD:
         try:
-            response = _ask(args.base, case["question"], args.timeout)
+            response = _ask(args.base, case["question"], args.timeout, args.token)
             ok, metrics = _check(case, response)
         except Exception as error:
             ok, metrics = False, {"error": str(error)}
