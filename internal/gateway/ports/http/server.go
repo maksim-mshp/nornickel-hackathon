@@ -241,11 +241,12 @@ func (server *Server) uploadDocumentHandler(w stdhttp.ResponseWriter, r *stdhttp
 	}
 
 	request := &kmapv1.RegisterDocumentRequest{
-		Title:        titleFromMeta(meta, upload.fileName),
-		BlobUri:      upload.blobURI,
-		Sha256:       upload.sha256,
-		DeclaredMeta: meta,
-		Principal:    principalFromContext(r),
+		Title:          titleFromMeta(meta, upload.fileName),
+		BlobUri:        upload.blobURI,
+		Sha256:         upload.sha256,
+		DeclaredMeta:   meta,
+		Principal:      principalFromContext(r),
+		IdempotencyKey: r.Header.Get("Idempotency-Key"),
 	}
 
 	resp, err := server.ingest.RegisterDocument(r.Context(), request)
