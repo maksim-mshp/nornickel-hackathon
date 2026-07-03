@@ -32,11 +32,11 @@ func (server *Server) allowedOrigin(origin string) string {
 	if origin == "" {
 		return ""
 	}
-	if len(server.corsOrigins) == 0 {
-		return origin
-	}
 	for _, allowed := range server.corsOrigins {
-		if allowed == "*" || allowed == origin {
+		if allowed == "*" {
+			return "*"
+		}
+		if allowed == origin {
 			return origin
 		}
 	}

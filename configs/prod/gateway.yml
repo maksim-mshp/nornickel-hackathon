@@ -4,6 +4,6 @@ http:
 auth:
   mode: oidc
   oidc:
-    issuer: http://keycloak:8080/realms/kmap
+    issuer: https://kmap.local/realms/kmap
     audience: kmap-gateway
     doc_access_claim: doc_access
