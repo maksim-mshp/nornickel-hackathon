@@ -458,3 +458,6 @@ node_modules/
 out/
 *.tsbuildinfo
 .pnpm-store/
+
+!ui/src/shared/lib/
+!ui/src/shared/lib/**

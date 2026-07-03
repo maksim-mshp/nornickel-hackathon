@@ -1,0 +1,119 @@
+"use client";
+
+import { create } from "zustand";
+import { persist } from "zustand/middleware";
+
+export type DemoRole =
+  | "researcher"
+  | "manager"
+  | "expert"
+  | "admin"
+  | "partner";
+
+export const ROLE_LABELS: Record<DemoRole, string> = {
+  researcher: "Исследователь",
+  manager: "Руководитель",
+  expert: "Эксперт",
+  admin: "Администратор",
+  partner: "Внешний партнёр",
+};
+
+const RESEARCHER_ROUTES = ["/", "/experiments", "/experts"];
+
+export const ROLE_ROUTES: Record<DemoRole, string[]> = {
+  researcher: RESEARCHER_ROUTES,
+  manager: [...RESEARCHER_ROUTES, "/coverage"],
+  expert: [...RESEARCHER_ROUTES, "/coverage", "/review"],
+  admin: [
+    ...RESEARCHER_ROUTES,
+    "/coverage",
+    "/review",
+    "/documents",
+    "/dictionaries",
+  ],
+  partner: ["/"],
+};
+
+type RoleStore = {
+  role: DemoRole;
+  token: string;
+  setRole: (role: DemoRole) => void;
+  setAuth: (role: DemoRole, token: string) => void;
+};
+
+export const useRole = create<RoleStore>()(
+  persist(
+    (set) => ({
+      role: "admin",
+      token: "demo-admin",
+      setRole: (role) => set({ role, token: `demo-${role}` }),
+      setAuth: (role, token) => set({ role, token }),
+    }),
+    { name: "kmap-role" },
+  ),
+);
+
+export function routeAllowed(role: DemoRole, href: string): boolean {
+  return ROLE_ROUTES[role].includes(href);
+}
+
+export function authHeaders(): Record<string, string> {
+  const token = useRole.getState().token;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+const ROLE_PRIORITY: { claim: string; role: DemoRole }[] = [
+  { claim: "admin", role: "admin" },
+  { claim: "expert", role: "expert" },
+  { claim: "manager", role: "manager" },
+  { claim: "analyst", role: "researcher" },
+  { claim: "researcher", role: "researcher" },
+  { claim: "partner", role: "partner" },
+];
+
+function decodeRoles(token: string): string[] {
+  const parts = token.split(".");
+  if (parts.length < 2) return [];
+  try {
+    const payload = JSON.parse(
+      atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")),
+    ) as { realm_access?: { roles?: string[] } };
+    return payload.realm_access?.roles ?? [];
+  } catch {
+    return [];
+  }
+}
+
+export function roleFromToken(token: string): DemoRole {
+  const roles = new Set(decodeRoles(token));
+  const match = ROLE_PRIORITY.find((entry) => roles.has(entry.claim));
+  return match?.role ?? "researcher";
+}
+
+export async function loginOIDC(
+  username: string,
+  password: string,
+): Promise<DemoRole> {
+  const body = new URLSearchParams({
+    grant_type: "password",
+    client_id: "kmap-ui",
+    username,
+    password,
+  });
+  const response = await fetch(
+    "/kc/realms/kmap/protocol/openid-connect/token",
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/x-www-form-urlencoded" },
+      body,
+    },
+  );
+  if (!response.ok) {
+    throw new Error("Keycloak отклонил вход");
+  }
+  const data = (await response.json()) as { access_token?: string };
+  const token = data.access_token ?? "";
+  const role = roleFromToken(token);
+  useRole.getState().setAuth(role, token);
+  return role;
+}
