@@ -166,6 +166,24 @@ func (server *Server) entityHandler(w stdhttp.ResponseWriter, r *stdhttp.Request
 	writeDataJSON(w, stdhttp.StatusOK, mapEntityCard(resp.GetEntity()))
 }
 
+func (server *Server) entityFactsHandler(w stdhttp.ResponseWriter, r *stdhttp.Request) {
+	resp, err := server.search.ListEntityFacts(r.Context(), &kmapv1.ListEntityFactsRequest{
+		EntityId:  chi.URLParam(r, "id"),
+		Parameter: r.URL.Query().Get("param"),
+		Page:      pageRequest(r),
+		Principal: principalFromContext(r),
+	})
+	if err != nil {
+		writeGRPCProblem(w, r, err)
+		return
+	}
+	items := make([]map[string]any, 0, len(resp.GetFacts()))
+	for _, item := range resp.GetFacts() {
+		items = append(items, structMap(item.GetPayload()))
+	}
+	writeDataJSON(w, stdhttp.StatusOK, itemsResponse[map[string]any]{Items: items, NextCursor: resp.GetPage().GetNextCursor()})
+}
+
 func (server *Server) experimentsHandler(w stdhttp.ResponseWriter, r *stdhttp.Request) {
 	resp, err := server.search.ListExperiments(r.Context(), &kmapv1.ListExperimentsRequest{
 		Material:  r.URL.Query().Get("material"),

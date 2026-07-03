@@ -166,6 +166,7 @@ func (server *Server) RegisterHTTP(router chi.Router) {
 	router.Post("/v1/search", server.secure(auth.OpSearch, server.searchHandler))
 	router.Get("/v1/entities", server.secure(auth.OpBrowse, server.entitiesHandler))
 	router.Get("/v1/entities/{id}", server.secure(auth.OpBrowse, server.entityHandler))
+	router.Get("/v1/entities/{id}/facts", server.secure(auth.OpBrowse, server.entityFactsHandler))
 	router.Get("/v1/experiments", server.secure(auth.OpBrowse, server.experimentsHandler))
 	router.Get("/v1/experts", server.secure(auth.OpBrowse, server.expertsHandler))
 	router.Get("/v1/coverage", server.secure(auth.OpBrowse, server.coverageHandler))

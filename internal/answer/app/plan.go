@@ -2,6 +2,7 @@ package app
 
 import (
 	"strings"
+	"unicode"
 
 	kmapv1 "github.com/maksim-mshp/nornickel-hackathon/contracts/gen/go/kmap/v1"
 	"google.golang.org/protobuf/types/known/structpb"
@@ -242,7 +243,7 @@ func splitClauses(text string) []string {
 
 func detectLang(question string) string {
 	for _, symbol := range question {
-		if symbol >= 'а' && symbol <= 'я' {
+		if unicode.Is(unicode.Cyrillic, symbol) {
 			return "ru"
 		}
 	}
