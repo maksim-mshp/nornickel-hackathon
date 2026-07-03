@@ -1,0 +1,15 @@
+bands:
+  numeric:
+    temperature_c:
+      edges: [0, 25, 60, 90, 200, 700]
+    current_density_a_m2:
+      edges: [150, 250, 400]
+    ph:
+      edges: [2, 5, 7, 9]
+    pressure_mpa:
+      edges: [0.5, 2, 5]
+  categorical:
+    climate: [cold, temperate, unspecified]
+    medium: [sulfate, chloride, mixed, unspecified]
+    material_class: [nickel_ore, copper_ore, matte, solution, unspecified]
+    scale: [lab, pilot, industrial, unspecified]
