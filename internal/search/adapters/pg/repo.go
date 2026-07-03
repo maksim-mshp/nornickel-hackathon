@@ -6,7 +6,9 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	kmapv1 "github.com/maksim-mshp/nornickel-hackathon/contracts/gen/go/kmap/v1"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/search/app"
+	"google.golang.org/protobuf/types/known/structpb"
 )
 
 type Repo struct {
@@ -328,6 +330,131 @@ WHERE ed.src = ANY($1) OR ed.dst = ANY($1)`
 		edges = append(edges, edge)
 	}
 	return nodes, edges, edgeRows.Err()
+}
+
+func (repo *Repo) ListEntities(ctx context.Context, entityType string, query string, limit uint32) ([]*kmapv1.EntitySummary, error) {
+	const sql = `
+SELECT e.id::text, e.slug, e.canonical_name, coalesce(e.canonical_name_en, ''), e.etype::text,
+       count(DISTINCT f.id)::int, count(DISTINCT ed.id)::int
+FROM kg.entities e
+LEFT JOIN kg.numeric_facts f ON f.subject_id = e.id OR f.parameter_id = e.id
+LEFT JOIN kg.edges ed ON ed.src = e.id OR ed.dst = e.id
+WHERE e.status = 'active'
+  AND ($1 = '' OR e.etype::text = $1)
+  AND ($2 = '' OR e.slug ILIKE '%' || $2 || '%' OR e.canonical_name ILIKE '%' || $2 || '%')
+GROUP BY e.id, e.slug, e.canonical_name, e.canonical_name_en, e.etype
+ORDER BY count(DISTINCT f.id) DESC, e.canonical_name
+LIMIT $3`
+	rows, err := repo.pool.Query(ctx, sql, entityType, query, int(limit))
+	if err != nil {
+		return nil, fmt.Errorf("query entities: %w", err)
+	}
+	defer rows.Close()
+
+	var result []*kmapv1.EntitySummary
+	for rows.Next() {
+		item := &kmapv1.EntitySummary{}
+		if err := rows.Scan(&item.Id, &item.Slug, &item.Name, &item.NameEn, &item.Etype, &item.Facts, &item.Relations); err != nil {
+			return nil, fmt.Errorf("scan entity: %w", err)
+		}
+		result = append(result, item)
+	}
+	return result, rows.Err()
+}
+
+func (repo *Repo) GetEntity(ctx context.Context, entityID string) (*kmapv1.EntityCard, error) {
+	const sql = `
+SELECT e.id::text, e.slug, e.canonical_name, coalesce(e.canonical_name_en, ''), e.etype::text,
+       count(DISTINCT f.id)::int, count(DISTINCT ed.id)::int
+FROM kg.entities e
+LEFT JOIN kg.numeric_facts f ON f.subject_id = e.id OR f.parameter_id = e.id
+LEFT JOIN kg.edges ed ON ed.src = e.id OR ed.dst = e.id
+WHERE e.id::text = $1 OR e.slug = $1
+GROUP BY e.id, e.slug, e.canonical_name, e.canonical_name_en, e.etype`
+	item := &kmapv1.EntityCard{}
+	var facts, relations uint32
+	if err := repo.pool.QueryRow(ctx, sql, entityID).Scan(&item.Id, &item.Slug, &item.NameRu, &item.NameEn, &item.Type, &facts, &relations); err != nil {
+		return nil, fmt.Errorf("query entity: %w", err)
+	}
+	counters, err := structpb.NewStruct(map[string]any{"facts": float64(facts), "relations": float64(relations)})
+	if err != nil {
+		return nil, fmt.Errorf("build counters: %w", err)
+	}
+	item.Counters = counters
+	item.Synonyms = repo.entityAliases(ctx, item.Id)
+	_, edges, err := repo.EgoGraph(ctx, []string{item.Id})
+	if err != nil {
+		return nil, err
+	}
+	item.Relations = make([]*kmapv1.GraphEdge, 0, len(edges))
+	for _, edge := range edges {
+		item.Relations = append(item.Relations, &kmapv1.GraphEdge{
+			Id: edge.ID, Src: edge.Src, Dst: edge.Dst, Rel: edge.Rel,
+			Weight: edge.Weight, Confidence: edge.Confidence, Contradiction: edge.Contradiction,
+		})
+	}
+	return item, nil
+}
+
+func (repo *Repo) ListExperiments(ctx context.Context, req *kmapv1.ListExperimentsRequest) ([]*kmapv1.ExperimentSummary, error) {
+	const sql = `
+SELECT f.id::text, s.canonical_name, p.canonical_name, coalesce(f.conditions, '{}'::jsonb),
+       f.value_raw, d.title, d.doc_type::text, f.extraction_confidence
+FROM kg.numeric_facts f
+JOIN kg.entities s ON s.id = f.subject_id
+JOIN kg.entities p ON p.id = f.parameter_id
+JOIN core.documents d ON d.id = f.document_id
+WHERE ($1 = '' OR s.slug = $1 OR s.canonical_name ILIKE '%' || $1 || '%')
+  AND ($2 = '' OR p.slug = $2 OR p.canonical_name ILIKE '%' || $2 || '%')
+  AND ($3 = 0 OR d.year >= $3)
+ORDER BY d.year DESC NULLS LAST, f.extraction_confidence DESC
+LIMIT 50`
+	rows, err := repo.pool.Query(ctx, sql, req.GetProcess(), req.GetParameter(), req.GetYearFrom())
+	if err != nil {
+		return nil, fmt.Errorf("query experiments: %w", err)
+	}
+	defer rows.Close()
+
+	var result []*kmapv1.ExperimentSummary
+	for rows.Next() {
+		item := &kmapv1.ExperimentSummary{}
+		var conditions []byte
+		if err := rows.Scan(&item.Id, &item.Process, &item.Material, &conditions, &item.Result, &item.Source, &item.DocType, &item.Confidence); err != nil {
+			return nil, fmt.Errorf("scan experiment: %w", err)
+		}
+		item.Code = item.Id
+		item.Conditions = bytesToStruct(conditions)
+		result = append(result, item)
+	}
+	return result, rows.Err()
+}
+
+func (repo *Repo) entityAliases(ctx context.Context, entityID string) []string {
+	const sql = `SELECT alias FROM kg.entity_aliases WHERE entity_id::text = $1 ORDER BY alias LIMIT 20`
+	rows, err := repo.pool.Query(ctx, sql, entityID)
+	if err != nil {
+		return nil
+	}
+	defer rows.Close()
+	var result []string
+	for rows.Next() {
+		var alias string
+		if err := rows.Scan(&alias); err != nil {
+			return result
+		}
+		result = append(result, alias)
+	}
+	return result
+}
+
+func bytesToStruct(raw []byte) *structpb.Struct {
+	values := map[string]any{}
+	_ = json.Unmarshal(raw, &values)
+	result, err := structpb.NewStruct(values)
+	if err != nil {
+		return &structpb.Struct{}
+	}
+	return result
 }
 
 func decodeConditions(raw []byte) map[string]string {

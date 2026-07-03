@@ -25,6 +25,10 @@ type SearchServiceClient interface {
 	Search(ctx context.Context, in *SearchRequest, opts ...grpc.CallOption) (*SearchResponse, error)
 	EgoGraph(ctx context.Context, in *EgoGraphRequest, opts ...grpc.CallOption) (*EgoGraphResponse, error)
 	ListExperts(ctx context.Context, in *ListExpertsRequest, opts ...grpc.CallOption) (*ListExpertsResponse, error)
+	ListEntities(ctx context.Context, in *ListEntitiesRequest, opts ...grpc.CallOption) (*ListEntitiesResponse, error)
+	GetEntity(ctx context.Context, in *GetEntityRequest, opts ...grpc.CallOption) (*GetEntityResponse, error)
+	ListEntityFacts(ctx context.Context, in *ListEntityFactsRequest, opts ...grpc.CallOption) (*ListEntityFactsResponse, error)
+	ListExperiments(ctx context.Context, in *ListExperimentsRequest, opts ...grpc.CallOption) (*ListExperimentsResponse, error)
 }
 
 type searchServiceClient struct {
@@ -62,6 +66,42 @@ func (c *searchServiceClient) ListExperts(ctx context.Context, in *ListExpertsRe
 	return out, nil
 }
 
+func (c *searchServiceClient) ListEntities(ctx context.Context, in *ListEntitiesRequest, opts ...grpc.CallOption) (*ListEntitiesResponse, error) {
+	out := new(ListEntitiesResponse)
+	err := c.cc.Invoke(ctx, "/kmap.v1.SearchService/ListEntities", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *searchServiceClient) GetEntity(ctx context.Context, in *GetEntityRequest, opts ...grpc.CallOption) (*GetEntityResponse, error) {
+	out := new(GetEntityResponse)
+	err := c.cc.Invoke(ctx, "/kmap.v1.SearchService/GetEntity", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *searchServiceClient) ListEntityFacts(ctx context.Context, in *ListEntityFactsRequest, opts ...grpc.CallOption) (*ListEntityFactsResponse, error) {
+	out := new(ListEntityFactsResponse)
+	err := c.cc.Invoke(ctx, "/kmap.v1.SearchService/ListEntityFacts", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+func (c *searchServiceClient) ListExperiments(ctx context.Context, in *ListExperimentsRequest, opts ...grpc.CallOption) (*ListExperimentsResponse, error) {
+	out := new(ListExperimentsResponse)
+	err := c.cc.Invoke(ctx, "/kmap.v1.SearchService/ListExperiments", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // SearchServiceServer is the server API for SearchService service.
 // All implementations must embed UnimplementedSearchServiceServer
 // for forward compatibility
@@ -69,6 +109,10 @@ type SearchServiceServer interface {
 	Search(context.Context, *SearchRequest) (*SearchResponse, error)
 	EgoGraph(context.Context, *EgoGraphRequest) (*EgoGraphResponse, error)
 	ListExperts(context.Context, *ListExpertsRequest) (*ListExpertsResponse, error)
+	ListEntities(context.Context, *ListEntitiesRequest) (*ListEntitiesResponse, error)
+	GetEntity(context.Context, *GetEntityRequest) (*GetEntityResponse, error)
+	ListEntityFacts(context.Context, *ListEntityFactsRequest) (*ListEntityFactsResponse, error)
+	ListExperiments(context.Context, *ListExperimentsRequest) (*ListExperimentsResponse, error)
 	mustEmbedUnimplementedSearchServiceServer()
 }
 
@@ -84,6 +128,18 @@ func (UnimplementedSearchServiceServer) EgoGraph(context.Context, *EgoGraphReque
 }
 func (UnimplementedSearchServiceServer) ListExperts(context.Context, *ListExpertsRequest) (*ListExpertsResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ListExperts not implemented")
+}
+func (UnimplementedSearchServiceServer) ListEntities(context.Context, *ListEntitiesRequest) (*ListEntitiesResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListEntities not implemented")
+}
+func (UnimplementedSearchServiceServer) GetEntity(context.Context, *GetEntityRequest) (*GetEntityResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method GetEntity not implemented")
+}
+func (UnimplementedSearchServiceServer) ListEntityFacts(context.Context, *ListEntityFactsRequest) (*ListEntityFactsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListEntityFacts not implemented")
+}
+func (UnimplementedSearchServiceServer) ListExperiments(context.Context, *ListExperimentsRequest) (*ListExperimentsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListExperiments not implemented")
 }
 func (UnimplementedSearchServiceServer) mustEmbedUnimplementedSearchServiceServer() {}
 
@@ -152,6 +208,78 @@ func _SearchService_ListExperts_Handler(srv interface{}, ctx context.Context, de
 	return interceptor(ctx, in, info, handler)
 }
 
+func _SearchService_ListEntities_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListEntitiesRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SearchServiceServer).ListEntities(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/kmap.v1.SearchService/ListEntities",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SearchServiceServer).ListEntities(ctx, req.(*ListEntitiesRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SearchService_GetEntity_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(GetEntityRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SearchServiceServer).GetEntity(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/kmap.v1.SearchService/GetEntity",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SearchServiceServer).GetEntity(ctx, req.(*GetEntityRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SearchService_ListEntityFacts_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListEntityFactsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SearchServiceServer).ListEntityFacts(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/kmap.v1.SearchService/ListEntityFacts",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SearchServiceServer).ListEntityFacts(ctx, req.(*ListEntityFactsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
+func _SearchService_ListExperiments_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListExperimentsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(SearchServiceServer).ListExperiments(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/kmap.v1.SearchService/ListExperiments",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(SearchServiceServer).ListExperiments(ctx, req.(*ListExperimentsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // SearchService_ServiceDesc is the grpc.ServiceDesc for SearchService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -170,6 +298,22 @@ var SearchService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "ListExperts",
 			Handler:    _SearchService_ListExperts_Handler,
+		},
+		{
+			MethodName: "ListEntities",
+			Handler:    _SearchService_ListEntities_Handler,
+		},
+		{
+			MethodName: "GetEntity",
+			Handler:    _SearchService_GetEntity_Handler,
+		},
+		{
+			MethodName: "ListEntityFacts",
+			Handler:    _SearchService_ListEntityFacts_Handler,
+		},
+		{
+			MethodName: "ListExperiments",
+			Handler:    _SearchService_ListExperiments_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

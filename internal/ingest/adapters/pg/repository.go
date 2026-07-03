@@ -8,6 +8,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/maksim-mshp/nornickel-hackathon/internal/ingest/app"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/ingest/domain"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/events"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/outbox"
@@ -124,6 +125,31 @@ func (repository *Repository) GetStatus(ctx context.Context, documentID uuid.UUI
 
 	doc := domain.Document{ID: documentID, Version: version, Status: status}
 	return doc, stages, nil
+}
+
+func (repository *Repository) ListDocuments(ctx context.Context, limit uint32) ([]app.DocumentSummary, error) {
+	const query = `
+SELECT d.id, d.title, d.doc_type::text, coalesce(d.lang, ''), d.geography::text,
+       d.access_level::text, d.status::text, count(f.id)::int, coalesce(d.year, 0)
+FROM core.documents d
+LEFT JOIN kg.numeric_facts f ON f.document_id = d.id
+GROUP BY d.id, d.title, d.doc_type, d.lang, d.geography, d.access_level, d.status, d.year, d.created_at
+ORDER BY d.created_at DESC
+LIMIT $1`
+	rows, err := repository.pool.Query(ctx, query, int(limit))
+	if err != nil {
+		return nil, fmt.Errorf("query documents: %w", err)
+	}
+	defer rows.Close()
+	var result []app.DocumentSummary
+	for rows.Next() {
+		var item app.DocumentSummary
+		if err := rows.Scan(&item.ID, &item.Title, &item.DocType, &item.Lang, &item.Geography, &item.AccessLevel, &item.Status, &item.Facts, &item.Year); err != nil {
+			return nil, fmt.Errorf("scan document: %w", err)
+		}
+		result = append(result, item)
+	}
+	return result, rows.Err()
 }
 
 func nullableString(value string) any {

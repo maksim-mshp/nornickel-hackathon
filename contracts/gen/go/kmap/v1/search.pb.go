@@ -9,6 +9,7 @@ package kmapv1
 import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
+	structpb "google.golang.org/protobuf/types/known/structpb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -349,11 +350,831 @@ func (x *ListExpertsResponse) GetPage() *PageResponse {
 	return nil
 }
 
+type ListEntitiesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Type          string                 `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
+	Query         string                 `protobuf:"bytes,2,opt,name=query,proto3" json:"query,omitempty"`
+	Page          *PageRequest           `protobuf:"bytes,3,opt,name=page,proto3" json:"page,omitempty"`
+	Principal     *Principal             `protobuf:"bytes,4,opt,name=principal,proto3" json:"principal,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListEntitiesRequest) Reset() {
+	*x = ListEntitiesRequest{}
+	mi := &file_kmap_v1_search_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListEntitiesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListEntitiesRequest) ProtoMessage() {}
+
+func (x *ListEntitiesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_kmap_v1_search_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListEntitiesRequest.ProtoReflect.Descriptor instead.
+func (*ListEntitiesRequest) Descriptor() ([]byte, []int) {
+	return file_kmap_v1_search_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ListEntitiesRequest) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *ListEntitiesRequest) GetQuery() string {
+	if x != nil {
+		return x.Query
+	}
+	return ""
+}
+
+func (x *ListEntitiesRequest) GetPage() *PageRequest {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
+func (x *ListEntitiesRequest) GetPrincipal() *Principal {
+	if x != nil {
+		return x.Principal
+	}
+	return nil
+}
+
+type ListEntitiesResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Items         []*EntitySummary       `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	Page          *PageResponse          `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListEntitiesResponse) Reset() {
+	*x = ListEntitiesResponse{}
+	mi := &file_kmap_v1_search_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListEntitiesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListEntitiesResponse) ProtoMessage() {}
+
+func (x *ListEntitiesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_kmap_v1_search_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListEntitiesResponse.ProtoReflect.Descriptor instead.
+func (*ListEntitiesResponse) Descriptor() ([]byte, []int) {
+	return file_kmap_v1_search_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *ListEntitiesResponse) GetItems() []*EntitySummary {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
+func (x *ListEntitiesResponse) GetPage() *PageResponse {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
+type GetEntityRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	EntityId      string                 `protobuf:"bytes,1,opt,name=entity_id,json=entityId,proto3" json:"entity_id,omitempty"`
+	Principal     *Principal             `protobuf:"bytes,2,opt,name=principal,proto3" json:"principal,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetEntityRequest) Reset() {
+	*x = GetEntityRequest{}
+	mi := &file_kmap_v1_search_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetEntityRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetEntityRequest) ProtoMessage() {}
+
+func (x *GetEntityRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_kmap_v1_search_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetEntityRequest.ProtoReflect.Descriptor instead.
+func (*GetEntityRequest) Descriptor() ([]byte, []int) {
+	return file_kmap_v1_search_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *GetEntityRequest) GetEntityId() string {
+	if x != nil {
+		return x.EntityId
+	}
+	return ""
+}
+
+func (x *GetEntityRequest) GetPrincipal() *Principal {
+	if x != nil {
+		return x.Principal
+	}
+	return nil
+}
+
+type GetEntityResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Entity        *EntityCard            `protobuf:"bytes,1,opt,name=entity,proto3" json:"entity,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetEntityResponse) Reset() {
+	*x = GetEntityResponse{}
+	mi := &file_kmap_v1_search_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetEntityResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetEntityResponse) ProtoMessage() {}
+
+func (x *GetEntityResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_kmap_v1_search_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetEntityResponse.ProtoReflect.Descriptor instead.
+func (*GetEntityResponse) Descriptor() ([]byte, []int) {
+	return file_kmap_v1_search_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *GetEntityResponse) GetEntity() *EntityCard {
+	if x != nil {
+		return x.Entity
+	}
+	return nil
+}
+
+type ListEntityFactsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	EntityId      string                 `protobuf:"bytes,1,opt,name=entity_id,json=entityId,proto3" json:"entity_id,omitempty"`
+	Parameter     string                 `protobuf:"bytes,2,opt,name=parameter,proto3" json:"parameter,omitempty"`
+	Page          *PageRequest           `protobuf:"bytes,3,opt,name=page,proto3" json:"page,omitempty"`
+	Principal     *Principal             `protobuf:"bytes,4,opt,name=principal,proto3" json:"principal,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListEntityFactsRequest) Reset() {
+	*x = ListEntityFactsRequest{}
+	mi := &file_kmap_v1_search_proto_msgTypes[10]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListEntityFactsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListEntityFactsRequest) ProtoMessage() {}
+
+func (x *ListEntityFactsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_kmap_v1_search_proto_msgTypes[10]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListEntityFactsRequest.ProtoReflect.Descriptor instead.
+func (*ListEntityFactsRequest) Descriptor() ([]byte, []int) {
+	return file_kmap_v1_search_proto_rawDescGZIP(), []int{10}
+}
+
+func (x *ListEntityFactsRequest) GetEntityId() string {
+	if x != nil {
+		return x.EntityId
+	}
+	return ""
+}
+
+func (x *ListEntityFactsRequest) GetParameter() string {
+	if x != nil {
+		return x.Parameter
+	}
+	return ""
+}
+
+func (x *ListEntityFactsRequest) GetPage() *PageRequest {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
+func (x *ListEntityFactsRequest) GetPrincipal() *Principal {
+	if x != nil {
+		return x.Principal
+	}
+	return nil
+}
+
+type ListEntityFactsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Facts         []*Fact                `protobuf:"bytes,1,rep,name=facts,proto3" json:"facts,omitempty"`
+	Page          *PageResponse          `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListEntityFactsResponse) Reset() {
+	*x = ListEntityFactsResponse{}
+	mi := &file_kmap_v1_search_proto_msgTypes[11]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListEntityFactsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListEntityFactsResponse) ProtoMessage() {}
+
+func (x *ListEntityFactsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_kmap_v1_search_proto_msgTypes[11]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListEntityFactsResponse.ProtoReflect.Descriptor instead.
+func (*ListEntityFactsResponse) Descriptor() ([]byte, []int) {
+	return file_kmap_v1_search_proto_rawDescGZIP(), []int{11}
+}
+
+func (x *ListEntityFactsResponse) GetFacts() []*Fact {
+	if x != nil {
+		return x.Facts
+	}
+	return nil
+}
+
+func (x *ListEntityFactsResponse) GetPage() *PageResponse {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
+type ListExperimentsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Material      string                 `protobuf:"bytes,1,opt,name=material,proto3" json:"material,omitempty"`
+	Process       string                 `protobuf:"bytes,2,opt,name=process,proto3" json:"process,omitempty"`
+	YearFrom      int32                  `protobuf:"varint,3,opt,name=year_from,json=yearFrom,proto3" json:"year_from,omitempty"`
+	Parameter     string                 `protobuf:"bytes,4,opt,name=parameter,proto3" json:"parameter,omitempty"`
+	Op            string                 `protobuf:"bytes,5,opt,name=op,proto3" json:"op,omitempty"`
+	Value         float64                `protobuf:"fixed64,6,opt,name=value,proto3" json:"value,omitempty"`
+	Unit          string                 `protobuf:"bytes,7,opt,name=unit,proto3" json:"unit,omitempty"`
+	Page          *PageRequest           `protobuf:"bytes,8,opt,name=page,proto3" json:"page,omitempty"`
+	Principal     *Principal             `protobuf:"bytes,9,opt,name=principal,proto3" json:"principal,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListExperimentsRequest) Reset() {
+	*x = ListExperimentsRequest{}
+	mi := &file_kmap_v1_search_proto_msgTypes[12]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListExperimentsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListExperimentsRequest) ProtoMessage() {}
+
+func (x *ListExperimentsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_kmap_v1_search_proto_msgTypes[12]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListExperimentsRequest.ProtoReflect.Descriptor instead.
+func (*ListExperimentsRequest) Descriptor() ([]byte, []int) {
+	return file_kmap_v1_search_proto_rawDescGZIP(), []int{12}
+}
+
+func (x *ListExperimentsRequest) GetMaterial() string {
+	if x != nil {
+		return x.Material
+	}
+	return ""
+}
+
+func (x *ListExperimentsRequest) GetProcess() string {
+	if x != nil {
+		return x.Process
+	}
+	return ""
+}
+
+func (x *ListExperimentsRequest) GetYearFrom() int32 {
+	if x != nil {
+		return x.YearFrom
+	}
+	return 0
+}
+
+func (x *ListExperimentsRequest) GetParameter() string {
+	if x != nil {
+		return x.Parameter
+	}
+	return ""
+}
+
+func (x *ListExperimentsRequest) GetOp() string {
+	if x != nil {
+		return x.Op
+	}
+	return ""
+}
+
+func (x *ListExperimentsRequest) GetValue() float64 {
+	if x != nil {
+		return x.Value
+	}
+	return 0
+}
+
+func (x *ListExperimentsRequest) GetUnit() string {
+	if x != nil {
+		return x.Unit
+	}
+	return ""
+}
+
+func (x *ListExperimentsRequest) GetPage() *PageRequest {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
+func (x *ListExperimentsRequest) GetPrincipal() *Principal {
+	if x != nil {
+		return x.Principal
+	}
+	return nil
+}
+
+type ListExperimentsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Items         []*ExperimentSummary   `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	Page          *PageResponse          `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListExperimentsResponse) Reset() {
+	*x = ListExperimentsResponse{}
+	mi := &file_kmap_v1_search_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListExperimentsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListExperimentsResponse) ProtoMessage() {}
+
+func (x *ListExperimentsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_kmap_v1_search_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListExperimentsResponse.ProtoReflect.Descriptor instead.
+func (*ListExperimentsResponse) Descriptor() ([]byte, []int) {
+	return file_kmap_v1_search_proto_rawDescGZIP(), []int{13}
+}
+
+func (x *ListExperimentsResponse) GetItems() []*ExperimentSummary {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
+func (x *ListExperimentsResponse) GetPage() *PageResponse {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
+type EntitySummary struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Slug          string                 `protobuf:"bytes,2,opt,name=slug,proto3" json:"slug,omitempty"`
+	Name          string                 `protobuf:"bytes,3,opt,name=name,proto3" json:"name,omitempty"`
+	NameEn        string                 `protobuf:"bytes,4,opt,name=name_en,json=nameEn,proto3" json:"name_en,omitempty"`
+	Etype         string                 `protobuf:"bytes,5,opt,name=etype,proto3" json:"etype,omitempty"`
+	Facts         uint32                 `protobuf:"varint,6,opt,name=facts,proto3" json:"facts,omitempty"`
+	Relations     uint32                 `protobuf:"varint,7,opt,name=relations,proto3" json:"relations,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EntitySummary) Reset() {
+	*x = EntitySummary{}
+	mi := &file_kmap_v1_search_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EntitySummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EntitySummary) ProtoMessage() {}
+
+func (x *EntitySummary) ProtoReflect() protoreflect.Message {
+	mi := &file_kmap_v1_search_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EntitySummary.ProtoReflect.Descriptor instead.
+func (*EntitySummary) Descriptor() ([]byte, []int) {
+	return file_kmap_v1_search_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *EntitySummary) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *EntitySummary) GetSlug() string {
+	if x != nil {
+		return x.Slug
+	}
+	return ""
+}
+
+func (x *EntitySummary) GetName() string {
+	if x != nil {
+		return x.Name
+	}
+	return ""
+}
+
+func (x *EntitySummary) GetNameEn() string {
+	if x != nil {
+		return x.NameEn
+	}
+	return ""
+}
+
+func (x *EntitySummary) GetEtype() string {
+	if x != nil {
+		return x.Etype
+	}
+	return ""
+}
+
+func (x *EntitySummary) GetFacts() uint32 {
+	if x != nil {
+		return x.Facts
+	}
+	return 0
+}
+
+func (x *EntitySummary) GetRelations() uint32 {
+	if x != nil {
+		return x.Relations
+	}
+	return 0
+}
+
+type EntityCard struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Slug          string                 `protobuf:"bytes,2,opt,name=slug,proto3" json:"slug,omitempty"`
+	NameRu        string                 `protobuf:"bytes,3,opt,name=name_ru,json=nameRu,proto3" json:"name_ru,omitempty"`
+	NameEn        string                 `protobuf:"bytes,4,opt,name=name_en,json=nameEn,proto3" json:"name_en,omitempty"`
+	Type          string                 `protobuf:"bytes,5,opt,name=type,proto3" json:"type,omitempty"`
+	Synonyms      []string               `protobuf:"bytes,6,rep,name=synonyms,proto3" json:"synonyms,omitempty"`
+	Counters      *structpb.Struct       `protobuf:"bytes,7,opt,name=counters,proto3" json:"counters,omitempty"`
+	Consensus     []*structpb.Struct     `protobuf:"bytes,8,rep,name=consensus,proto3" json:"consensus,omitempty"`
+	Relations     []*GraphEdge           `protobuf:"bytes,9,rep,name=relations,proto3" json:"relations,omitempty"`
+	Experts       []*Expert              `protobuf:"bytes,10,rep,name=experts,proto3" json:"experts,omitempty"`
+	Timeline      []*structpb.Struct     `protobuf:"bytes,11,rep,name=timeline,proto3" json:"timeline,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *EntityCard) Reset() {
+	*x = EntityCard{}
+	mi := &file_kmap_v1_search_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *EntityCard) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*EntityCard) ProtoMessage() {}
+
+func (x *EntityCard) ProtoReflect() protoreflect.Message {
+	mi := &file_kmap_v1_search_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use EntityCard.ProtoReflect.Descriptor instead.
+func (*EntityCard) Descriptor() ([]byte, []int) {
+	return file_kmap_v1_search_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *EntityCard) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *EntityCard) GetSlug() string {
+	if x != nil {
+		return x.Slug
+	}
+	return ""
+}
+
+func (x *EntityCard) GetNameRu() string {
+	if x != nil {
+		return x.NameRu
+	}
+	return ""
+}
+
+func (x *EntityCard) GetNameEn() string {
+	if x != nil {
+		return x.NameEn
+	}
+	return ""
+}
+
+func (x *EntityCard) GetType() string {
+	if x != nil {
+		return x.Type
+	}
+	return ""
+}
+
+func (x *EntityCard) GetSynonyms() []string {
+	if x != nil {
+		return x.Synonyms
+	}
+	return nil
+}
+
+func (x *EntityCard) GetCounters() *structpb.Struct {
+	if x != nil {
+		return x.Counters
+	}
+	return nil
+}
+
+func (x *EntityCard) GetConsensus() []*structpb.Struct {
+	if x != nil {
+		return x.Consensus
+	}
+	return nil
+}
+
+func (x *EntityCard) GetRelations() []*GraphEdge {
+	if x != nil {
+		return x.Relations
+	}
+	return nil
+}
+
+func (x *EntityCard) GetExperts() []*Expert {
+	if x != nil {
+		return x.Experts
+	}
+	return nil
+}
+
+func (x *EntityCard) GetTimeline() []*structpb.Struct {
+	if x != nil {
+		return x.Timeline
+	}
+	return nil
+}
+
+type ExperimentSummary struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Code          string                 `protobuf:"bytes,2,opt,name=code,proto3" json:"code,omitempty"`
+	Material      string                 `protobuf:"bytes,3,opt,name=material,proto3" json:"material,omitempty"`
+	Process       string                 `protobuf:"bytes,4,opt,name=process,proto3" json:"process,omitempty"`
+	Conditions    *structpb.Struct       `protobuf:"bytes,5,opt,name=conditions,proto3" json:"conditions,omitempty"`
+	Result        string                 `protobuf:"bytes,6,opt,name=result,proto3" json:"result,omitempty"`
+	Source        string                 `protobuf:"bytes,7,opt,name=source,proto3" json:"source,omitempty"`
+	DocType       string                 `protobuf:"bytes,8,opt,name=doc_type,json=docType,proto3" json:"doc_type,omitempty"`
+	Confidence    float64                `protobuf:"fixed64,9,opt,name=confidence,proto3" json:"confidence,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ExperimentSummary) Reset() {
+	*x = ExperimentSummary{}
+	mi := &file_kmap_v1_search_proto_msgTypes[16]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ExperimentSummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ExperimentSummary) ProtoMessage() {}
+
+func (x *ExperimentSummary) ProtoReflect() protoreflect.Message {
+	mi := &file_kmap_v1_search_proto_msgTypes[16]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ExperimentSummary.ProtoReflect.Descriptor instead.
+func (*ExperimentSummary) Descriptor() ([]byte, []int) {
+	return file_kmap_v1_search_proto_rawDescGZIP(), []int{16}
+}
+
+func (x *ExperimentSummary) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *ExperimentSummary) GetCode() string {
+	if x != nil {
+		return x.Code
+	}
+	return ""
+}
+
+func (x *ExperimentSummary) GetMaterial() string {
+	if x != nil {
+		return x.Material
+	}
+	return ""
+}
+
+func (x *ExperimentSummary) GetProcess() string {
+	if x != nil {
+		return x.Process
+	}
+	return ""
+}
+
+func (x *ExperimentSummary) GetConditions() *structpb.Struct {
+	if x != nil {
+		return x.Conditions
+	}
+	return nil
+}
+
+func (x *ExperimentSummary) GetResult() string {
+	if x != nil {
+		return x.Result
+	}
+	return ""
+}
+
+func (x *ExperimentSummary) GetSource() string {
+	if x != nil {
+		return x.Source
+	}
+	return ""
+}
+
+func (x *ExperimentSummary) GetDocType() string {
+	if x != nil {
+		return x.DocType
+	}
+	return ""
+}
+
+func (x *ExperimentSummary) GetConfidence() float64 {
+	if x != nil {
+		return x.Confidence
+	}
+	return 0
+}
+
 var File_kmap_v1_search_proto protoreflect.FileDescriptor
 
 const file_kmap_v1_search_proto_rawDesc = "" +
 	"\n" +
-	"\x14kmap/v1/search.proto\x12\akmap.v1\x1a\x14kmap/v1/common.proto\"i\n" +
+	"\x14kmap/v1/search.proto\x12\akmap.v1\x1a\x1cgoogle/protobuf/struct.proto\x1a\x14kmap/v1/common.proto\"i\n" +
 	"\rSearchRequest\x12&\n" +
 	"\x04plan\x18\x01 \x01(\v2\x12.kmap.v1.QueryPlanR\x04plan\x120\n" +
 	"\tprincipal\x18\x02 \x01(\v2\x12.kmap.v1.PrincipalR\tprincipal\"C\n" +
@@ -373,11 +1194,85 @@ const file_kmap_v1_search_proto_rawDesc = "" +
 	"\tprincipal\x18\x04 \x01(\v2\x12.kmap.v1.PrincipalR\tprincipal\"k\n" +
 	"\x13ListExpertsResponse\x12)\n" +
 	"\aexperts\x18\x01 \x03(\v2\x0f.kmap.v1.ExpertR\aexperts\x12)\n" +
-	"\x04page\x18\x02 \x01(\v2\x15.kmap.v1.PageResponseR\x04page2\xd5\x01\n" +
+	"\x04page\x18\x02 \x01(\v2\x15.kmap.v1.PageResponseR\x04page\"\x9b\x01\n" +
+	"\x13ListEntitiesRequest\x12\x12\n" +
+	"\x04type\x18\x01 \x01(\tR\x04type\x12\x14\n" +
+	"\x05query\x18\x02 \x01(\tR\x05query\x12(\n" +
+	"\x04page\x18\x03 \x01(\v2\x14.kmap.v1.PageRequestR\x04page\x120\n" +
+	"\tprincipal\x18\x04 \x01(\v2\x12.kmap.v1.PrincipalR\tprincipal\"o\n" +
+	"\x14ListEntitiesResponse\x12,\n" +
+	"\x05items\x18\x01 \x03(\v2\x16.kmap.v1.EntitySummaryR\x05items\x12)\n" +
+	"\x04page\x18\x02 \x01(\v2\x15.kmap.v1.PageResponseR\x04page\"a\n" +
+	"\x10GetEntityRequest\x12\x1b\n" +
+	"\tentity_id\x18\x01 \x01(\tR\bentityId\x120\n" +
+	"\tprincipal\x18\x02 \x01(\v2\x12.kmap.v1.PrincipalR\tprincipal\"@\n" +
+	"\x11GetEntityResponse\x12+\n" +
+	"\x06entity\x18\x01 \x01(\v2\x13.kmap.v1.EntityCardR\x06entity\"\xaf\x01\n" +
+	"\x16ListEntityFactsRequest\x12\x1b\n" +
+	"\tentity_id\x18\x01 \x01(\tR\bentityId\x12\x1c\n" +
+	"\tparameter\x18\x02 \x01(\tR\tparameter\x12(\n" +
+	"\x04page\x18\x03 \x01(\v2\x14.kmap.v1.PageRequestR\x04page\x120\n" +
+	"\tprincipal\x18\x04 \x01(\v2\x12.kmap.v1.PrincipalR\tprincipal\"i\n" +
+	"\x17ListEntityFactsResponse\x12#\n" +
+	"\x05facts\x18\x01 \x03(\v2\r.kmap.v1.FactR\x05facts\x12)\n" +
+	"\x04page\x18\x02 \x01(\v2\x15.kmap.v1.PageResponseR\x04page\"\x9f\x02\n" +
+	"\x16ListExperimentsRequest\x12\x1a\n" +
+	"\bmaterial\x18\x01 \x01(\tR\bmaterial\x12\x18\n" +
+	"\aprocess\x18\x02 \x01(\tR\aprocess\x12\x1b\n" +
+	"\tyear_from\x18\x03 \x01(\x05R\byearFrom\x12\x1c\n" +
+	"\tparameter\x18\x04 \x01(\tR\tparameter\x12\x0e\n" +
+	"\x02op\x18\x05 \x01(\tR\x02op\x12\x14\n" +
+	"\x05value\x18\x06 \x01(\x01R\x05value\x12\x12\n" +
+	"\x04unit\x18\a \x01(\tR\x04unit\x12(\n" +
+	"\x04page\x18\b \x01(\v2\x14.kmap.v1.PageRequestR\x04page\x120\n" +
+	"\tprincipal\x18\t \x01(\v2\x12.kmap.v1.PrincipalR\tprincipal\"v\n" +
+	"\x17ListExperimentsResponse\x120\n" +
+	"\x05items\x18\x01 \x03(\v2\x1a.kmap.v1.ExperimentSummaryR\x05items\x12)\n" +
+	"\x04page\x18\x02 \x01(\v2\x15.kmap.v1.PageResponseR\x04page\"\xaa\x01\n" +
+	"\rEntitySummary\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04slug\x18\x02 \x01(\tR\x04slug\x12\x12\n" +
+	"\x04name\x18\x03 \x01(\tR\x04name\x12\x17\n" +
+	"\aname_en\x18\x04 \x01(\tR\x06nameEn\x12\x14\n" +
+	"\x05etype\x18\x05 \x01(\tR\x05etype\x12\x14\n" +
+	"\x05facts\x18\x06 \x01(\rR\x05facts\x12\x1c\n" +
+	"\trelations\x18\a \x01(\rR\trelations\"\x90\x03\n" +
+	"\n" +
+	"EntityCard\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04slug\x18\x02 \x01(\tR\x04slug\x12\x17\n" +
+	"\aname_ru\x18\x03 \x01(\tR\x06nameRu\x12\x17\n" +
+	"\aname_en\x18\x04 \x01(\tR\x06nameEn\x12\x12\n" +
+	"\x04type\x18\x05 \x01(\tR\x04type\x12\x1a\n" +
+	"\bsynonyms\x18\x06 \x03(\tR\bsynonyms\x123\n" +
+	"\bcounters\x18\a \x01(\v2\x17.google.protobuf.StructR\bcounters\x125\n" +
+	"\tconsensus\x18\b \x03(\v2\x17.google.protobuf.StructR\tconsensus\x120\n" +
+	"\trelations\x18\t \x03(\v2\x12.kmap.v1.GraphEdgeR\trelations\x12)\n" +
+	"\aexperts\x18\n" +
+	" \x03(\v2\x0f.kmap.v1.ExpertR\aexperts\x123\n" +
+	"\btimeline\x18\v \x03(\v2\x17.google.protobuf.StructR\btimeline\"\x91\x02\n" +
+	"\x11ExperimentSummary\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x12\n" +
+	"\x04code\x18\x02 \x01(\tR\x04code\x12\x1a\n" +
+	"\bmaterial\x18\x03 \x01(\tR\bmaterial\x12\x18\n" +
+	"\aprocess\x18\x04 \x01(\tR\aprocess\x127\n" +
+	"\n" +
+	"conditions\x18\x05 \x01(\v2\x17.google.protobuf.StructR\n" +
+	"conditions\x12\x16\n" +
+	"\x06result\x18\x06 \x01(\tR\x06result\x12\x16\n" +
+	"\x06source\x18\a \x01(\tR\x06source\x12\x19\n" +
+	"\bdoc_type\x18\b \x01(\tR\adocType\x12\x1e\n" +
+	"\n" +
+	"confidence\x18\t \x01(\x01R\n" +
+	"confidence2\x92\x04\n" +
 	"\rSearchService\x129\n" +
 	"\x06Search\x12\x16.kmap.v1.SearchRequest\x1a\x17.kmap.v1.SearchResponse\x12?\n" +
 	"\bEgoGraph\x12\x18.kmap.v1.EgoGraphRequest\x1a\x19.kmap.v1.EgoGraphResponse\x12H\n" +
-	"\vListExperts\x12\x1b.kmap.v1.ListExpertsRequest\x1a\x1c.kmap.v1.ListExpertsResponseBLZJgithub.com/maksim-mshp/nornickel-hackathon/contracts/gen/go/kmap/v1;kmapv1b\x06proto3"
+	"\vListExperts\x12\x1b.kmap.v1.ListExpertsRequest\x1a\x1c.kmap.v1.ListExpertsResponse\x12K\n" +
+	"\fListEntities\x12\x1c.kmap.v1.ListEntitiesRequest\x1a\x1d.kmap.v1.ListEntitiesResponse\x12B\n" +
+	"\tGetEntity\x12\x19.kmap.v1.GetEntityRequest\x1a\x1a.kmap.v1.GetEntityResponse\x12T\n" +
+	"\x0fListEntityFacts\x12\x1f.kmap.v1.ListEntityFactsRequest\x1a .kmap.v1.ListEntityFactsResponse\x12T\n" +
+	"\x0fListExperiments\x12\x1f.kmap.v1.ListExperimentsRequest\x1a .kmap.v1.ListExperimentsResponseBLZJgithub.com/maksim-mshp/nornickel-hackathon/contracts/gen/go/kmap/v1;kmapv1b\x06proto3"
 
 var (
 	file_kmap_v1_search_proto_rawDescOnce sync.Once
@@ -391,43 +1286,85 @@ func file_kmap_v1_search_proto_rawDescGZIP() []byte {
 	return file_kmap_v1_search_proto_rawDescData
 }
 
-var file_kmap_v1_search_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
+var file_kmap_v1_search_proto_msgTypes = make([]protoimpl.MessageInfo, 17)
 var file_kmap_v1_search_proto_goTypes = []any{
-	(*SearchRequest)(nil),       // 0: kmap.v1.SearchRequest
-	(*SearchResponse)(nil),      // 1: kmap.v1.SearchResponse
-	(*EgoGraphRequest)(nil),     // 2: kmap.v1.EgoGraphRequest
-	(*EgoGraphResponse)(nil),    // 3: kmap.v1.EgoGraphResponse
-	(*ListExpertsRequest)(nil),  // 4: kmap.v1.ListExpertsRequest
-	(*ListExpertsResponse)(nil), // 5: kmap.v1.ListExpertsResponse
-	(*QueryPlan)(nil),           // 6: kmap.v1.QueryPlan
-	(*Principal)(nil),           // 7: kmap.v1.Principal
-	(*EvidencePack)(nil),        // 8: kmap.v1.EvidencePack
-	(*Graph)(nil),               // 9: kmap.v1.Graph
-	(*PageRequest)(nil),         // 10: kmap.v1.PageRequest
-	(*Expert)(nil),              // 11: kmap.v1.Expert
-	(*PageResponse)(nil),        // 12: kmap.v1.PageResponse
+	(*SearchRequest)(nil),           // 0: kmap.v1.SearchRequest
+	(*SearchResponse)(nil),          // 1: kmap.v1.SearchResponse
+	(*EgoGraphRequest)(nil),         // 2: kmap.v1.EgoGraphRequest
+	(*EgoGraphResponse)(nil),        // 3: kmap.v1.EgoGraphResponse
+	(*ListExpertsRequest)(nil),      // 4: kmap.v1.ListExpertsRequest
+	(*ListExpertsResponse)(nil),     // 5: kmap.v1.ListExpertsResponse
+	(*ListEntitiesRequest)(nil),     // 6: kmap.v1.ListEntitiesRequest
+	(*ListEntitiesResponse)(nil),    // 7: kmap.v1.ListEntitiesResponse
+	(*GetEntityRequest)(nil),        // 8: kmap.v1.GetEntityRequest
+	(*GetEntityResponse)(nil),       // 9: kmap.v1.GetEntityResponse
+	(*ListEntityFactsRequest)(nil),  // 10: kmap.v1.ListEntityFactsRequest
+	(*ListEntityFactsResponse)(nil), // 11: kmap.v1.ListEntityFactsResponse
+	(*ListExperimentsRequest)(nil),  // 12: kmap.v1.ListExperimentsRequest
+	(*ListExperimentsResponse)(nil), // 13: kmap.v1.ListExperimentsResponse
+	(*EntitySummary)(nil),           // 14: kmap.v1.EntitySummary
+	(*EntityCard)(nil),              // 15: kmap.v1.EntityCard
+	(*ExperimentSummary)(nil),       // 16: kmap.v1.ExperimentSummary
+	(*QueryPlan)(nil),               // 17: kmap.v1.QueryPlan
+	(*Principal)(nil),               // 18: kmap.v1.Principal
+	(*EvidencePack)(nil),            // 19: kmap.v1.EvidencePack
+	(*Graph)(nil),                   // 20: kmap.v1.Graph
+	(*PageRequest)(nil),             // 21: kmap.v1.PageRequest
+	(*Expert)(nil),                  // 22: kmap.v1.Expert
+	(*PageResponse)(nil),            // 23: kmap.v1.PageResponse
+	(*Fact)(nil),                    // 24: kmap.v1.Fact
+	(*structpb.Struct)(nil),         // 25: google.protobuf.Struct
+	(*GraphEdge)(nil),               // 26: kmap.v1.GraphEdge
 }
 var file_kmap_v1_search_proto_depIdxs = []int32{
-	6,  // 0: kmap.v1.SearchRequest.plan:type_name -> kmap.v1.QueryPlan
-	7,  // 1: kmap.v1.SearchRequest.principal:type_name -> kmap.v1.Principal
-	8,  // 2: kmap.v1.SearchResponse.evidence:type_name -> kmap.v1.EvidencePack
-	7,  // 3: kmap.v1.EgoGraphRequest.principal:type_name -> kmap.v1.Principal
-	9,  // 4: kmap.v1.EgoGraphResponse.graph:type_name -> kmap.v1.Graph
-	10, // 5: kmap.v1.ListExpertsRequest.page:type_name -> kmap.v1.PageRequest
-	7,  // 6: kmap.v1.ListExpertsRequest.principal:type_name -> kmap.v1.Principal
-	11, // 7: kmap.v1.ListExpertsResponse.experts:type_name -> kmap.v1.Expert
-	12, // 8: kmap.v1.ListExpertsResponse.page:type_name -> kmap.v1.PageResponse
-	0,  // 9: kmap.v1.SearchService.Search:input_type -> kmap.v1.SearchRequest
-	2,  // 10: kmap.v1.SearchService.EgoGraph:input_type -> kmap.v1.EgoGraphRequest
-	4,  // 11: kmap.v1.SearchService.ListExperts:input_type -> kmap.v1.ListExpertsRequest
-	1,  // 12: kmap.v1.SearchService.Search:output_type -> kmap.v1.SearchResponse
-	3,  // 13: kmap.v1.SearchService.EgoGraph:output_type -> kmap.v1.EgoGraphResponse
-	5,  // 14: kmap.v1.SearchService.ListExperts:output_type -> kmap.v1.ListExpertsResponse
-	12, // [12:15] is the sub-list for method output_type
-	9,  // [9:12] is the sub-list for method input_type
-	9,  // [9:9] is the sub-list for extension type_name
-	9,  // [9:9] is the sub-list for extension extendee
-	0,  // [0:9] is the sub-list for field type_name
+	17, // 0: kmap.v1.SearchRequest.plan:type_name -> kmap.v1.QueryPlan
+	18, // 1: kmap.v1.SearchRequest.principal:type_name -> kmap.v1.Principal
+	19, // 2: kmap.v1.SearchResponse.evidence:type_name -> kmap.v1.EvidencePack
+	18, // 3: kmap.v1.EgoGraphRequest.principal:type_name -> kmap.v1.Principal
+	20, // 4: kmap.v1.EgoGraphResponse.graph:type_name -> kmap.v1.Graph
+	21, // 5: kmap.v1.ListExpertsRequest.page:type_name -> kmap.v1.PageRequest
+	18, // 6: kmap.v1.ListExpertsRequest.principal:type_name -> kmap.v1.Principal
+	22, // 7: kmap.v1.ListExpertsResponse.experts:type_name -> kmap.v1.Expert
+	23, // 8: kmap.v1.ListExpertsResponse.page:type_name -> kmap.v1.PageResponse
+	21, // 9: kmap.v1.ListEntitiesRequest.page:type_name -> kmap.v1.PageRequest
+	18, // 10: kmap.v1.ListEntitiesRequest.principal:type_name -> kmap.v1.Principal
+	14, // 11: kmap.v1.ListEntitiesResponse.items:type_name -> kmap.v1.EntitySummary
+	23, // 12: kmap.v1.ListEntitiesResponse.page:type_name -> kmap.v1.PageResponse
+	18, // 13: kmap.v1.GetEntityRequest.principal:type_name -> kmap.v1.Principal
+	15, // 14: kmap.v1.GetEntityResponse.entity:type_name -> kmap.v1.EntityCard
+	21, // 15: kmap.v1.ListEntityFactsRequest.page:type_name -> kmap.v1.PageRequest
+	18, // 16: kmap.v1.ListEntityFactsRequest.principal:type_name -> kmap.v1.Principal
+	24, // 17: kmap.v1.ListEntityFactsResponse.facts:type_name -> kmap.v1.Fact
+	23, // 18: kmap.v1.ListEntityFactsResponse.page:type_name -> kmap.v1.PageResponse
+	21, // 19: kmap.v1.ListExperimentsRequest.page:type_name -> kmap.v1.PageRequest
+	18, // 20: kmap.v1.ListExperimentsRequest.principal:type_name -> kmap.v1.Principal
+	16, // 21: kmap.v1.ListExperimentsResponse.items:type_name -> kmap.v1.ExperimentSummary
+	23, // 22: kmap.v1.ListExperimentsResponse.page:type_name -> kmap.v1.PageResponse
+	25, // 23: kmap.v1.EntityCard.counters:type_name -> google.protobuf.Struct
+	25, // 24: kmap.v1.EntityCard.consensus:type_name -> google.protobuf.Struct
+	26, // 25: kmap.v1.EntityCard.relations:type_name -> kmap.v1.GraphEdge
+	22, // 26: kmap.v1.EntityCard.experts:type_name -> kmap.v1.Expert
+	25, // 27: kmap.v1.EntityCard.timeline:type_name -> google.protobuf.Struct
+	25, // 28: kmap.v1.ExperimentSummary.conditions:type_name -> google.protobuf.Struct
+	0,  // 29: kmap.v1.SearchService.Search:input_type -> kmap.v1.SearchRequest
+	2,  // 30: kmap.v1.SearchService.EgoGraph:input_type -> kmap.v1.EgoGraphRequest
+	4,  // 31: kmap.v1.SearchService.ListExperts:input_type -> kmap.v1.ListExpertsRequest
+	6,  // 32: kmap.v1.SearchService.ListEntities:input_type -> kmap.v1.ListEntitiesRequest
+	8,  // 33: kmap.v1.SearchService.GetEntity:input_type -> kmap.v1.GetEntityRequest
+	10, // 34: kmap.v1.SearchService.ListEntityFacts:input_type -> kmap.v1.ListEntityFactsRequest
+	12, // 35: kmap.v1.SearchService.ListExperiments:input_type -> kmap.v1.ListExperimentsRequest
+	1,  // 36: kmap.v1.SearchService.Search:output_type -> kmap.v1.SearchResponse
+	3,  // 37: kmap.v1.SearchService.EgoGraph:output_type -> kmap.v1.EgoGraphResponse
+	5,  // 38: kmap.v1.SearchService.ListExperts:output_type -> kmap.v1.ListExpertsResponse
+	7,  // 39: kmap.v1.SearchService.ListEntities:output_type -> kmap.v1.ListEntitiesResponse
+	9,  // 40: kmap.v1.SearchService.GetEntity:output_type -> kmap.v1.GetEntityResponse
+	11, // 41: kmap.v1.SearchService.ListEntityFacts:output_type -> kmap.v1.ListEntityFactsResponse
+	13, // 42: kmap.v1.SearchService.ListExperiments:output_type -> kmap.v1.ListExperimentsResponse
+	36, // [36:43] is the sub-list for method output_type
+	29, // [29:36] is the sub-list for method input_type
+	29, // [29:29] is the sub-list for extension type_name
+	29, // [29:29] is the sub-list for extension extendee
+	0,  // [0:29] is the sub-list for field type_name
 }
 
 func init() { file_kmap_v1_search_proto_init() }
@@ -442,7 +1379,7 @@ func file_kmap_v1_search_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_kmap_v1_search_proto_rawDesc), len(file_kmap_v1_search_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   6,
+			NumMessages:   17,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

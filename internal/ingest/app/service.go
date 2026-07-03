@@ -21,16 +21,16 @@ func NewService(repository Repository) *Service {
 }
 
 type RegisterCommand struct {
-	Title        string
-	BlobURI      string
-	SHA256       []byte
-	DocType      string
-	Lang         string
-	Geography    string
-	AccessLevel  string
-	Year         int
-	UploadedBy   string
-	Meta         map[string]any
+	Title       string
+	BlobURI     string
+	SHA256      []byte
+	DocType     string
+	Lang        string
+	Geography   string
+	AccessLevel string
+	Year        int
+	UploadedBy  string
+	Meta        map[string]any
 }
 
 type RegisterResult struct {
@@ -104,6 +104,16 @@ func (service *Service) GetStatus(ctx context.Context, documentID uuid.UUID) (St
 		return StatusResult{}, err
 	}
 	return StatusResult{Document: doc, Stages: stages}, nil
+}
+
+func (service *Service) ListDocuments(ctx context.Context, limit uint32) ([]DocumentSummary, error) {
+	if limit == 0 {
+		limit = 50
+	}
+	if limit > 100 {
+		limit = 100
+	}
+	return service.repository.ListDocuments(ctx, limit)
 }
 
 func (service *Service) buildEnvelope(doc domain.Document) (events.Envelope, error) {

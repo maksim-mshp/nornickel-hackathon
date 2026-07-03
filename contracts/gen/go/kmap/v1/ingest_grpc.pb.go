@@ -24,6 +24,7 @@ const _ = grpc.SupportPackageIsVersion7
 type IngestServiceClient interface {
 	RegisterDocument(ctx context.Context, in *RegisterDocumentRequest, opts ...grpc.CallOption) (*RegisterDocumentResponse, error)
 	GetStatus(ctx context.Context, in *GetStatusRequest, opts ...grpc.CallOption) (*GetStatusResponse, error)
+	ListDocuments(ctx context.Context, in *ListDocumentsRequest, opts ...grpc.CallOption) (*ListDocumentsResponse, error)
 }
 
 type ingestServiceClient struct {
@@ -52,12 +53,22 @@ func (c *ingestServiceClient) GetStatus(ctx context.Context, in *GetStatusReques
 	return out, nil
 }
 
+func (c *ingestServiceClient) ListDocuments(ctx context.Context, in *ListDocumentsRequest, opts ...grpc.CallOption) (*ListDocumentsResponse, error) {
+	out := new(ListDocumentsResponse)
+	err := c.cc.Invoke(ctx, "/kmap.v1.IngestService/ListDocuments", in, out, opts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // IngestServiceServer is the server API for IngestService service.
 // All implementations must embed UnimplementedIngestServiceServer
 // for forward compatibility
 type IngestServiceServer interface {
 	RegisterDocument(context.Context, *RegisterDocumentRequest) (*RegisterDocumentResponse, error)
 	GetStatus(context.Context, *GetStatusRequest) (*GetStatusResponse, error)
+	ListDocuments(context.Context, *ListDocumentsRequest) (*ListDocumentsResponse, error)
 	mustEmbedUnimplementedIngestServiceServer()
 }
 
@@ -70,6 +81,9 @@ func (UnimplementedIngestServiceServer) RegisterDocument(context.Context, *Regis
 }
 func (UnimplementedIngestServiceServer) GetStatus(context.Context, *GetStatusRequest) (*GetStatusResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method GetStatus not implemented")
+}
+func (UnimplementedIngestServiceServer) ListDocuments(context.Context, *ListDocumentsRequest) (*ListDocumentsResponse, error) {
+	return nil, status.Errorf(codes.Unimplemented, "method ListDocuments not implemented")
 }
 func (UnimplementedIngestServiceServer) mustEmbedUnimplementedIngestServiceServer() {}
 
@@ -120,6 +134,24 @@ func _IngestService_GetStatus_Handler(srv interface{}, ctx context.Context, dec 
 	return interceptor(ctx, in, info, handler)
 }
 
+func _IngestService_ListDocuments_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ListDocumentsRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(IngestServiceServer).ListDocuments(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: "/kmap.v1.IngestService/ListDocuments",
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(IngestServiceServer).ListDocuments(ctx, req.(*ListDocumentsRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // IngestService_ServiceDesc is the grpc.ServiceDesc for IngestService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
@@ -134,6 +166,10 @@ var IngestService_ServiceDesc = grpc.ServiceDesc{
 		{
 			MethodName: "GetStatus",
 			Handler:    _IngestService_GetStatus_Handler,
+		},
+		{
+			MethodName: "ListDocuments",
+			Handler:    _IngestService_ListDocuments_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

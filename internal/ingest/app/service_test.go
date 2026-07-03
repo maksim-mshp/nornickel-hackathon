@@ -50,6 +50,10 @@ func (repo *fakeRepository) GetStatus(_ context.Context, documentID uuid.UUID) (
 	return doc, repo.stages[documentID], nil
 }
 
+func (repo *fakeRepository) ListDocuments(context.Context, uint32) ([]DocumentSummary, error) {
+	return nil, nil
+}
+
 func TestRegisterDocumentRequiresSHA256(t *testing.T) {
 	t.Parallel()
 

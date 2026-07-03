@@ -10,6 +10,7 @@ option go_package = "github.com/maksim-mshp/nornickel-hackathon/contracts/gen/go
 service IngestService {
   rpc RegisterDocument(RegisterDocumentRequest) returns (RegisterDocumentResponse);
   rpc GetStatus(GetStatusRequest) returns (GetStatusResponse);
+  rpc ListDocuments(ListDocumentsRequest) returns (ListDocumentsResponse);
 }
 
 message RegisterDocumentRequest {
@@ -44,4 +45,26 @@ message IngestStage {
   string status = 2;
   uint32 attempt = 3;
   string error = 4;
+}
+
+message ListDocumentsRequest {
+  PageRequest page = 1;
+  Principal principal = 2;
+}
+
+message ListDocumentsResponse {
+  repeated DocumentSummary items = 1;
+  PageResponse page = 2;
+}
+
+message DocumentSummary {
+  string id = 1;
+  string title = 2;
+  string doc_type = 3;
+  string lang = 4;
+  string geography = 5;
+  string access_level = 6;
+  string status = 7;
+  uint32 facts = 8;
+  int32 year = 9;
 }

@@ -354,6 +354,218 @@ func (x *IngestStage) GetError() string {
 	return ""
 }
 
+type ListDocumentsRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Page          *PageRequest           `protobuf:"bytes,1,opt,name=page,proto3" json:"page,omitempty"`
+	Principal     *Principal             `protobuf:"bytes,2,opt,name=principal,proto3" json:"principal,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListDocumentsRequest) Reset() {
+	*x = ListDocumentsRequest{}
+	mi := &file_kmap_v1_ingest_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListDocumentsRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListDocumentsRequest) ProtoMessage() {}
+
+func (x *ListDocumentsRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_kmap_v1_ingest_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListDocumentsRequest.ProtoReflect.Descriptor instead.
+func (*ListDocumentsRequest) Descriptor() ([]byte, []int) {
+	return file_kmap_v1_ingest_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *ListDocumentsRequest) GetPage() *PageRequest {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
+func (x *ListDocumentsRequest) GetPrincipal() *Principal {
+	if x != nil {
+		return x.Principal
+	}
+	return nil
+}
+
+type ListDocumentsResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Items         []*DocumentSummary     `protobuf:"bytes,1,rep,name=items,proto3" json:"items,omitempty"`
+	Page          *PageResponse          `protobuf:"bytes,2,opt,name=page,proto3" json:"page,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ListDocumentsResponse) Reset() {
+	*x = ListDocumentsResponse{}
+	mi := &file_kmap_v1_ingest_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ListDocumentsResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ListDocumentsResponse) ProtoMessage() {}
+
+func (x *ListDocumentsResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_kmap_v1_ingest_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ListDocumentsResponse.ProtoReflect.Descriptor instead.
+func (*ListDocumentsResponse) Descriptor() ([]byte, []int) {
+	return file_kmap_v1_ingest_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *ListDocumentsResponse) GetItems() []*DocumentSummary {
+	if x != nil {
+		return x.Items
+	}
+	return nil
+}
+
+func (x *ListDocumentsResponse) GetPage() *PageResponse {
+	if x != nil {
+		return x.Page
+	}
+	return nil
+}
+
+type DocumentSummary struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Id            string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	Title         string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	DocType       string                 `protobuf:"bytes,3,opt,name=doc_type,json=docType,proto3" json:"doc_type,omitempty"`
+	Lang          string                 `protobuf:"bytes,4,opt,name=lang,proto3" json:"lang,omitempty"`
+	Geography     string                 `protobuf:"bytes,5,opt,name=geography,proto3" json:"geography,omitempty"`
+	AccessLevel   string                 `protobuf:"bytes,6,opt,name=access_level,json=accessLevel,proto3" json:"access_level,omitempty"`
+	Status        string                 `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
+	Facts         uint32                 `protobuf:"varint,8,opt,name=facts,proto3" json:"facts,omitempty"`
+	Year          int32                  `protobuf:"varint,9,opt,name=year,proto3" json:"year,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DocumentSummary) Reset() {
+	*x = DocumentSummary{}
+	mi := &file_kmap_v1_ingest_proto_msgTypes[7]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DocumentSummary) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DocumentSummary) ProtoMessage() {}
+
+func (x *DocumentSummary) ProtoReflect() protoreflect.Message {
+	mi := &file_kmap_v1_ingest_proto_msgTypes[7]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DocumentSummary.ProtoReflect.Descriptor instead.
+func (*DocumentSummary) Descriptor() ([]byte, []int) {
+	return file_kmap_v1_ingest_proto_rawDescGZIP(), []int{7}
+}
+
+func (x *DocumentSummary) GetId() string {
+	if x != nil {
+		return x.Id
+	}
+	return ""
+}
+
+func (x *DocumentSummary) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *DocumentSummary) GetDocType() string {
+	if x != nil {
+		return x.DocType
+	}
+	return ""
+}
+
+func (x *DocumentSummary) GetLang() string {
+	if x != nil {
+		return x.Lang
+	}
+	return ""
+}
+
+func (x *DocumentSummary) GetGeography() string {
+	if x != nil {
+		return x.Geography
+	}
+	return ""
+}
+
+func (x *DocumentSummary) GetAccessLevel() string {
+	if x != nil {
+		return x.AccessLevel
+	}
+	return ""
+}
+
+func (x *DocumentSummary) GetStatus() string {
+	if x != nil {
+		return x.Status
+	}
+	return ""
+}
+
+func (x *DocumentSummary) GetFacts() uint32 {
+	if x != nil {
+		return x.Facts
+	}
+	return 0
+}
+
+func (x *DocumentSummary) GetYear() int32 {
+	if x != nil {
+		return x.Year
+	}
+	return 0
+}
+
 var File_kmap_v1_ingest_proto protoreflect.FileDescriptor
 
 const file_kmap_v1_ingest_proto_rawDesc = "" +
@@ -383,10 +595,27 @@ const file_kmap_v1_ingest_proto_rawDesc = "" +
 	"\x05stage\x18\x01 \x01(\tR\x05stage\x12\x16\n" +
 	"\x06status\x18\x02 \x01(\tR\x06status\x12\x18\n" +
 	"\aattempt\x18\x03 \x01(\rR\aattempt\x12\x14\n" +
-	"\x05error\x18\x04 \x01(\tR\x05error2\xac\x01\n" +
+	"\x05error\x18\x04 \x01(\tR\x05error\"r\n" +
+	"\x14ListDocumentsRequest\x12(\n" +
+	"\x04page\x18\x01 \x01(\v2\x14.kmap.v1.PageRequestR\x04page\x120\n" +
+	"\tprincipal\x18\x02 \x01(\v2\x12.kmap.v1.PrincipalR\tprincipal\"r\n" +
+	"\x15ListDocumentsResponse\x12.\n" +
+	"\x05items\x18\x01 \x03(\v2\x18.kmap.v1.DocumentSummaryR\x05items\x12)\n" +
+	"\x04page\x18\x02 \x01(\v2\x15.kmap.v1.PageResponseR\x04page\"\xe9\x01\n" +
+	"\x0fDocumentSummary\x12\x0e\n" +
+	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\x12\x19\n" +
+	"\bdoc_type\x18\x03 \x01(\tR\adocType\x12\x12\n" +
+	"\x04lang\x18\x04 \x01(\tR\x04lang\x12\x1c\n" +
+	"\tgeography\x18\x05 \x01(\tR\tgeography\x12!\n" +
+	"\faccess_level\x18\x06 \x01(\tR\vaccessLevel\x12\x16\n" +
+	"\x06status\x18\a \x01(\tR\x06status\x12\x14\n" +
+	"\x05facts\x18\b \x01(\rR\x05facts\x12\x12\n" +
+	"\x04year\x18\t \x01(\x05R\x04year2\xfc\x01\n" +
 	"\rIngestService\x12W\n" +
 	"\x10RegisterDocument\x12 .kmap.v1.RegisterDocumentRequest\x1a!.kmap.v1.RegisterDocumentResponse\x12B\n" +
-	"\tGetStatus\x12\x19.kmap.v1.GetStatusRequest\x1a\x1a.kmap.v1.GetStatusResponseBLZJgithub.com/maksim-mshp/nornickel-hackathon/contracts/gen/go/kmap/v1;kmapv1b\x06proto3"
+	"\tGetStatus\x12\x19.kmap.v1.GetStatusRequest\x1a\x1a.kmap.v1.GetStatusResponse\x12N\n" +
+	"\rListDocuments\x12\x1d.kmap.v1.ListDocumentsRequest\x1a\x1e.kmap.v1.ListDocumentsResponseBLZJgithub.com/maksim-mshp/nornickel-hackathon/contracts/gen/go/kmap/v1;kmapv1b\x06proto3"
 
 var (
 	file_kmap_v1_ingest_proto_rawDescOnce sync.Once
@@ -400,33 +629,44 @@ func file_kmap_v1_ingest_proto_rawDescGZIP() []byte {
 	return file_kmap_v1_ingest_proto_rawDescData
 }
 
-var file_kmap_v1_ingest_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
+var file_kmap_v1_ingest_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_kmap_v1_ingest_proto_goTypes = []any{
 	(*RegisterDocumentRequest)(nil),  // 0: kmap.v1.RegisterDocumentRequest
 	(*RegisterDocumentResponse)(nil), // 1: kmap.v1.RegisterDocumentResponse
 	(*GetStatusRequest)(nil),         // 2: kmap.v1.GetStatusRequest
 	(*GetStatusResponse)(nil),        // 3: kmap.v1.GetStatusResponse
 	(*IngestStage)(nil),              // 4: kmap.v1.IngestStage
-	(*structpb.Struct)(nil),          // 5: google.protobuf.Struct
-	(*Principal)(nil),                // 6: kmap.v1.Principal
-	(*DocumentRef)(nil),              // 7: kmap.v1.DocumentRef
+	(*ListDocumentsRequest)(nil),     // 5: kmap.v1.ListDocumentsRequest
+	(*ListDocumentsResponse)(nil),    // 6: kmap.v1.ListDocumentsResponse
+	(*DocumentSummary)(nil),          // 7: kmap.v1.DocumentSummary
+	(*structpb.Struct)(nil),          // 8: google.protobuf.Struct
+	(*Principal)(nil),                // 9: kmap.v1.Principal
+	(*DocumentRef)(nil),              // 10: kmap.v1.DocumentRef
+	(*PageRequest)(nil),              // 11: kmap.v1.PageRequest
+	(*PageResponse)(nil),             // 12: kmap.v1.PageResponse
 }
 var file_kmap_v1_ingest_proto_depIdxs = []int32{
-	5, // 0: kmap.v1.RegisterDocumentRequest.declared_meta:type_name -> google.protobuf.Struct
-	6, // 1: kmap.v1.RegisterDocumentRequest.principal:type_name -> kmap.v1.Principal
-	7, // 2: kmap.v1.GetStatusRequest.document:type_name -> kmap.v1.DocumentRef
-	6, // 3: kmap.v1.GetStatusRequest.principal:type_name -> kmap.v1.Principal
-	7, // 4: kmap.v1.GetStatusResponse.document:type_name -> kmap.v1.DocumentRef
-	4, // 5: kmap.v1.GetStatusResponse.stages:type_name -> kmap.v1.IngestStage
-	0, // 6: kmap.v1.IngestService.RegisterDocument:input_type -> kmap.v1.RegisterDocumentRequest
-	2, // 7: kmap.v1.IngestService.GetStatus:input_type -> kmap.v1.GetStatusRequest
-	1, // 8: kmap.v1.IngestService.RegisterDocument:output_type -> kmap.v1.RegisterDocumentResponse
-	3, // 9: kmap.v1.IngestService.GetStatus:output_type -> kmap.v1.GetStatusResponse
-	8, // [8:10] is the sub-list for method output_type
-	6, // [6:8] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	8,  // 0: kmap.v1.RegisterDocumentRequest.declared_meta:type_name -> google.protobuf.Struct
+	9,  // 1: kmap.v1.RegisterDocumentRequest.principal:type_name -> kmap.v1.Principal
+	10, // 2: kmap.v1.GetStatusRequest.document:type_name -> kmap.v1.DocumentRef
+	9,  // 3: kmap.v1.GetStatusRequest.principal:type_name -> kmap.v1.Principal
+	10, // 4: kmap.v1.GetStatusResponse.document:type_name -> kmap.v1.DocumentRef
+	4,  // 5: kmap.v1.GetStatusResponse.stages:type_name -> kmap.v1.IngestStage
+	11, // 6: kmap.v1.ListDocumentsRequest.page:type_name -> kmap.v1.PageRequest
+	9,  // 7: kmap.v1.ListDocumentsRequest.principal:type_name -> kmap.v1.Principal
+	7,  // 8: kmap.v1.ListDocumentsResponse.items:type_name -> kmap.v1.DocumentSummary
+	12, // 9: kmap.v1.ListDocumentsResponse.page:type_name -> kmap.v1.PageResponse
+	0,  // 10: kmap.v1.IngestService.RegisterDocument:input_type -> kmap.v1.RegisterDocumentRequest
+	2,  // 11: kmap.v1.IngestService.GetStatus:input_type -> kmap.v1.GetStatusRequest
+	5,  // 12: kmap.v1.IngestService.ListDocuments:input_type -> kmap.v1.ListDocumentsRequest
+	1,  // 13: kmap.v1.IngestService.RegisterDocument:output_type -> kmap.v1.RegisterDocumentResponse
+	3,  // 14: kmap.v1.IngestService.GetStatus:output_type -> kmap.v1.GetStatusResponse
+	6,  // 15: kmap.v1.IngestService.ListDocuments:output_type -> kmap.v1.ListDocumentsResponse
+	13, // [13:16] is the sub-list for method output_type
+	10, // [10:13] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_kmap_v1_ingest_proto_init() }
@@ -441,7 +681,7 @@ func file_kmap_v1_ingest_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_kmap_v1_ingest_proto_rawDesc), len(file_kmap_v1_ingest_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   5,
+			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

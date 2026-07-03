@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package kmap.v1;
 
+import "google/protobuf/struct.proto";
 import "kmap/v1/common.proto";
 
 option go_package = "github.com/maksim-mshp/nornickel-hackathon/contracts/gen/go/kmap/v1;kmapv1";
@@ -10,6 +11,10 @@ service SearchService {
   rpc Search(SearchRequest) returns (SearchResponse);
   rpc EgoGraph(EgoGraphRequest) returns (EgoGraphResponse);
   rpc ListExperts(ListExpertsRequest) returns (ListExpertsResponse);
+  rpc ListEntities(ListEntitiesRequest) returns (ListEntitiesResponse);
+  rpc GetEntity(GetEntityRequest) returns (GetEntityResponse);
+  rpc ListEntityFacts(ListEntityFactsRequest) returns (ListEntityFactsResponse);
+  rpc ListExperiments(ListExperimentsRequest) returns (ListExperimentsResponse);
 }
 
 message SearchRequest {
@@ -42,4 +47,90 @@ message ListExpertsRequest {
 message ListExpertsResponse {
   repeated Expert experts = 1;
   PageResponse page = 2;
+}
+
+message ListEntitiesRequest {
+  string type = 1;
+  string query = 2;
+  PageRequest page = 3;
+  Principal principal = 4;
+}
+
+message ListEntitiesResponse {
+  repeated EntitySummary items = 1;
+  PageResponse page = 2;
+}
+
+message GetEntityRequest {
+  string entity_id = 1;
+  Principal principal = 2;
+}
+
+message GetEntityResponse {
+  EntityCard entity = 1;
+}
+
+message ListEntityFactsRequest {
+  string entity_id = 1;
+  string parameter = 2;
+  PageRequest page = 3;
+  Principal principal = 4;
+}
+
+message ListEntityFactsResponse {
+  repeated Fact facts = 1;
+  PageResponse page = 2;
+}
+
+message ListExperimentsRequest {
+  string material = 1;
+  string process = 2;
+  int32 year_from = 3;
+  string parameter = 4;
+  string op = 5;
+  double value = 6;
+  string unit = 7;
+  PageRequest page = 8;
+  Principal principal = 9;
+}
+
+message ListExperimentsResponse {
+  repeated ExperimentSummary items = 1;
+  PageResponse page = 2;
+}
+
+message EntitySummary {
+  string id = 1;
+  string slug = 2;
+  string name = 3;
+  string name_en = 4;
+  string etype = 5;
+  uint32 facts = 6;
+  uint32 relations = 7;
+}
+
+message EntityCard {
+  string id = 1;
+  string slug = 2;
+  string name_ru = 3;
+  string name_en = 4;
+  string type = 5;
+  repeated string synonyms = 6;
+  google.protobuf.Struct counters = 7;
+  repeated google.protobuf.Struct consensus = 8;
+  repeated GraphEdge relations = 9;
+  repeated Expert experts = 10;
+  repeated google.protobuf.Struct timeline = 11;
+}
+
+message ExperimentSummary {
+  string id = 1;
+  string code = 2;
+  string material = 3;
+  string process = 4;
+  google.protobuf.Struct conditions = 5;
+  string result = 6;
+  string source = 7;
+  string doc_type = 8;
+  double confidence = 9;
 }

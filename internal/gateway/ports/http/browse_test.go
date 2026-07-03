@@ -29,6 +29,22 @@ func (client fakeSearchClient) ListExperts(context.Context, *kmapv1.ListExpertsR
 	return client.experts, nil
 }
 
+func (client fakeSearchClient) ListEntities(context.Context, *kmapv1.ListEntitiesRequest, ...grpc.CallOption) (*kmapv1.ListEntitiesResponse, error) {
+	return &kmapv1.ListEntitiesResponse{}, nil
+}
+
+func (client fakeSearchClient) GetEntity(context.Context, *kmapv1.GetEntityRequest, ...grpc.CallOption) (*kmapv1.GetEntityResponse, error) {
+	return &kmapv1.GetEntityResponse{}, nil
+}
+
+func (client fakeSearchClient) ListEntityFacts(context.Context, *kmapv1.ListEntityFactsRequest, ...grpc.CallOption) (*kmapv1.ListEntityFactsResponse, error) {
+	return &kmapv1.ListEntityFactsResponse{}, nil
+}
+
+func (client fakeSearchClient) ListExperiments(context.Context, *kmapv1.ListExperimentsRequest, ...grpc.CallOption) (*kmapv1.ListExperimentsResponse, error) {
+	return &kmapv1.ListExperimentsResponse{}, nil
+}
+
 type fakeEpistemicClient struct {
 	coverage *kmapv1.GetCoverageResponse
 }

@@ -44,6 +44,10 @@ func (client *fakeIngestClient) GetStatus(_ context.Context, req *kmapv1.GetStat
 	return client.statusResponse, nil
 }
 
+func (client *fakeIngestClient) ListDocuments(context.Context, *kmapv1.ListDocumentsRequest, ...grpc.CallOption) (*kmapv1.ListDocumentsResponse, error) {
+	return &kmapv1.ListDocumentsResponse{}, nil
+}
+
 func testServer(ingest *fakeIngestClient, blobStore blob.Store) *Server {
 	return &Server{ingest: ingest, blob: blobStore, rawBucket: "kmap-raw"}
 }

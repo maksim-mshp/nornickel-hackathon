@@ -76,6 +76,28 @@ func (server *Server) GetStatus(ctx context.Context, req *kmapv1.GetStatusReques
 	}, nil
 }
 
+func (server *Server) ListDocuments(ctx context.Context, req *kmapv1.ListDocumentsRequest) (*kmapv1.ListDocumentsResponse, error) {
+	items, err := server.service.ListDocuments(ctx, req.GetPage().GetLimit())
+	if err != nil {
+		return nil, mapError(err)
+	}
+	out := make([]*kmapv1.DocumentSummary, 0, len(items))
+	for _, item := range items {
+		out = append(out, &kmapv1.DocumentSummary{
+			Id:          item.ID.String(),
+			Title:       item.Title,
+			DocType:     item.DocType,
+			Lang:        item.Lang,
+			Geography:   item.Geography,
+			AccessLevel: item.AccessLevel,
+			Status:      item.Status,
+			Facts:       item.Facts,
+			Year:        item.Year,
+		})
+	}
+	return &kmapv1.ListDocumentsResponse{Items: out, Page: &kmapv1.PageResponse{}}, nil
+}
+
 func toProtoStages(stages []domain.Stage) []*kmapv1.IngestStage {
 	out := make([]*kmapv1.IngestStage, 0, len(stages))
 	for _, stage := range stages {

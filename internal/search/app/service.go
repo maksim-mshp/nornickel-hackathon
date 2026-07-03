@@ -20,6 +20,9 @@ type Repo interface {
 	Gaps(ctx context.Context, entityIDs []string) ([]GapCell, error)
 	Experts(ctx context.Context, entityIDs []string) ([]Expert, error)
 	EgoGraph(ctx context.Context, entityIDs []string) ([]GraphNode, []GraphEdge, error)
+	ListEntities(ctx context.Context, entityType string, query string, limit uint32) ([]*kmapv1.EntitySummary, error)
+	GetEntity(ctx context.Context, entityID string) (*kmapv1.EntityCard, error)
+	ListExperiments(ctx context.Context, req *kmapv1.ListExperimentsRequest) ([]*kmapv1.ExperimentSummary, error)
 }
 
 type Service struct {
@@ -75,6 +78,51 @@ func (service *Service) ListExperts(ctx context.Context, req *kmapv1.ListExperts
 		return nil, status.Errorf(codes.Internal, "encode experts: %v", err)
 	}
 	return &kmapv1.ListExpertsResponse{Experts: messages, Page: &kmapv1.PageResponse{}}, nil
+}
+
+func (service *Service) ListEntities(ctx context.Context, req *kmapv1.ListEntitiesRequest) (*kmapv1.ListEntitiesResponse, error) {
+	items, err := service.repo.ListEntities(ctx, req.GetType(), req.GetQuery(), pageLimit(req.GetPage(), 50))
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "list entities: %v", err)
+	}
+	return &kmapv1.ListEntitiesResponse{Items: items, Page: &kmapv1.PageResponse{}}, nil
+}
+
+func (service *Service) GetEntity(ctx context.Context, req *kmapv1.GetEntityRequest) (*kmapv1.GetEntityResponse, error) {
+	entity, err := service.repo.GetEntity(ctx, req.GetEntityId())
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "get entity: %v", err)
+	}
+	return &kmapv1.GetEntityResponse{Entity: entity}, nil
+}
+
+func (service *Service) ListEntityFacts(ctx context.Context, req *kmapv1.ListEntityFactsRequest) (*kmapv1.ListEntityFactsResponse, error) {
+	ids, err := service.repo.ExpandEntityIDs(ctx, []string{req.GetEntityId()})
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "resolve entity: %v", err)
+	}
+	facts, err := service.repo.Facts(ctx, ids)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "list entity facts: %v", err)
+	}
+	service.rankFacts(facts, []string{req.GetEntityId()})
+	protoFacts := make([]*kmapv1.Fact, 0, len(facts))
+	for _, item := range facts {
+		payload, err := toStruct(item)
+		if err != nil {
+			return nil, status.Errorf(codes.Internal, "encode fact: %v", err)
+		}
+		protoFacts = append(protoFacts, &kmapv1.Fact{Id: item.ID, Kind: "numeric", Payload: payload})
+	}
+	return &kmapv1.ListEntityFactsResponse{Facts: protoFacts, Page: &kmapv1.PageResponse{}}, nil
+}
+
+func (service *Service) ListExperiments(ctx context.Context, req *kmapv1.ListExperimentsRequest) (*kmapv1.ListExperimentsResponse, error) {
+	items, err := service.repo.ListExperiments(ctx, req)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "list experiments: %v", err)
+	}
+	return &kmapv1.ListExperimentsResponse{Items: items, Page: &kmapv1.PageResponse{}}, nil
 }
 
 func (service *Service) buildPack(ctx context.Context, slugs []string) (EvidencePack, error) {
@@ -228,6 +276,16 @@ func toSet(values []string) map[string]bool {
 		set[value] = true
 	}
 	return set
+}
+
+func pageLimit(page *kmapv1.PageRequest, fallback uint32) uint32 {
+	if page == nil || page.GetLimit() == 0 {
+		return fallback
+	}
+	if page.GetLimit() > 100 {
+		return 100
+	}
+	return page.GetLimit()
 }
 
 func (pack EvidencePack) toProto() (*kmapv1.EvidencePack, error) {

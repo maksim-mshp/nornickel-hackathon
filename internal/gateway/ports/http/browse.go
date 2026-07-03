@@ -15,6 +15,15 @@ type itemsResponse[T any] struct {
 	NextCursor string `json:"next_cursor,omitempty"`
 }
 
+type entitySummaryDTO struct {
+	ID     string         `json:"id"`
+	Slug   string         `json:"slug"`
+	Name   string         `json:"name"`
+	NameEn string         `json:"nameEn"`
+	Etype  string         `json:"etype"`
+	Counts map[string]any `json:"counts,omitempty"`
+}
+
 type expertProfile struct {
 	ID          string           `json:"id"`
 	Name        string           `json:"name"`
@@ -37,6 +46,30 @@ type expertEvidence struct {
 	Title string `json:"title"`
 	Year  int    `json:"year"`
 	Kind  string `json:"kind"`
+}
+
+type experimentRow struct {
+	ID         string         `json:"id"`
+	Code       string         `json:"code"`
+	Material   string         `json:"material"`
+	Process    string         `json:"process"`
+	Conditions map[string]any `json:"conditions"`
+	Result     string         `json:"result"`
+	Source     string         `json:"source"`
+	DocType    string         `json:"docType"`
+	Confidence float64        `json:"confidence"`
+}
+
+type documentRow struct {
+	ID          string `json:"id"`
+	Title       string `json:"title"`
+	DocType     string `json:"docType"`
+	Lang        string `json:"lang"`
+	Geography   string `json:"geography"`
+	AccessLevel string `json:"accessLevel"`
+	Status      string `json:"status"`
+	Facts       uint32 `json:"facts"`
+	Year        int32  `json:"year"`
 }
 
 type coverageCell struct {
@@ -103,6 +136,59 @@ type contradictionDecisionBody struct {
 	Comment  string `json:"comment"`
 }
 
+func (server *Server) entitiesHandler(w stdhttp.ResponseWriter, r *stdhttp.Request) {
+	resp, err := server.search.ListEntities(r.Context(), &kmapv1.ListEntitiesRequest{
+		Type:      r.URL.Query().Get("type"),
+		Query:     r.URL.Query().Get("q"),
+		Page:      pageRequest(r),
+		Principal: principalFromRequest(r),
+	})
+	if err != nil {
+		writeGRPCProblem(w, r, err)
+		return
+	}
+	items := make([]entitySummaryDTO, 0, len(resp.GetItems()))
+	for _, item := range resp.GetItems() {
+		items = append(items, mapEntitySummary(item))
+	}
+	writeDataJSON(w, stdhttp.StatusOK, itemsResponse[entitySummaryDTO]{Items: items, NextCursor: resp.GetPage().GetNextCursor()})
+}
+
+func (server *Server) entityHandler(w stdhttp.ResponseWriter, r *stdhttp.Request) {
+	resp, err := server.search.GetEntity(r.Context(), &kmapv1.GetEntityRequest{
+		EntityId:  chi.URLParam(r, "id"),
+		Principal: principalFromRequest(r),
+	})
+	if err != nil {
+		writeGRPCProblem(w, r, err)
+		return
+	}
+	writeDataJSON(w, stdhttp.StatusOK, mapEntityCard(resp.GetEntity()))
+}
+
+func (server *Server) experimentsHandler(w stdhttp.ResponseWriter, r *stdhttp.Request) {
+	resp, err := server.search.ListExperiments(r.Context(), &kmapv1.ListExperimentsRequest{
+		Material:  r.URL.Query().Get("material"),
+		Process:   r.URL.Query().Get("process"),
+		YearFrom:  int32Value(r.URL.Query().Get("year_from")),
+		Parameter: r.URL.Query().Get("param"),
+		Op:        r.URL.Query().Get("op"),
+		Value:     floatValue(r.URL.Query().Get("value")),
+		Unit:      r.URL.Query().Get("unit"),
+		Page:      pageRequest(r),
+		Principal: principalFromRequest(r),
+	})
+	if err != nil {
+		writeGRPCProblem(w, r, err)
+		return
+	}
+	items := make([]experimentRow, 0, len(resp.GetItems()))
+	for _, item := range resp.GetItems() {
+		items = append(items, mapExperiment(item))
+	}
+	writeDataJSON(w, stdhttp.StatusOK, itemsResponse[experimentRow]{Items: items, NextCursor: resp.GetPage().GetNextCursor()})
+}
+
 func (server *Server) expertsHandler(w stdhttp.ResponseWriter, r *stdhttp.Request) {
 	req := &kmapv1.ListExpertsRequest{
 		Topic:     r.URL.Query().Get("topic"),
@@ -121,6 +207,77 @@ func (server *Server) expertsHandler(w stdhttp.ResponseWriter, r *stdhttp.Reques
 		items = append(items, mapExpert(item))
 	}
 	writeDataJSON(w, stdhttp.StatusOK, itemsResponse[expertProfile]{Items: items, NextCursor: resp.GetPage().GetNextCursor()})
+}
+
+func (server *Server) documentsHandler(w stdhttp.ResponseWriter, r *stdhttp.Request) {
+	resp, err := server.ingest.ListDocuments(r.Context(), &kmapv1.ListDocumentsRequest{
+		Page:      pageRequest(r),
+		Principal: principalFromRequest(r),
+	})
+	if err != nil {
+		writeGRPCProblem(w, r, err)
+		return
+	}
+	items := make([]documentRow, 0, len(resp.GetItems()))
+	for _, item := range resp.GetItems() {
+		items = append(items, mapDocument(item))
+	}
+	writeDataJSON(w, stdhttp.StatusOK, itemsResponse[documentRow]{Items: items, NextCursor: resp.GetPage().GetNextCursor()})
+}
+
+func mapEntitySummary(item *kmapv1.EntitySummary) entitySummaryDTO {
+	return entitySummaryDTO{
+		ID:     item.GetId(),
+		Slug:   item.GetSlug(),
+		Name:   item.GetName(),
+		NameEn: item.GetNameEn(),
+		Etype:  item.GetEtype(),
+		Counts: map[string]any{"facts": item.GetFacts(), "relations": item.GetRelations()},
+	}
+}
+
+func mapEntityCard(item *kmapv1.EntityCard) map[string]any {
+	return map[string]any{
+		"id":        item.GetId(),
+		"slug":      item.GetSlug(),
+		"nameRu":    item.GetNameRu(),
+		"nameEn":    item.GetNameEn(),
+		"type":      item.GetType(),
+		"synonyms":  item.GetSynonyms(),
+		"counters":  structMap(item.GetCounters()),
+		"consensus": structList(item.GetConsensus()),
+		"relations": graphEdges(item.GetRelations()),
+		"experts":   mapExperts(item.GetExperts()),
+		"timeline":  structList(item.GetTimeline()),
+	}
+}
+
+func mapExperiment(item *kmapv1.ExperimentSummary) experimentRow {
+	return experimentRow{
+		ID:         item.GetId(),
+		Code:       item.GetCode(),
+		Material:   item.GetMaterial(),
+		Process:    item.GetProcess(),
+		Conditions: structMap(item.GetConditions()),
+		Result:     item.GetResult(),
+		Source:     item.GetSource(),
+		DocType:    item.GetDocType(),
+		Confidence: item.GetConfidence(),
+	}
+}
+
+func mapDocument(item *kmapv1.DocumentSummary) documentRow {
+	return documentRow{
+		ID:          item.GetId(),
+		Title:       item.GetTitle(),
+		DocType:     item.GetDocType(),
+		Lang:        item.GetLang(),
+		Geography:   item.GetGeography(),
+		AccessLevel: item.GetAccessLevel(),
+		Status:      item.GetStatus(),
+		Facts:       item.GetFacts(),
+		Year:        item.GetYear(),
+	}
 }
 
 func (server *Server) coverageHandler(w stdhttp.ResponseWriter, r *stdhttp.Request) {
@@ -307,6 +464,25 @@ func mapGraph(graph *kmapv1.Graph) graphDTO {
 	return graphDTO{Nodes: nodes, Edges: edges}
 }
 
+func graphEdges(edges []*kmapv1.GraphEdge) []graphEdgeDTO {
+	items := make([]graphEdgeDTO, 0, len(edges))
+	for _, edge := range edges {
+		items = append(items, graphEdgeDTO{
+			ID: edge.GetId(), Src: edge.GetSrc(), Dst: edge.GetDst(), Rel: edge.GetRel(),
+			Weight: edge.GetWeight(), Confidence: edge.GetConfidence(), Contradiction: edge.GetContradiction(),
+		})
+	}
+	return items
+}
+
+func mapExperts(experts []*kmapv1.Expert) []expertProfile {
+	items := make([]expertProfile, 0, len(experts))
+	for _, item := range experts {
+		items = append(items, mapExpert(item))
+	}
+	return items
+}
+
 func readJSONBody(w stdhttp.ResponseWriter, r *stdhttp.Request, target any) bool {
 	body, err := readBody(w, r)
 	if err != nil {
@@ -365,6 +541,22 @@ func intValue(values map[string]any, key string) int {
 	default:
 		return 0
 	}
+}
+
+func int32Value(raw string) int32 {
+	value, err := strconv.ParseInt(raw, 10, 32)
+	if err != nil {
+		return 0
+	}
+	return int32(value)
+}
+
+func floatValue(raw string) float64 {
+	value, err := strconv.ParseFloat(raw, 64)
+	if err != nil {
+		return 0
+	}
+	return value
 }
 
 func stringList(value any) []string {

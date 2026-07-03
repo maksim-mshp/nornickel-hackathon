@@ -29,6 +29,15 @@ func (f fakeRepo) Experts(context.Context, []string) ([]Expert, error) { return 
 func (f fakeRepo) EgoGraph(context.Context, []string) ([]GraphNode, []GraphEdge, error) {
 	return []GraphNode{{ID: "n1", Type: "process", Label: "p"}}, nil, nil
 }
+func (f fakeRepo) ListEntities(context.Context, string, string, uint32) ([]*kmapv1.EntitySummary, error) {
+	return nil, nil
+}
+func (f fakeRepo) GetEntity(context.Context, string) (*kmapv1.EntityCard, error) {
+	return &kmapv1.EntityCard{}, nil
+}
+func (f fakeRepo) ListExperiments(context.Context, *kmapv1.ListExperimentsRequest) ([]*kmapv1.ExperimentSummary, error) {
+	return nil, nil
+}
 
 func sampleFacts() []Fact {
 	return []Fact{
