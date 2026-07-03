@@ -32,7 +32,7 @@ func authorization(scheme string, apiKey string) string {
 
 func (client *Client) Complete(ctx context.Context, model string, messages []app.Message, opts app.Options) (*app.ChatResult, error) {
 	params := openai.ChatCompletionNewParams{
-		Model:    shared.ChatModel(model),
+		Model:    model,
 		Messages: toMessages(messages),
 	}
 	if opts.Temperature != 0 {
