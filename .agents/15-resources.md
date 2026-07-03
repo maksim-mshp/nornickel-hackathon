@@ -6,7 +6,8 @@
 
 | Ресурс | Статус | Детали |
 |---|---|---|
-| **LLM API владельца — DigitalOcean Gradient** (`https://inference.do-ai.run/v1`, OpenAI-совместимый) | **выдан и протестирован 02.07** (ключ v2; первый ключ отозван) | ключ — в `configs/secrets.yml` (в .gitignore); покрывает **chat + embeddings + rerank**; модели и цены — §1.1; результаты проверки — §1.2 |
+| **LLM (chat/synthesis) — Yandex AI Studio** (`https://ai.api.cloud.yandex.net/v1`, **Responses API**, OpenAI-совместимый) | **выдан и протестирован 03.07** | ключ и `folder_id` — в `configs/secrets.yml` (в .gitignore); схема авторизации `Api-Key`; клиент — официальный `openai-go` SDK; **только open-source модели** (`gpt-oss-20b/120b`, `deepseek-v4-flash`, `qwen3.6-35b-a3b`) — `yandexgpt`/`aliceai` запрещены (не open-weight); модель задаётся как `gpt://<folder_id>/<модель>` |
+| **Эмбеддинги/rerank — DigitalOcean Gradient** (`https://inference.do-ai.run/v1`, OpenAI-совместимый) | выдан и протестирован 02.07 | ключ — в `configs/secrets.yml`; `bge-m3` (эмбеддинги) + `bge-reranker-v2-m3` (rerank) — open-weight; Yandex-эмбеддинги проприетарны и не используются |
 | **«Реестр моделей» организаторов** | подтверждён в чате капитанов 02.07, выдача — утром 03.07 | что это (inference API / хостинг / каталог весов), какие модели и размеры, OpenAI-совместимость, лимиты; после получения — сравнить с DO по ценам/качеству и решить порядок upstream'ов в `llm-routes.yml` |
 
 ### 1.1. Выданные модели (DO Gradient) и цены ($ за 1M токенов, in/out)
@@ -61,7 +62,7 @@
 
 ## 4. Технические константы (чтобы не переспрашивать)
 
-- LLM-модели по умолчанию (DO Gradient, только open-weight): `openai-gpt-oss-20b` (extraction, parse_query, bind_numbers, aliases), `deepseek-4-flash` (synthesis), `openai-gpt-oss-120b` (judge, эскалации). Полная матрица — [06-extraction.md](06-extraction.md) §2.1.
+- LLM-модели по умолчанию (Yandex AI Studio, только open-source): `gpt-oss-20b/latest` (extraction, parse_query, bind_numbers), `deepseek-v4-flash/latest` (synthesis), `gpt-oss-120b/latest` (judge, эскалации), `qwen3.6-35b-a3b/latest` (aliases); маршрутизация — `configs/base/llm-routes.yml`. Полная матрица — [06-extraction.md](06-extraction.md) §2.1.
 - Эмбеддинги/rerank: bge-m3 (1024d) + bge-reranker-v2-m3, **режим по умолчанию — remote через DO** (`embed.backend: remote`, проверено); локальный режим (torch/onnx-int8) — офлайн-фолбэк.
 - Секреты (ключи API) — только в `configs/secrets.yml` (в .gitignore); `.env` в проекте не используется.
 - Стор: PostgreSQL 18 + pgvector 0.8; шина: NATS JetStream ≥2.12; объектное: MinIO.
