@@ -62,6 +62,26 @@ services:
       mc mb -p local/kmap-raw local/kmap-docir local/kmap-bundles local/kmap-exports &&
       mc version enable local/kmap-raw"
 
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.1
+    profiles: [app]
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin
+      KC_HEALTH_ENABLED: "true"
+    volumes:
+      - ../keycloak/realm-kmap.json:/opt/keycloak/data/import/realm-kmap.json:ro
+    ports:
+      - "8081:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/9000' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 24
+      start_period: 45s
+    restart: unless-stopped
+
   migrate:
     image: migrate/migrate:latest
     profiles: [app]

@@ -1,0 +1,96 @@
+{
+  "realm": "kmap",
+  "enabled": true,
+  "sslRequired": "none",
+  "loginTheme": "keycloak",
+  "accessTokenLifespan": 1800,
+  "roles": {
+    "realm": [
+      { "name": "researcher", "description": "Исследователь" },
+      { "name": "analyst", "description": "Аналитик" },
+      { "name": "manager", "description": "Руководитель R&D" },
+      { "name": "expert", "description": "Эксперт-валидатор" },
+      { "name": "admin", "description": "Администратор" },
+      { "name": "partner", "description": "Внешний партнёр" }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "kmap-gateway",
+      "enabled": true,
+      "bearerOnly": true,
+      "publicClient": false
+    },
+    {
+      "clientId": "kmap-ui",
+      "enabled": true,
+      "publicClient": true,
+      "standardFlowEnabled": true,
+      "directAccessGrantsEnabled": true,
+      "redirectUris": ["http://localhost:3000/*"],
+      "webOrigins": ["http://localhost:3000"],
+      "protocolMappers": [
+        {
+          "name": "kmap-gateway-audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.client.audience": "kmap-gateway",
+            "id.token.claim": "false",
+            "access.token.claim": "true"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "researcher",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Исследователь",
+      "credentials": [{ "type": "password", "value": "researcher", "temporary": false }],
+      "realmRoles": ["researcher"]
+    },
+    {
+      "username": "analyst",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Аналитик",
+      "credentials": [{ "type": "password", "value": "analyst", "temporary": false }],
+      "realmRoles": ["analyst"]
+    },
+    {
+      "username": "manager",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Руководитель",
+      "credentials": [{ "type": "password", "value": "manager", "temporary": false }],
+      "realmRoles": ["manager"]
+    },
+    {
+      "username": "expert",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Эксперт",
+      "credentials": [{ "type": "password", "value": "expert", "temporary": false }],
+      "realmRoles": ["expert"]
+    },
+    {
+      "username": "admin-rd",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Администратор",
+      "credentials": [{ "type": "password", "value": "admin-rd", "temporary": false }],
+      "realmRoles": ["admin"]
+    },
+    {
+      "username": "partner",
+      "enabled": true,
+      "emailVerified": true,
+      "firstName": "Партнёр",
+      "credentials": [{ "type": "password", "value": "partner", "temporary": false }],
+      "realmRoles": ["partner"]
+    }
+  ]
+}
