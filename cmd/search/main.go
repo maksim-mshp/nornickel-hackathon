@@ -42,6 +42,7 @@ func build(cfg config.Bundle, _ *slog.Logger) (*runtime.Assembly, error) {
 	return &runtime.Assembly{
 		GRPCServices: []runtime.GRPCService{searchgrpc.NewServer(service)},
 		Closers:      []io.Closer{poolCloser{pool}},
+		Readiness:    []func(context.Context) error{pool.Ping},
 	}, nil
 }
 

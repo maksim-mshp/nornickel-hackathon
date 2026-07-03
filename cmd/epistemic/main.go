@@ -48,6 +48,7 @@ func build(cfg config.Bundle, logger *slog.Logger) (*runtime.Assembly, error) {
 		GRPCServices: []runtime.GRPCService{epistemicgrpc.NewServer(service)},
 		Closers:      []io.Closer{pool, bus},
 		Workers:      []runtime.Worker{worker},
+		Readiness:    []func(context.Context) error{pool.Ping},
 	}, nil
 }
 

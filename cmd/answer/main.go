@@ -93,5 +93,6 @@ func build(cfg config.Bundle, logger *slog.Logger) (*runtime.Assembly, error) {
 		GRPCServices: []runtime.GRPCService{server},
 		Workers:      workers,
 		Closers:      closers,
+		Readiness:    []func(context.Context) error{pool.Ping},
 	}, nil
 }

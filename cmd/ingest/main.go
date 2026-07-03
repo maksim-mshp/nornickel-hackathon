@@ -53,6 +53,7 @@ func buildAssembly(cfg config.Bundle, logger *slog.Logger) (*runtime.Assembly, e
 		GRPCServices: []runtime.GRPCService{grpcServer},
 		Closers:      []io.Closer{pool, bus},
 		Workers:      []runtime.Worker{relay},
+		Readiness:    []func(context.Context) error{pool.Ping},
 	}, nil
 }
 

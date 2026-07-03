@@ -162,6 +162,10 @@ func NewServer(cfg config.Bundle, logger *slog.Logger) (*Server, error) {
 	}, nil
 }
 
+func (server *Server) ReadinessChecks() []func(context.Context) error {
+	return []func(context.Context) error{server.pool.Ping}
+}
+
 func (server *Server) RegisterHTTP(router chi.Router) {
 	router.Post("/v1/ask", server.secure(auth.OpAsk, server.askHandler))
 	router.Post("/v1/search", server.secure(auth.OpSearch, server.searchHandler))

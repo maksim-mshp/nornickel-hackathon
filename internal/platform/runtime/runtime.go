@@ -34,6 +34,13 @@ type App struct {
 	httpServices []HTTPService
 	closers      []io.Closer
 	workers      []Worker
+	readiness    []ReadinessCheck
+}
+
+type ReadinessCheck func(context.Context) error
+
+type ReadinessChecker interface {
+	ReadinessChecks() []func(context.Context) error
 }
 
 type GRPCService interface {
@@ -53,6 +60,7 @@ type Assembly struct {
 	HTTPServices []HTTPService
 	Closers      []io.Closer
 	Workers      []Worker
+	Readiness    []func(context.Context) error
 }
 
 type HTTPServiceFactory func(config.Bundle, *slog.Logger) (HTTPService, error)
@@ -78,6 +86,9 @@ func WithHTTPService(factory HTTPServiceFactory) Option {
 		if closer, ok := service.(io.Closer); ok {
 			app.closers = append(app.closers, closer)
 		}
+		if checker, ok := service.(ReadinessChecker); ok {
+			app.addReadiness(checker.ReadinessChecks())
+		}
 		return nil
 	}
 }
@@ -92,7 +103,16 @@ func WithAssembly(factory AssemblyFactory) Option {
 		app.httpServices = append(app.httpServices, assembly.HTTPServices...)
 		app.closers = append(app.closers, assembly.Closers...)
 		app.workers = append(app.workers, assembly.Workers...)
+		app.addReadiness(assembly.Readiness)
 		return nil
+	}
+}
+
+func (app *App) addReadiness(checks []func(context.Context) error) {
+	for _, check := range checks {
+		if check != nil {
+			app.readiness = append(app.readiness, check)
+		}
 	}
 }
 
@@ -174,7 +194,7 @@ func (app *App) serve(parent context.Context) error {
 
 	router := chi.NewRouter()
 	router.Get("/healthz", app.status(http.StatusOK, "ok"))
-	router.Get("/readyz", app.status(http.StatusOK, "ready"))
+	router.Get("/readyz", app.readyHandler)
 	if app.service == "gateway" {
 		router.Get("/", app.gatewayRoot)
 	}
@@ -306,6 +326,20 @@ func (app *App) status(code int, value string) http.HandlerFunc {
 		w.WriteHeader(code)
 		_, _ = fmt.Fprintf(w, `{"service":%q,"status":%q}`+"\n", app.service, value)
 	}
+}
+
+func (app *App) readyHandler(w http.ResponseWriter, r *http.Request) {
+	ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
+	defer cancel()
+	for _, check := range app.readiness {
+		if err := check(ctx); err != nil {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusServiceUnavailable)
+			_, _ = fmt.Fprintf(w, `{"service":%q,"status":"unavailable","error":%q}`+"\n", app.service, err.Error())
+			return
+		}
+	}
+	app.status(http.StatusOK, "ready")(w, r)
 }
 
 func (app *App) gatewayRoot(w http.ResponseWriter, r *http.Request) {
