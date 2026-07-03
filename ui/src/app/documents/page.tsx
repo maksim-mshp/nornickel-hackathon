@@ -49,6 +49,10 @@ export default function DocumentsPage() {
           Загрузка корпуса и статусы обработки: registered → parsed → extracted →
           indexed
         </p>
+        <p className="mt-1 font-mono text-[11px] text-ink-2">
+          показано {rows.length} документов · список отфильтрован по вашему уровню
+          доступа (RLS)
+        </p>
       </section>
 
       <Dropzone />
