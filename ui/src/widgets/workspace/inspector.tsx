@@ -1,25 +1,77 @@
 "use client";
 
-import { Fragment } from "react";
+import { Fragment, useState } from "react";
 import { FactValue } from "@/entities/fact/fact-value";
 import {
   ProvenanceStamp,
   ValidationBadge,
   docTypeLabel,
 } from "@/entities/fact/provenance-stamp";
-import type { Fact } from "@/shared/api/types";
+import type { EvidencePack, Fact, QueryPlan } from "@/shared/api/types";
 import { IconGraph } from "@/shared/ui/icons";
+import { EgoGraph } from "@/widgets/ego-graph/ego-graph";
 
-export function Inspector({ fact }: { fact: Fact | null }) {
+export function Inspector({
+  fact,
+  plan,
+  pack,
+}: {
+  fact: Fact | null;
+  plan: QueryPlan | null;
+  pack: EvidencePack | null;
+}) {
+  const [tab, setTab] = useState<"quote" | "graph">("quote");
+  const graphReady = Boolean(plan && pack);
+
+  return (
+    <div className="flex h-full flex-col">
+      <div className="flex gap-1 border-b border-line px-2 pt-2">
+        {(
+          [
+            { key: "quote", label: "Цитата" },
+            { key: "graph", label: "Граф" },
+          ] as const
+        ).map(({ key, label }) => (
+          <button
+            key={key}
+            type="button"
+            onClick={() => setTab(key)}
+            className={`border-b-2 px-3 py-1.5 text-[12px] transition-colors ${
+              tab === key
+                ? "border-electrolyte font-semibold text-ink-0"
+                : "border-transparent text-ink-2 hover:text-ink-1"
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+      {tab === "quote" ? (
+        <QuotePane fact={fact} />
+      ) : graphReady ? (
+        <div className="p-4">
+          <EgoGraph plan={plan!} pack={pack!} />
+        </div>
+      ) : (
+        <EmptyPane text="Граф появится после получения evidence" />
+      )}
+    </div>
+  );
+}
+
+function EmptyPane({ text }: { text: string }) {
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
+      <IconGraph className="text-void" width={28} height={28} />
+      <p className="text-[12px] text-ink-2">{text}</p>
+    </div>
+  );
+}
+
+function QuotePane({ fact }: { fact: Fact | null }) {
   if (!fact) {
     return (
-      <div className="flex h-full flex-col items-center justify-center gap-3 p-6 text-center">
-        <IconGraph className="text-void" width={28} height={28} />
-        <p className="text-[12px] text-ink-2">
-          Выберите факт в ленте — здесь появится цитата первоисточника и штамп
-          провенанса
-        </p>
-      </div>
+      <EmptyPane text="Выберите факт в ленте — здесь появится цитата первоисточника и штамп провенанса" />
     );
   }
 

@@ -72,7 +72,11 @@ export function Workspace() {
             onAsk={submit}
           />
           <aside className="w-full rounded-sm border border-line bg-bg-1 xl:w-[360px] xl:shrink-0">
-            <Inspector fact={selectedFact} />
+            <Inspector
+              fact={selectedFact}
+              plan={state.plan}
+              pack={state.pack}
+            />
           </aside>
         </div>
       )}

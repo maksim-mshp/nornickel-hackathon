@@ -145,9 +145,24 @@ body {
   animation: seal-snap 0.18s cubic-bezier(0.2, 0.8, 0.2, 1) both;
 }
 
+@keyframes edge-pulse {
+  0%,
+  100% {
+    stroke-opacity: 0.35;
+  }
+  50% {
+    stroke-opacity: 1;
+  }
+}
+
+.edge-pulse {
+  animation: edge-pulse 2s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .rise-in,
-  .seal-snap {
+  .seal-snap,
+  .edge-pulse {
     animation-duration: 0.01ms;
   }
 }

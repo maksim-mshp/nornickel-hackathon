@@ -23,8 +23,29 @@ export function EvidenceTable({
   selectedId: string | null;
   onSelect: (fact: Fact) => void;
 }) {
+  const move = (delta: number) => {
+    const index = facts.findIndex((fact) => fact.id === selectedId);
+    const next = facts[Math.min(Math.max(index + delta, 0), facts.length - 1)];
+    if (next) onSelect(next);
+  };
+
   return (
-    <div className="overflow-x-auto">
+    <div
+      className="overflow-x-auto focus:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+      tabIndex={0}
+      role="grid"
+      aria-label="Таблица evidence, клавиши j/k — навигация"
+      onKeyDown={(event) => {
+        if (event.key === "j" || event.key === "ArrowDown") {
+          event.preventDefault();
+          move(1);
+        }
+        if (event.key === "k" || event.key === "ArrowUp") {
+          event.preventDefault();
+          move(-1);
+        }
+      }}
+    >
       <table className="w-full border-collapse text-[12px]">
         <thead>
           <tr className="border-b border-line-strong text-left font-mono text-[10px] uppercase tracking-wider text-ink-2">
