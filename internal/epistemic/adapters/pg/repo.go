@@ -156,6 +156,12 @@ func (repo *Repo) RecalculateFacts(ctx context.Context, factIDs []string) ([]str
 	if err != nil {
 		return nil, err
 	}
+	if err := computeConsensus(ctx, tx, factIDs); err != nil {
+		return nil, err
+	}
+	if err := generateContradictions(ctx, tx, factIDs); err != nil {
+		return nil, err
+	}
 	if err := rebuildCoverage(ctx, tx, factIDs); err != nil {
 		return nil, err
 	}
@@ -163,6 +169,129 @@ func (repo *Repo) RecalculateFacts(ctx context.Context, factIDs []string) ([]str
 		return nil, fmt.Errorf("commit tx: %w", err)
 	}
 	return clusterKeys, nil
+}
+
+const consensusYear = 2026
+
+func computeConsensus(ctx context.Context, tx pgx.Tx, factIDs []string) error {
+	clusterIDs, err := affectedClusterIDs(ctx, tx, factIDs)
+	if err != nil {
+		return err
+	}
+	for _, clusterID := range clusterIDs {
+		facts, err := clusterFacts(ctx, tx, clusterID)
+		if err != nil {
+			return err
+		}
+		result := app.ComputeConsensus(facts, consensusYear)
+		if err := upsertConsensus(ctx, tx, clusterID, result); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func affectedClusterIDs(ctx context.Context, tx pgx.Tx, factIDs []string) ([]string, error) {
+	const query = `SELECT DISTINCT cluster_id::text FROM epi.cluster_members WHERE fact_id::text = ANY($1)`
+	rows, err := tx.Query(ctx, query, factIDs)
+	if err != nil {
+		return nil, fmt.Errorf("affected clusters: %w", err)
+	}
+	defer rows.Close()
+	var ids []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		ids = append(ids, id)
+	}
+	return ids, rows.Err()
+}
+
+func clusterFacts(ctx context.Context, tx pgx.Tx, clusterID string) ([]app.ConsensusFact, error) {
+	const query = `
+SELECT f.vmin_si::float8, f.vmax_si::float8, f.extraction_confidence,
+       d.doc_type::text, coalesce(d.year, 0), f.geography::text, d.id::text, coalesce(u.si_unit, '')
+FROM epi.cluster_members cm
+JOIN kg.numeric_facts f ON f.id = cm.fact_id
+JOIN core.documents d ON d.id = f.document_id
+LEFT JOIN kg.units u ON u.code = f.unit_code
+WHERE cm.cluster_id = $1 AND f.superseded_by IS NULL`
+	rows, err := tx.Query(ctx, query, clusterID)
+	if err != nil {
+		return nil, fmt.Errorf("cluster facts: %w", err)
+	}
+	defer rows.Close()
+	var facts []app.ConsensusFact
+	for rows.Next() {
+		var (
+			fact       app.ConsensusFact
+			vmin, vmax *float64
+		)
+		if err := rows.Scan(&vmin, &vmax, &fact.Confidence, &fact.DocType, &fact.Year, &fact.Geography, &fact.DocumentID, &fact.Unit); err != nil {
+			return nil, fmt.Errorf("scan cluster fact: %w", err)
+		}
+		if vmin != nil && vmax != nil {
+			fact.Lo, fact.Hi, fact.HasRange = *vmin, *vmax, true
+		}
+		facts = append(facts, fact)
+	}
+	return facts, rows.Err()
+}
+
+func upsertConsensus(ctx context.Context, tx pgx.Tx, clusterID string, result app.ConsensusResult) error {
+	stats, err := json.Marshal(map[string]any{
+		"unit":      result.Unit,
+		"sources":   []any{},
+		"ru":        result.RuSources,
+		"foreign":   result.ForeignSources,
+		"year_from": result.YearFrom,
+		"year_to":   result.YearTo,
+	})
+	if err != nil {
+		return fmt.Errorf("marshal consensus stats: %w", err)
+	}
+	const query = `
+INSERT INTO epi.consensus (cluster_id, verdict, agreed_range, overlap_index, stats, confidence, engine_version, computed_at)
+VALUES ($1, $2,
+        CASE WHEN $3::bool THEN numrange($4::numeric, $5::numeric, '[]') ELSE NULL END,
+        $6, $7::jsonb, $8, $9, now())
+ON CONFLICT (cluster_id) DO UPDATE SET
+  verdict = EXCLUDED.verdict, agreed_range = EXCLUDED.agreed_range, overlap_index = EXCLUDED.overlap_index,
+  stats = EXCLUDED.stats, confidence = EXCLUDED.confidence, engine_version = EXCLUDED.engine_version, computed_at = now()`
+	if _, err := tx.Exec(ctx, query, clusterID, result.Verdict, result.HasRange,
+		result.AgreedLo, result.AgreedHi, result.OverlapIndex, string(stats), result.Confidence, app.ConsensusEngineVersion); err != nil {
+		return fmt.Errorf("upsert consensus: %w", err)
+	}
+	return nil
+}
+
+func generateContradictions(ctx context.Context, tx pgx.Tx, factIDs []string) error {
+	const query = `
+WITH clusters AS (
+  SELECT DISTINCT cluster_id FROM epi.cluster_members WHERE fact_id::text = ANY($1)
+),
+pairs AS (
+  SELECT c.cluster_id, fa.id AS a_id, fb.id AS b_id,
+         fa.si_range AS a_range, fb.si_range AS b_range
+  FROM clusters c
+  JOIN epi.cluster_members ma ON ma.cluster_id = c.cluster_id
+  JOIN epi.cluster_members mb ON mb.cluster_id = c.cluster_id AND mb.fact_id > ma.fact_id
+  JOIN kg.numeric_facts fa ON fa.id = ma.fact_id AND fa.superseded_by IS NULL
+  JOIN kg.numeric_facts fb ON fb.id = mb.fact_id AND fb.superseded_by IS NULL
+  WHERE fa.document_id <> fb.document_id
+    AND fa.si_range IS NOT NULL AND fb.si_range IS NOT NULL
+    AND NOT (fa.si_range && fb.si_range)
+)
+INSERT INTO epi.contradictions (cluster_id, a_kind, a_id, b_kind, b_id, dtype, status)
+SELECT cluster_id, 'numeric', a_id, 'numeric', b_id, 'range_disjoint', 'suspected'
+FROM pairs
+ON CONFLICT (a_kind, a_id, b_kind, b_id) DO NOTHING`
+	if _, err := tx.Exec(ctx, query, factIDs); err != nil {
+		return fmt.Errorf("generate contradictions: %w", err)
+	}
+	return nil
 }
 
 func upsertClusters(ctx context.Context, tx pgx.Tx, factIDs []string) ([]string, error) {
