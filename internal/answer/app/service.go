@@ -5,6 +5,8 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
+	"sort"
+	"strings"
 
 	kmapv1 "github.com/maksim-mshp/nornickel-hackathon/contracts/gen/go/kmap/v1"
 	"google.golang.org/grpc"
@@ -87,17 +89,18 @@ func (service *Service) Ask(ctx context.Context, req *kmapv1.AskRequest, emit Em
 		return status.Error(codes.InvalidArgument, "question is required")
 	}
 
-	key := cacheKey(question, req.GetPrincipal().GetDocAccess())
+	plan, err := buildPlan(question)
+	if err != nil {
+		return status.Errorf(codes.Internal, "build plan: %v", err)
+	}
+
+	key := planCacheKey(plan, req.GetPrincipal().GetDocAccess())
 	if service.cache != nil {
 		if cached, ok, err := service.cache.Get(ctx, key); err == nil && ok {
 			return replayCached(ctx, cached, emit)
 		}
 	}
 
-	plan, err := buildPlan(question)
-	if err != nil {
-		return status.Errorf(codes.Internal, "build plan: %v", err)
-	}
 	if err := emit(&kmapv1.AskResponse{Type: "plan", Plan: plan}); err != nil {
 		return err
 	}
@@ -172,9 +175,41 @@ func replayCached(ctx context.Context, cached *CachedAnswer, emit Emit) error {
 	return emit(&kmapv1.AskResponse{Type: "answer.done", Answer: cached.Answer})
 }
 
-func cacheKey(question string, docAccess string) []byte {
-	digest := sha256.Sum256([]byte(question + "\x00" + docAccess))
+func planCacheKey(plan *kmapv1.QueryPlan, docAccess string) []byte {
+	digest := sha256.Sum256([]byte(canonicalPlan(plan) + "\x00" + docAccess))
 	return digest[:]
+}
+
+func canonicalPlan(plan *kmapv1.QueryPlan) string {
+	slugs := planEntitySlugs(plan)
+	sort.Strings(slugs)
+	constraints := make([]string, 0, len(plan.GetParamConstraints()))
+	for _, constraint := range plan.GetParamConstraints() {
+		constraints = append(constraints, fmt.Sprintf("%s|%s|%g|%g|%s",
+			constraint.GetParameter(), constraint.GetOp(), constraint.GetVmin(), constraint.GetVmax(), constraint.GetUnit()))
+	}
+	sort.Strings(constraints)
+	return strings.Join([]string{
+		plan.GetIntent(), plan.GetGeography(),
+		strings.Join(slugs, ","), strings.Join(constraints, ";"),
+	}, "\x1f")
+}
+
+func planEntitySlugs(plan *kmapv1.QueryPlan) []string {
+	var slugs []string
+	fields := plan.GetEntities().GetFields()
+	for _, group := range []string{"materials", "processes", "properties"} {
+		list := fields[group].GetListValue()
+		if list == nil {
+			continue
+		}
+		for _, item := range list.GetValues() {
+			if slug := item.GetStructValue().GetFields()["slug"].GetStringValue(); slug != "" {
+				slugs = append(slugs, slug)
+			}
+		}
+	}
+	return slugs
 }
 
 func methodsStruct(methods []methodView) (*structpb.Struct, error) {

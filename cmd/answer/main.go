@@ -12,9 +12,11 @@ import (
 	kmapv1 "github.com/maksim-mshp/nornickel-hackathon/contracts/gen/go/kmap/v1"
 	answerpg "github.com/maksim-mshp/nornickel-hackathon/internal/answer/adapters/pg"
 	answerapp "github.com/maksim-mshp/nornickel-hackathon/internal/answer/app"
+	answerconsumer "github.com/maksim-mshp/nornickel-hackathon/internal/answer/ports/consumer"
 	answergrpc "github.com/maksim-mshp/nornickel-hackathon/internal/answer/ports/grpc"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/auth"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/config"
+	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/nats"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/pg"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/runtime"
 	"google.golang.org/grpc"
@@ -28,7 +30,7 @@ func main() {
 	}
 }
 
-func build(cfg config.Bundle, _ *slog.Logger) (*runtime.Assembly, error) {
+func build(cfg config.Bundle, logger *slog.Logger) (*runtime.Assembly, error) {
 	target := cfg.Runtime.GRPCClients["search"]
 	if target == "" {
 		return nil, errors.New("grpc_clients.search is required")
@@ -54,8 +56,26 @@ func build(cfg config.Bundle, _ *slog.Logger) (*runtime.Assembly, error) {
 
 	cache := answerpg.NewCache(pool.Pool, time.Duration(cfg.Runtime.Cache.TTLHours)*time.Hour)
 	server := answergrpc.NewServer(kmapv1.NewSearchServiceClient(conn), answerapp.WithCache(cache))
+
+	closers := []io.Closer{conn, pool}
+	var workers []runtime.Worker
+	if url := cfg.Runtime.NATS.URL; url != "" {
+		bus, busErr := nats.New(context.Background(), nats.Config{
+			URL:     url,
+			Name:    "kmap-answer",
+			Streams: []nats.StreamSpec{{Name: "KMAP_FACTS", Subjects: []string{"kmap.facts.v1.>"}}},
+		})
+		if busErr != nil {
+			logger.Warn("answer cache invalidation disabled", "error", busErr)
+		} else {
+			workers = append(workers, answerconsumer.NewWorker(bus, cache, logger))
+			closers = append(closers, bus)
+		}
+	}
+
 	return &runtime.Assembly{
 		GRPCServices: []runtime.GRPCService{server},
-		Closers:      []io.Closer{conn, pool},
+		Workers:      workers,
+		Closers:      closers,
 	}, nil
 }
