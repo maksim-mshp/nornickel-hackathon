@@ -21,6 +21,8 @@ PARSED = "kmap.doc.v1.parsed"
 PARSE_FAILED = "kmap.doc.v1.parse-failed"
 TERMINAL_S3_CODES = {"NoSuchKey", "NoSuchBucket"}
 RETRY_DELAY_SECONDS = 10
+MAX_DOCUMENT_BYTES = 200 * 1024 * 1024
+MAX_PAGES = 2000
 
 
 def _minio(cfg: Config) -> Minio:
@@ -99,10 +101,20 @@ async def run() -> None:
                     return
                 raise
 
+            if len(raw) > MAX_DOCUMENT_BYTES:
+                await fail_terminal(
+                    msg, document_id, f"document too large: {len(raw)} bytes > {MAX_DOCUMENT_BYTES}"
+                )
+                return
+
             try:
                 text, source_format, pages = extract_text(raw)
             except Exception as error:
                 await fail_terminal(msg, document_id, f"unparseable document: {error}")
+                return
+
+            if pages > MAX_PAGES:
+                await fail_terminal(msg, document_id, f"too many pages: {pages} > {MAX_PAGES}")
                 return
             docir = build_docir(document_id, text, source_format, pages)
             docir_key = f"{document_id}/docir.json"
