@@ -112,6 +112,21 @@ func TestGuardFlagsForeignNumber(t *testing.T) {
 	}
 }
 
+func TestGuardRejectsConditionAndMetadataNumbers(t *testing.T) {
+	t.Parallel()
+
+	pack := samplecatholytePack(t)
+	if got := runGuard("плотность тока 220 А/м² по источникам", pack); got.violations == 0 {
+		t.Fatalf("condition number 220 must not whitewash the guard, got %+v", got)
+	}
+	if got := runGuard("согласованный диапазон 0,8–0,9 м/с", pack); got.violations != 0 {
+		t.Fatalf("consensus agreed range must pass the guard, got %+v", got)
+	}
+	if got := runGuard("значения 0,8–1 м/с [F1]", pack); got.violations != 0 {
+		t.Fatalf("fact values must pass the guard, got %+v", got)
+	}
+}
+
 func samplecatholytePack(t *testing.T) *kmapv1.EvidencePack {
 	t.Helper()
 	fact := mustStruct(t, map[string]any{

@@ -26,56 +26,38 @@ func runGuard(summary string, pack *kmapv1.EvidencePack) guardResult {
 }
 
 func allowedNumbers(pack *kmapv1.EvidencePack) []float64 {
-	values := []float64{}
-	collect := func(structValue *structpb.Struct) {
-		values = append(values, numbersFromStruct(structValue)...)
+	var values []float64
+	addRange := func(structValue *structpb.Struct) {
+		if structValue == nil {
+			return
+		}
+		fields := structValue.GetFields()
+		if value, ok := numberField(fields, "vmin"); ok {
+			values = append(values, value)
+		}
+		if value, ok := numberField(fields, "vmax"); ok {
+			values = append(values, value)
+		}
 	}
+
 	for _, item := range pack.GetFacts() {
-		collect(item.GetPayload())
+		fields := item.GetPayload().GetFields()
+		addRange(fields["value"].GetStructValue())
+		addRange(fields["si"].GetStructValue())
 	}
 	for _, item := range pack.GetConsensus() {
-		collect(item)
-	}
-	for _, item := range pack.GetContradictions() {
-		collect(item)
-	}
-	for _, item := range pack.GetGaps() {
-		collect(item)
-	}
-	for _, item := range pack.GetExperts() {
-		collect(item.GetEvidence())
-	}
-	return values
-}
-
-func numbersFromStruct(structValue *structpb.Struct) []float64 {
-	if structValue == nil {
-		return nil
-	}
-	var values []float64
-	for _, value := range structValue.GetFields() {
-		values = append(values, numbersFromValue(value)...)
-	}
-	return values
-}
-
-func numbersFromValue(value *structpb.Value) []float64 {
-	switch kind := value.GetKind().(type) {
-	case *structpb.Value_NumberValue:
-		return []float64{kind.NumberValue}
-	case *structpb.Value_StringValue:
-		return numericLiterals(kind.StringValue)
-	case *structpb.Value_StructValue:
-		return numbersFromStruct(kind.StructValue)
-	case *structpb.Value_ListValue:
-		var values []float64
-		for _, item := range kind.ListValue.GetValues() {
-			values = append(values, numbersFromValue(item)...)
+		fields := item.GetFields()
+		if value, ok := numberField(fields, "agreedMin"); ok {
+			values = append(values, value)
 		}
-		return values
-	default:
-		return nil
+		if value, ok := numberField(fields, "agreedMax"); ok {
+			values = append(values, value)
+		}
+		for _, source := range fields["sources"].GetListValue().GetValues() {
+			addRange(source.GetStructValue())
+		}
 	}
+	return values
 }
 
 func containsApprox(values []float64, target float64) bool {
