@@ -3,7 +3,7 @@ log:
   format: json
 
 postgres:
-  dsn: postgres://kmap:kmap@postgres:5432/kmap?sslmode=disable
+  dsn: postgres://kmap_app:kmap_app@postgres:5432/kmap?sslmode=disable
   max_conns: 10
 
 nats:

@@ -6,12 +6,30 @@
   "accessTokenLifespan": 1800,
   "roles": {
     "realm": [
-      { "name": "researcher", "description": "Исследователь" },
-      { "name": "analyst", "description": "Аналитик" },
-      { "name": "manager", "description": "Руководитель R&D" },
-      { "name": "expert", "description": "Эксперт-валидатор" },
-      { "name": "admin", "description": "Администратор" },
-      { "name": "partner", "description": "Внешний партнёр" }
+      {
+        "name": "researcher",
+        "description": "Исследователь"
+      },
+      {
+        "name": "analyst",
+        "description": "Аналитик"
+      },
+      {
+        "name": "manager",
+        "description": "Руководитель R&D"
+      },
+      {
+        "name": "expert",
+        "description": "Эксперт-валидатор"
+      },
+      {
+        "name": "admin",
+        "description": "Администратор"
+      },
+      {
+        "name": "partner",
+        "description": "Внешний партнёр"
+      }
     ]
   },
   "clients": [
@@ -27,8 +45,12 @@
       "publicClient": true,
       "standardFlowEnabled": true,
       "directAccessGrantsEnabled": true,
-      "redirectUris": ["http://localhost:3000/*"],
-      "webOrigins": ["http://localhost:3000"],
+      "redirectUris": [
+        "http://localhost:3000/*"
+      ],
+      "webOrigins": [
+        "http://localhost:3000"
+      ],
       "protocolMappers": [
         {
           "name": "kmap-gateway-audience",
@@ -49,48 +71,143 @@
       "enabled": true,
       "emailVerified": true,
       "firstName": "Исследователь",
-      "credentials": [{ "type": "password", "value": "researcher", "temporary": false }],
-      "realmRoles": ["researcher"]
+      "credentials": [
+        {
+          "type": "password",
+          "value": "researcher",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "researcher"
+      ],
+      "requiredActions": [],
+      "lastName": "(demo)",
+      "email": "researcher@kmap.local"
     },
     {
       "username": "analyst",
       "enabled": true,
       "emailVerified": true,
       "firstName": "Аналитик",
-      "credentials": [{ "type": "password", "value": "analyst", "temporary": false }],
-      "realmRoles": ["analyst"]
+      "credentials": [
+        {
+          "type": "password",
+          "value": "analyst",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "analyst"
+      ],
+      "requiredActions": [],
+      "lastName": "(demo)",
+      "email": "analyst@kmap.local"
     },
     {
       "username": "manager",
       "enabled": true,
       "emailVerified": true,
       "firstName": "Руководитель",
-      "credentials": [{ "type": "password", "value": "manager", "temporary": false }],
-      "realmRoles": ["manager"]
+      "credentials": [
+        {
+          "type": "password",
+          "value": "manager",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "manager"
+      ],
+      "requiredActions": [],
+      "lastName": "(demo)",
+      "email": "manager@kmap.local"
     },
     {
       "username": "expert",
       "enabled": true,
       "emailVerified": true,
       "firstName": "Эксперт",
-      "credentials": [{ "type": "password", "value": "expert", "temporary": false }],
-      "realmRoles": ["expert"]
+      "credentials": [
+        {
+          "type": "password",
+          "value": "expert",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "expert"
+      ],
+      "requiredActions": [],
+      "lastName": "(demo)",
+      "email": "expert@kmap.local"
     },
     {
       "username": "admin-rd",
       "enabled": true,
       "emailVerified": true,
       "firstName": "Администратор",
-      "credentials": [{ "type": "password", "value": "admin-rd", "temporary": false }],
-      "realmRoles": ["admin"]
+      "credentials": [
+        {
+          "type": "password",
+          "value": "admin-rd",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "admin"
+      ],
+      "requiredActions": [],
+      "lastName": "(demo)",
+      "email": "admin-rd@kmap.local"
     },
     {
       "username": "partner",
       "enabled": true,
       "emailVerified": true,
       "firstName": "Партнёр",
-      "credentials": [{ "type": "password", "value": "partner", "temporary": false }],
-      "realmRoles": ["partner"]
+      "credentials": [
+        {
+          "type": "password",
+          "value": "partner",
+          "temporary": false
+        }
+      ],
+      "realmRoles": [
+        "partner"
+      ],
+      "requiredActions": [],
+      "lastName": "(demo)",
+      "email": "partner@kmap.local"
+    }
+  ],
+  "requiredActions": [
+    {
+      "alias": "VERIFY_PROFILE",
+      "name": "Verify Profile",
+      "providerId": "VERIFY_PROFILE",
+      "enabled": false,
+      "defaultAction": false,
+      "priority": 90,
+      "config": {}
+    },
+    {
+      "alias": "UPDATE_PROFILE",
+      "name": "Update Profile",
+      "providerId": "UPDATE_PROFILE",
+      "enabled": false,
+      "defaultAction": false,
+      "priority": 40,
+      "config": {}
+    },
+    {
+      "alias": "VERIFY_EMAIL",
+      "name": "Verify Email",
+      "providerId": "VERIFY_EMAIL",
+      "enabled": false,
+      "defaultAction": false,
+      "priority": 50,
+      "config": {}
     }
   ]
 }
