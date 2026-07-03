@@ -7,12 +7,14 @@ import (
 	"testing"
 
 	"github.com/google/uuid"
+	"github.com/maksim-mshp/nornickel-hackathon/internal/catalog/domain"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/blob"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/events"
 )
 
 type fakeRepository struct {
 	resolved     map[string]uuid.UUID
+	defs         map[uuid.UUID]domain.ParameterDef
 	committed    CommitCommand
 	factsEvent   events.Envelope
 	clusterEvent events.Envelope
@@ -23,6 +25,13 @@ func (repo *fakeRepository) ResolveByNames(_ context.Context, _ []string) (map[s
 		return map[string]uuid.UUID{}, nil
 	}
 	return repo.resolved, nil
+}
+
+func (repo *fakeRepository) ParameterDefs(context.Context, []uuid.UUID) (map[uuid.UUID]domain.ParameterDef, error) {
+	if repo.defs == nil {
+		return map[uuid.UUID]domain.ParameterDef{}, nil
+	}
+	return repo.defs, nil
 }
 
 func (repo *fakeRepository) Commit(_ context.Context, cmd CommitCommand, committed events.Envelope, clusterDirty events.Envelope) error {

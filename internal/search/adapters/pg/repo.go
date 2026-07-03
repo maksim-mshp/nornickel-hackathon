@@ -99,6 +99,7 @@ JOIN kg.entities p ON p.id = f.parameter_id
 JOIN core.documents d ON d.id = f.document_id
 LEFT JOIN kg.units u ON u.code = f.unit_code
 WHERE (f.subject_id = ANY($1) OR f.parameter_id = ANY($1)) AND f.superseded_by IS NULL
+  AND f.validation_status NOT IN ('needs_unit_review', 'rejected', 'deprecated')
   AND ($2 = '' OR f.geography::text = $2)
   AND (
     cardinality($3::text[]) = 0

@@ -226,6 +226,10 @@ func (service *Service) buildCommand(ctx context.Context, bundle domain.Bundle, 
 		facts = append(facts, fact)
 	}
 
+	if err := service.classifyFacts(ctx, facts); err != nil {
+		return CommitCommand{}, err
+	}
+
 	return CommitCommand{
 		DocumentID:  documentID,
 		Version:     bundleVersion(bundle.Version),
@@ -233,6 +237,27 @@ func (service *Service) buildCommand(ctx context.Context, bundle domain.Bundle, 
 		Chunks:      chunks,
 		Facts:       facts,
 	}, nil
+}
+
+func (service *Service) classifyFacts(ctx context.Context, facts []domain.NumericFact) error {
+	paramIDs := make([]uuid.UUID, 0, len(facts))
+	for _, fact := range facts {
+		paramIDs = append(paramIDs, fact.ParameterID)
+	}
+	defs, err := service.repository.ParameterDefs(ctx, paramIDs)
+	if err != nil {
+		return fmt.Errorf("load parameter defs: %w", err)
+	}
+	for index := range facts {
+		var def *domain.ParameterDef
+		if value, ok := defs[facts[index].ParameterID]; ok {
+			def = &value
+		}
+		status, confidence := domain.ClassifyFact(facts[index], def)
+		facts[index].ValidationStatus = status
+		facts[index].Confidence = confidence
+	}
+	return nil
 }
 
 func (service *Service) buildEnvelopes(cmd CommitCommand) (events.Envelope, events.Envelope, error) {

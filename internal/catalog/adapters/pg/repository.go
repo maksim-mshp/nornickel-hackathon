@@ -57,6 +57,31 @@ func (repository *Repository) ResolveByNames(ctx context.Context, names []string
 	return resolved, rows.Err()
 }
 
+const parameterDefsSQL = `SELECT parameter_id, plausible_min::float8, plausible_max::float8
+FROM kg.parameter_defs WHERE parameter_id = ANY($1)`
+
+func (repository *Repository) ParameterDefs(ctx context.Context, ids []uuid.UUID) (map[uuid.UUID]domain.ParameterDef, error) {
+	result := map[uuid.UUID]domain.ParameterDef{}
+	if len(ids) == 0 {
+		return result, nil
+	}
+	rows, err := repository.pool.Query(ctx, parameterDefsSQL, ids)
+	if err != nil {
+		return nil, fmt.Errorf("query parameter defs: %w", err)
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var id uuid.UUID
+		var min, max *float64
+		if err := rows.Scan(&id, &min, &max); err != nil {
+			return nil, fmt.Errorf("scan parameter def: %w", err)
+		}
+		result[id] = domain.ParameterDef{PlausibleMin: min, PlausibleMax: max}
+	}
+	return result, rows.Err()
+}
+
 const insertEntitySQL = `INSERT INTO kg.entities
 (id, etype, canonical_name, canonical_name_en, slug, status, created_by)
 VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -75,9 +100,9 @@ ON CONFLICT (document_id, version, ordinal) DO UPDATE SET text = EXCLUDED.text`
 const insertFactSQL = `INSERT INTO kg.numeric_facts
 (id, document_id, chunk_id, subject_id, parameter_id, relation, operator, value_raw, vmin, vmax,
  unit_orig, unit_code, vmin_si, vmax_si, conditions, condition_hash, quote, page, char_from, char_to,
- geography, doc_year, extraction_method, extractor_version, extraction_confidence)
+ geography, doc_year, extraction_method, extractor_version, extraction_confidence, validation_status)
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20,
-        $21, $22, $23, $24, $25)
+        $21, $22, $23, $24, $25, $26::kg.validation_status)
 ON CONFLICT DO NOTHING`
 
 const documentContextSQL = `SELECT year, geography::text FROM core.documents WHERE id = $1`
@@ -154,13 +179,17 @@ func (repository *Repository) Commit(ctx context.Context, cmd app.CommitCommand,
 		if geography == "" {
 			geography = docGeography
 		}
+		status := fact.ValidationStatus
+		if status == "" {
+			status = domain.FactMachineExtracted
+		}
 		if _, err := tx.Exec(ctx, insertFactSQL,
 			fact.ID, cmd.DocumentID, fact.ChunkID, remapID(fact.SubjectID), remapID(fact.ParameterID),
 			fact.Relation, fact.Operator, fact.ValueRaw, fact.VMin, fact.VMax,
 			nullableString(fact.UnitOrig), nullableString(fact.UnitCode), fact.VMinSI, fact.VMaxSI,
 			nullableJSON(fact.Conditions), fact.ConditionHash, fact.Quote,
 			nullableInt(fact.Page), nullableInt(fact.CharFrom), nullableInt(fact.CharTo),
-			geography, docYear, fact.ExtractionMethod, fact.ExtractorVersion, fact.Confidence,
+			geography, docYear, fact.ExtractionMethod, fact.ExtractorVersion, fact.Confidence, status,
 		); err != nil {
 			return fmt.Errorf("insert numeric fact: %w", err)
 		}
