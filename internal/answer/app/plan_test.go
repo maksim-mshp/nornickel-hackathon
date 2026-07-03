@@ -49,3 +49,33 @@ func TestBuildPlanAppliesFilters(t *testing.T) {
 		t.Fatal("time range not set from filters")
 	}
 }
+
+func TestBuildPlanConfidenceReflectsRouting(t *testing.T) {
+	t.Parallel()
+
+	matched, err := buildPlan("оптимальная скорость циркуляции католита при электроэкстракции никеля?", nil)
+	if err != nil {
+		t.Fatalf("build matched plan: %v", err)
+	}
+	if got := matched.GetQuality().GetFields()["confidence"].GetNumberValue(); got != 0.9 {
+		t.Errorf("matched confidence = %v, want 0.9", got)
+	}
+
+	fallback, err := buildPlan("сколько стоит запуск ракеты на Марс?", nil)
+	if err != nil {
+		t.Fatalf("build fallback plan: %v", err)
+	}
+	if got := fallback.GetQuality().GetFields()["confidence"].GetNumberValue(); got != 0.4 {
+		t.Errorf("fallback confidence = %v, want 0.4 (out-of-bucket must signal low routing certainty)", got)
+	}
+}
+
+func TestRouteConfidence(t *testing.T) {
+	t.Parallel()
+	if routeConfidence(route{matched: true}) != 0.9 {
+		t.Error("matched route confidence should be 0.9")
+	}
+	if routeConfidence(route{matched: false}) != 0.4 {
+		t.Error("unmatched route confidence should be 0.4")
+	}
+}

@@ -18,6 +18,7 @@ type route struct {
 	materials  []ref
 	processes  []ref
 	properties []ref
+	matched    bool
 }
 
 func buildPlan(question string, filters *structpb.Struct) (*kmapv1.QueryPlan, error) {
@@ -28,7 +29,7 @@ func buildPlan(question string, filters *structpb.Struct) (*kmapv1.QueryPlan, er
 	}
 	quality, err := structpb.NewStruct(map[string]any{
 		"parser":     "rules",
-		"confidence": 0.9,
+		"confidence": routeConfidence(selected),
 	})
 	if err != nil {
 		return nil, err
@@ -182,6 +183,7 @@ func routeQuestion(question string) route {
 			materials:  []ref{{"material:catholyte", "католит"}},
 			processes:  []ref{{"process:nickel-electrowinning", "электроэкстракция никеля"}},
 			properties: []ref{{"parameter:catholyte-flow-rate", "скорость потока"}},
+			matched:    true,
 		}
 	case containsAny(lower, "обессолива", "сухой остаток", "сульфат", "обогатительн", "хлорид", "минерализац"):
 		return route{
@@ -189,6 +191,7 @@ func routeQuestion(question string) route {
 			materials:  []ref{{"material:sulfates", "сульфаты"}, {"material:chlorides", "хлориды"}},
 			processes:  []ref{{"process:desalination", "обессоливание воды"}},
 			properties: []ref{{"property:tds", "сухой остаток"}},
+			matched:    true,
 		}
 	case containsAny(lower, "кучн", "выщелачив", "холодном климат", "холодный климат", "заполярь"):
 		return route{
@@ -196,6 +199,7 @@ func routeQuestion(question string) route {
 			materials:  []ref{{"material:nickel-ore", "никелевая руда"}},
 			processes:  []ref{{"process:heap-leaching", "кучное выщелачивание"}},
 			properties: []ref{{"climate:cold", "холодный климат"}},
+			matched:    true,
 		}
 	default:
 		return route{
@@ -203,8 +207,16 @@ func routeQuestion(question string) route {
 			materials:  []ref{{"material:catholyte", "католит"}},
 			processes:  []ref{{"process:nickel-electrowinning", "электроэкстракция никеля"}},
 			properties: []ref{{"parameter:catholyte-flow-rate", "скорость потока"}},
+			matched:    false,
 		}
 	}
+}
+
+func routeConfidence(selected route) float64 {
+	if selected.matched {
+		return 0.9
+	}
+	return 0.4
 }
 
 func entitiesStruct(selected route) (*structpb.Struct, error) {
