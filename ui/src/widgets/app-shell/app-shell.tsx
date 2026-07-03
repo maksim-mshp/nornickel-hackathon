@@ -3,7 +3,14 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import {
+  ROLE_LABELS,
+  routeAllowed,
+  useRole,
+  type DemoRole,
+} from "@/shared/lib/role";
 import { applyTheme, readTheme, toggleTheme } from "@/shared/lib/theme";
+import { CommandPalette } from "@/widgets/command-palette/command-palette";
 import {
   IconBook,
   IconCheck,
@@ -27,13 +34,21 @@ const NAV_ITEMS = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const role = useRole((store) => store.role);
+  const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
     applyTheme(readTheme());
+    setHydrated(true);
   }, []);
+
+  const navItems = NAV_ITEMS.filter(
+    ({ href }) => !hydrated || routeAllowed(role, href),
+  );
 
   return (
     <div className="flex h-dvh flex-col">
+      <CommandPalette />
       <a
         href="#main"
         className="sr-only focus:not-sr-only focus:absolute focus:left-2 focus:top-2 focus:z-50 focus:rounded-sm focus:bg-electrolyte focus:px-3 focus:py-1.5 focus:text-bg-0"
@@ -46,7 +61,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           aria-label="Основная навигация"
           className="flex w-16 shrink-0 flex-col items-center gap-1 border-r border-line bg-bg-1 py-3"
         >
-          {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
+          {navItems.map(({ href, label, icon: Icon }) => {
             const active =
               href === "/" ? pathname === "/" : pathname.startsWith(href);
             return (
@@ -82,8 +97,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
 }
 
 function Header() {
-  const [role, setRole] = useState("researcher");
-
   return (
     <header className="flex h-14 shrink-0 items-center gap-4 border-b border-line bg-bg-1 px-4">
       <Link href="/" className="flex items-center gap-2">
@@ -94,18 +107,22 @@ function Header() {
           kmap
         </span>
       </Link>
-      <div className="flex h-9 max-w-xl flex-1 items-center gap-2 rounded-sm border border-line bg-bg-0 px-3 text-ink-2">
+      <button
+        type="button"
+        onClick={() => window.dispatchEvent(new Event("kmap:palette"))}
+        className="flex h-9 max-w-xl flex-1 items-center gap-2 rounded-sm border border-line bg-bg-0 px-3 text-ink-2 transition-colors hover:border-line-strong hover:text-ink-1"
+      >
         <IconSearch width={16} height={16} />
-        <span className="flex-1 truncate text-[13px]">
+        <span className="flex-1 truncate text-left text-[13px]">
           Спросить или перейти…
         </span>
         <kbd className="rounded-sm border border-line px-1.5 py-0.5 font-mono text-[10px]">
           ⌘K
         </kbd>
-      </div>
+      </button>
       <div className="ml-auto flex items-center gap-3">
         <ThemeToggle />
-        <RoleSwitcher role={role} onChange={setRole} />
+        <RoleSwitcher />
       </div>
     </header>
   );
@@ -128,35 +145,27 @@ function ThemeToggle() {
   );
 }
 
-const DEMO_ROLES = [
-  { value: "researcher", label: "Исследователь" },
-  { value: "analyst", label: "Аналитик" },
-  { value: "manager", label: "Руководитель" },
-  { value: "expert", label: "Эксперт" },
-  { value: "admin", label: "Администратор" },
-];
+function RoleSwitcher() {
+  const { role, setRole } = useRole();
+  const [hydrated, setHydrated] = useState(false);
 
-function RoleSwitcher({
-  role,
-  onChange,
-}: {
-  role: string;
-  onChange: (value: string) => void;
-}) {
+  useEffect(() => setHydrated(true), []);
+  const shown = hydrated ? role : "admin";
+
   return (
     <label className="flex items-center gap-2 text-[12px] text-ink-1">
       <span className="stamp-frame flex h-7 w-7 items-center justify-center bg-bg-2 font-mono text-[11px] text-anode">
-        {DEMO_ROLES.find((r) => r.value === role)?.label[0] ?? "?"}
+        {ROLE_LABELS[shown][0]}
       </span>
       <select
-        value={role}
-        onChange={(e) => onChange(e.target.value)}
+        value={shown}
+        onChange={(e) => setRole(e.target.value as DemoRole)}
         aria-label="Demo-роль"
         className="rounded-sm border border-line bg-bg-0 px-2 py-1 text-[12px] text-ink-1"
       >
-        {DEMO_ROLES.map((r) => (
-          <option key={r.value} value={r.value}>
-            {r.label}
+        {(Object.keys(ROLE_LABELS) as DemoRole[]).map((value) => (
+          <option key={value} value={value}>
+            {ROLE_LABELS[value]}
           </option>
         ))}
       </select>
