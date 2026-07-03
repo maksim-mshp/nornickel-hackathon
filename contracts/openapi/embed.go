@@ -2,5 +2,5 @@ package openapi
 
 import _ "embed"
 
-//go:embed openapi.yaml
+//go:embed openapi.yml
 var Spec []byte

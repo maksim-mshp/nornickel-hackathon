@@ -5,5 +5,5 @@ health:
 embed:
   backend: deterministic
   remote:
-    endpoint: https://inference.do-ai.run/v1
+    base_url: https://inference.do-ai.run/v1
     model: bge-m3

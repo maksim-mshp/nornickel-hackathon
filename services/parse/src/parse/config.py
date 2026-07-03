@@ -18,6 +18,7 @@ class S3Config:
 class Config:
     nats_url: str
     s3: S3Config
+    ocr: str
 
 
 def _deep_merge(base: dict, overlay: dict) -> dict:
@@ -57,4 +58,5 @@ def load() -> Config:
             use_ssl=bool(s3.get("use_ssl", False)),
             docir_bucket=buckets.get("docir", "kmap-docir"),
         ),
+        ocr=merged.get("parse", {}).get("ocr", "off"),
     )

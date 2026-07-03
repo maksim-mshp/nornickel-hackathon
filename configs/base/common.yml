@@ -19,3 +19,6 @@ s3:
     docir: kmap-docir
     bundles: kmap-bundles
     exports: kmap-exports
+
+parse:
+  ocr: "off"

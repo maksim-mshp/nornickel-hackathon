@@ -48,7 +48,7 @@ def load() -> Config:
         grpc_addr=merged.get("grpc", {}).get("addr", ":9097"),
         health_addr=merged.get("health", {}).get("addr", ":8097"),
         backend=embed.get("backend", "deterministic"),
-        remote_endpoint=remote.get("endpoint", ""),
+        remote_endpoint=remote.get("base_url", "") or remote.get("endpoint", ""),
         remote_model=remote.get("model", "bge-m3"),
-        api_key=merged.get("llm", {}).get("api_key", "") or embed.get("api_key", ""),
+        api_key=remote.get("api_key", ""),
     )
