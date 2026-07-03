@@ -116,3 +116,14 @@
 - Метрики по документу в bundle.quality: `nc_count`, `nc_suspect_rate`, `llm_valid_rate`, `orphan_rate` — алерты при аномалиях (например, отчёт без единого числа — вероятно, битый парс).
 - Пер-извлечение confidence: numcore — из класса паттерна и sanity-результата (0.95–0.99 базово); LLM — самооценка×калибровочный коэффициент задачи (замер на gold).
 - Целевые значения: precision чисел ≥0.98, recall ≥0.94, unit accuracy ≥0.99, entity F1 ≥0.85, relation F1 ≥0.75 ([13-evaluation.md](13-evaluation.md)).
+
+## 5. Статус реализации MVP (Python-конвейер)
+
+Реализовано и проверено в Docker (`services/{parse,extract,embed,eval}`, событийная связка через NATS):
+
+- **parse** (`services/parse`): консьюмер `kmap.doc.v1.registered` → извлечение текста по magic-bytes (PDF через `pypdf`, DOCX через `python-docx`, txt/md напрямую; полный Docling с OCR — осознанно отложен, чтобы образ оставался `slim` без torch) → DocIR (`docir/1`, блоки-абзацы, `full_text`) в MinIO → `kmap.doc.v1.parsed`.
+- **extract** (`services/extract`): консьюмер `kmap.doc.v1.parsed` → детерминированный numcore (грамматика чисел/операторов/единиц + SI + `condition_hash`) → ExtractionBundle в MinIO → `kmap.doc.v1.extracted`; catalog-консьюмер коммитит факты в PG. LLM-извлечение сущностей/связей — следующий шаг (deterministic-ядро работает автономно, KR-1 закрыт).
+- **embed** (`services/embed`): gRPC `EmbedService` (Embed 1024d + Rerank), backend `deterministic` (offline-хэш, дефолт) | `remote` (bge-m3 через DO Gradient); Python-стабы генерируются локально в `services/embed/src/embed/gen`, `contracts/` не трогается. Векторный канал search подключается на стороне Go по мере готовности.
+- **eval** (`services/eval`): harness прогоняет эталонные Q1–Q6 через `/v1/ask`, проверяет numeric guard; golden-тесты numcore (`services/extract/tests`, 19 кейсов) — в `task py-test`. Текущий прогон: 6/6, `hallucinated_numbers_rate = 0`.
+
+Живой сквозной путь подтверждён: загрузка текстового документа через `/v1/documents` → parse → extract → catalog → факты в PostgreSQL.
