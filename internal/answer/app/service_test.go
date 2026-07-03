@@ -71,7 +71,7 @@ func TestAskEmitsOrderedEventsAndPassesGuard(t *testing.T) {
 
 type hallucinatingSynth struct{}
 
-func (hallucinatingSynth) Synthesize(context.Context, *kmapv1.EvidencePack) (Synthesis, error) {
+func (hallucinatingSynth) Synthesize(context.Context, string, *kmapv1.EvidencePack) (Synthesis, error) {
 	return Synthesis{Summary: "Скорость составляет 999,9 м/с по всем источникам.", Confidence: 0.9}, nil
 }
 

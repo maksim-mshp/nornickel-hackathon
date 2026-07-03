@@ -41,12 +41,12 @@ type Synthesis struct {
 }
 
 type Synthesizer interface {
-	Synthesize(ctx context.Context, pack *kmapv1.EvidencePack) (Synthesis, error)
+	Synthesize(ctx context.Context, question string, pack *kmapv1.EvidencePack) (Synthesis, error)
 }
 
 type extractiveSynthesizer struct{}
 
-func (extractiveSynthesizer) Synthesize(_ context.Context, pack *kmapv1.EvidencePack) (Synthesis, error) {
+func (extractiveSynthesizer) Synthesize(_ context.Context, _ string, pack *kmapv1.EvidencePack) (Synthesis, error) {
 	return extractiveSynthesis(pack), nil
 }
 
@@ -114,12 +114,13 @@ func (service *Service) Ask(ctx context.Context, req *kmapv1.AskRequest, emit Em
 		return err
 	}
 
-	result, err := service.synth.Synthesize(ctx, pack)
+	result, err := service.synth.Synthesize(ctx, question, pack)
+	degraded := false
 	if err != nil {
-		return status.Errorf(codes.Internal, "synthesize: %v", err)
+		result = extractiveSynthesis(pack)
+		degraded = true
 	}
 	guard := runGuard(result.Summary, pack)
-	degraded := false
 	if guard.violations > 0 {
 		result = extractiveSynthesis(pack)
 		guard = runGuard(result.Summary, pack)

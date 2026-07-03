@@ -55,9 +55,24 @@ func build(cfg config.Bundle, logger *slog.Logger) (*runtime.Assembly, error) {
 	}
 
 	cache := answerpg.NewCache(pool.Pool, time.Duration(cfg.Runtime.Cache.TTLHours)*time.Hour)
-	server := answergrpc.NewServer(kmapv1.NewSearchServiceClient(conn), answerapp.WithCache(cache))
 
 	closers := []io.Closer{conn, pool}
+	options := []answerapp.Option{answerapp.WithCache(cache)}
+	if llmTarget := cfg.Runtime.GRPCClients["llm"]; llmTarget != "" {
+		llmConn, llmErr := grpc.NewClient(llmTarget,
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+			grpc.WithChainUnaryInterceptor(auth.UnaryClientInterceptor()),
+		)
+		if llmErr != nil {
+			_ = conn.Close()
+			_ = pool.Close()
+			return nil, fmt.Errorf("create llm grpc client: %w", llmErr)
+		}
+		options = append(options, answerapp.WithSynthesizer(answerapp.NewLLMSynthesizer(kmapv1.NewLLMServiceClient(llmConn))))
+		closers = append(closers, llmConn)
+	}
+	server := answergrpc.NewServer(kmapv1.NewSearchServiceClient(conn), options...)
+
 	var workers []runtime.Worker
 	if url := cfg.Runtime.NATS.URL; url != "" {
 		bus, busErr := nats.New(context.Background(), nats.Config{
