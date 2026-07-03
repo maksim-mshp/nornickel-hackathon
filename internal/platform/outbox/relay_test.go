@@ -8,33 +8,31 @@ import (
 	"testing"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/events"
 )
 
 type fakeStore struct {
 	mu       sync.Mutex
 	records  []Record
-	marked   []uuid.UUID
+	marked   []string
 	claimErr error
 }
 
-func (store *fakeStore) Claim(_ context.Context, _ int) ([]Record, error) {
+func (store *fakeStore) Drain(ctx context.Context, _ int, publish func(context.Context, Record) error) (int, error) {
 	store.mu.Lock()
 	defer store.mu.Unlock()
 	if store.claimErr != nil {
-		return nil, store.claimErr
+		return 0, store.claimErr
 	}
-	out := make([]Record, len(store.records))
-	copy(out, store.records)
-	return out, nil
-}
-
-func (store *fakeStore) MarkPublished(_ context.Context, id uuid.UUID) error {
-	store.mu.Lock()
-	defer store.mu.Unlock()
-	store.marked = append(store.marked, id)
-	return nil
+	published := 0
+	for _, record := range store.records {
+		if err := publish(ctx, record); err != nil {
+			continue
+		}
+		store.marked = append(store.marked, record.Envelope.ID)
+		published++
+	}
+	return published, nil
 }
 
 type fakePublisher struct {
@@ -85,21 +83,21 @@ func TestRelayDrainPublishesAndMarks(t *testing.T) {
 	}
 }
 
-func TestRelayDrainStopsOnPublishError(t *testing.T) {
+func TestRelayDrainSkipsFailedPublishWithoutMarking(t *testing.T) {
 	t.Parallel()
 
 	store := &fakeStore{records: []Record{newTestRecord(t, "a"), newTestRecord(t, "b")}}
 	publisher := &fakePublisher{err: errors.New("nats down")}
 	relay := NewRelay(store, publisher, slog.Default())
 
-	if err := relay.drain(context.Background()); err == nil {
-		t.Fatal("expected drain to fail on publish error")
+	if err := relay.drain(context.Background()); err != nil {
+		t.Fatalf("expected drain to tolerate publish errors, got %v", err)
 	}
 	if len(publisher.published) != 0 {
 		t.Fatalf("expected 0 published, got %d", len(publisher.published))
 	}
 	if len(store.marked) != 0 {
-		t.Fatalf("expected 0 marked, got %d", len(store.marked))
+		t.Fatalf("expected 0 marked (failed events stay for retry), got %d", len(store.marked))
 	}
 }
 

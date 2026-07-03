@@ -49,17 +49,17 @@ func Append(ctx context.Context, tx pgx.Tx, record Record) error {
 }
 
 type Store interface {
-	Claim(ctx context.Context, limit int) ([]Record, error)
-	MarkPublished(ctx context.Context, id uuid.UUID) error
+	Drain(ctx context.Context, batch int, publish func(context.Context, Record) error) (int, error)
 }
 
 const claimSQL = `select id, aggregate_type, aggregate_id, event_type, payload, headers, created_at
 from ops.outbox
 where published_at is null
 order by created_at
-limit $1`
+limit $1
+for update skip locked`
 
-const markPublishedSQL = `update ops.outbox set published_at = now() where id = $1`
+const markPublishedSQL = `update ops.outbox set published_at = now() where id = any($1)`
 
 type PGStore struct {
 	pool *pgxpool.Pool
@@ -69,35 +69,63 @@ func NewStore(pool *pgxpool.Pool) *PGStore {
 	return &PGStore{pool: pool}
 }
 
-func (store *PGStore) Claim(ctx context.Context, limit int) ([]Record, error) {
-	if limit <= 0 {
-		limit = DefaultBatch
+type claimedRecord struct {
+	id     uuid.UUID
+	record Record
+}
+
+func (store *PGStore) Drain(ctx context.Context, batch int, publish func(context.Context, Record) error) (int, error) {
+	if batch <= 0 {
+		batch = DefaultBatch
 	}
-	rows, err := store.pool.Query(ctx, claimSQL, limit)
+	tx, err := store.pool.Begin(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("begin outbox tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	claimed, err := claimRecords(ctx, tx, batch)
+	if err != nil {
+		return 0, err
+	}
+
+	var publishedIDs []uuid.UUID
+	for _, item := range claimed {
+		if err := publish(ctx, item.record); err != nil {
+			continue
+		}
+		publishedIDs = append(publishedIDs, item.id)
+	}
+	if len(publishedIDs) > 0 {
+		if _, err := tx.Exec(ctx, markPublishedSQL, publishedIDs); err != nil {
+			return 0, fmt.Errorf("mark outbox published: %w", err)
+		}
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return 0, fmt.Errorf("commit outbox tx: %w", err)
+	}
+	return len(publishedIDs), nil
+}
+
+func claimRecords(ctx context.Context, tx pgx.Tx, batch int) ([]claimedRecord, error) {
+	rows, err := tx.Query(ctx, claimSQL, batch)
 	if err != nil {
 		return nil, fmt.Errorf("claim outbox: %w", err)
 	}
 	defer rows.Close()
 
-	var records []Record
+	var claimed []claimedRecord
 	for rows.Next() {
-		record, err := scanRecord(rows)
+		id, record, err := scanRecord(rows)
 		if err != nil {
 			return nil, err
 		}
-		records = append(records, record)
+		claimed = append(claimed, claimedRecord{id: id, record: record})
 	}
-	return records, rows.Err()
+	return claimed, rows.Err()
 }
 
-func (store *PGStore) MarkPublished(ctx context.Context, id uuid.UUID) error {
-	if _, err := store.pool.Exec(ctx, markPublishedSQL, id); err != nil {
-		return fmt.Errorf("mark outbox published: %w", err)
-	}
-	return nil
-}
-
-func scanRecord(row pgx.Row) (Record, error) {
+func scanRecord(row pgx.Row) (uuid.UUID, Record, error) {
 	var (
 		id            uuid.UUID
 		aggregateType string
@@ -108,19 +136,19 @@ func scanRecord(row pgx.Row) (Record, error) {
 		createdAt     time.Time
 	)
 	if err := row.Scan(&id, &aggregateType, &aggregateID, &eventType, &payload, &headersRaw, &createdAt); err != nil {
-		return Record{}, fmt.Errorf("scan outbox row: %w", err)
+		return uuid.Nil, Record{}, fmt.Errorf("scan outbox row: %w", err)
 	}
 	env, err := events.Unmarshal(payload)
 	if err != nil {
-		return Record{}, fmt.Errorf("decode outbox envelope: %w", err)
+		return uuid.Nil, Record{}, fmt.Errorf("decode outbox envelope: %w", err)
 	}
 	var headers map[string]string
 	if len(headersRaw) > 0 {
 		if err := json.Unmarshal(headersRaw, &headers); err != nil {
-			return Record{}, fmt.Errorf("decode outbox headers: %w", err)
+			return uuid.Nil, Record{}, fmt.Errorf("decode outbox headers: %w", err)
 		}
 	}
-	return Record{
+	return id, Record{
 		Envelope:      env,
 		AggregateType: aggregateType,
 		AggregateID:   aggregateID,

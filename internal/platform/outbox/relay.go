@@ -6,7 +6,6 @@ import (
 	"log/slog"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/events"
 )
 
@@ -67,25 +66,18 @@ func (relay *Relay) Run(ctx context.Context) error {
 }
 
 func (relay *Relay) drain(ctx context.Context) error {
-	records, err := relay.store.Claim(ctx, relay.batch)
+	published, err := relay.store.Drain(ctx, relay.batch, func(ctx context.Context, record Record) error {
+		if publishErr := relay.publisher.Publish(ctx, record.Envelope); publishErr != nil {
+			relay.logger.Warn("outbox publish failed", "event", record.Envelope.Type, "error", publishErr)
+			return publishErr
+		}
+		return nil
+	})
 	if err != nil {
 		return err
 	}
-	for _, record := range records {
-		if err := relay.publisher.Publish(ctx, record.Envelope); err != nil {
-			return err
-		}
-		id, parseErr := uuid.Parse(record.Envelope.ID)
-		if parseErr != nil {
-			relay.logger.Error("outbox envelope id is not uuid", "id", record.Envelope.ID, "error", parseErr)
-			continue
-		}
-		if err := relay.store.MarkPublished(ctx, id); err != nil {
-			return err
-		}
-	}
-	if len(records) > 0 {
-		relay.logger.Info("outbox drained", "published", len(records))
+	if published > 0 {
+		relay.logger.Info("outbox drained", "published", published)
 	}
 	return nil
 }
