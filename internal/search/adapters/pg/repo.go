@@ -5,11 +5,19 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	kmapv1 "github.com/maksim-mshp/nornickel-hackathon/contracts/gen/go/kmap/v1"
+	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/auth"
+	platformpg "github.com/maksim-mshp/nornickel-hackathon/internal/platform/pg"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/search/app"
 	"google.golang.org/protobuf/types/known/structpb"
 )
+
+type queryer interface {
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+}
 
 type Repo struct {
 	pool *pgxpool.Pool
@@ -19,7 +27,28 @@ func NewRepo(pool *pgxpool.Pool) *Repo {
 	return &Repo{pool: pool}
 }
 
+func rlsPrincipal(ctx context.Context) platformpg.Principal {
+	principal, _ := auth.FromContext(ctx)
+	return platformpg.Principal{UserID: principal.UserID, DocAccess: principal.DocAccess}
+}
+
+func (repo *Repo) read(ctx context.Context, fn func(queryer) error) error {
+	return platformpg.WithRLS(ctx, repo.pool, rlsPrincipal(ctx), func(txCtx context.Context, tx pgx.Tx) error {
+		return fn(tx)
+	})
+}
+
 func (repo *Repo) ExpandEntityIDs(ctx context.Context, slugs []string) ([]string, error) {
+	var ids []string
+	err := repo.read(ctx, func(q queryer) error {
+		result, err := expandEntityIDs(ctx, q, slugs)
+		ids = result
+		return err
+	})
+	return ids, err
+}
+
+func expandEntityIDs(ctx context.Context, q queryer, slugs []string) ([]string, error) {
 	const query = `
 WITH base AS (SELECT id FROM kg.entities WHERE slug = ANY($1)),
 neigh AS (
@@ -30,7 +59,7 @@ neigh AS (
 SELECT id::text FROM base
 UNION
 SELECT id::text FROM neigh`
-	rows, err := repo.pool.Query(ctx, query, slugs)
+	rows, err := q.Query(ctx, query, slugs)
 	if err != nil {
 		return nil, fmt.Errorf("expand entities: %w", err)
 	}
@@ -47,6 +76,16 @@ SELECT id::text FROM neigh`
 }
 
 func (repo *Repo) Facts(ctx context.Context, entityIDs []string) ([]app.Fact, error) {
+	var facts []app.Fact
+	err := repo.read(ctx, func(q queryer) error {
+		result, err := queryFacts(ctx, q, entityIDs)
+		facts = result
+		return err
+	})
+	return facts, err
+}
+
+func queryFacts(ctx context.Context, q queryer, entityIDs []string) ([]app.Fact, error) {
 	const query = `
 SELECT f.id::text, f.operator::text, f.vmin::float8, f.vmax::float8, f.unit_orig,
        f.vmin_si::float8, f.vmax_si::float8, coalesce(u.si_unit, ''),
@@ -59,9 +98,9 @@ JOIN kg.entities s ON s.id = f.subject_id
 JOIN kg.entities p ON p.id = f.parameter_id
 JOIN core.documents d ON d.id = f.document_id
 LEFT JOIN kg.units u ON u.code = f.unit_code
-WHERE f.subject_id = ANY($1) AND f.superseded_by IS NULL
+WHERE (f.subject_id = ANY($1) OR f.parameter_id = ANY($1)) AND f.superseded_by IS NULL
 ORDER BY f.extraction_confidence DESC, f.id`
-	rows, err := repo.pool.Query(ctx, query, entityIDs)
+	rows, err := q.Query(ctx, query, entityIDs)
 	if err != nil {
 		return nil, fmt.Errorf("query facts: %w", err)
 	}
@@ -101,6 +140,16 @@ ORDER BY f.extraction_confidence DESC, f.id`
 }
 
 func (repo *Repo) Consensus(ctx context.Context, entityIDs []string) ([]app.Consensus, error) {
+	var result []app.Consensus
+	err := repo.read(ctx, func(q queryer) error {
+		items, err := queryConsensus(ctx, q, entityIDs)
+		result = items
+		return err
+	})
+	return result, err
+}
+
+func queryConsensus(ctx context.Context, q queryer, entityIDs []string) ([]app.Consensus, error) {
 	const query = `
 SELECT p.slug, p.canonical_name, co.verdict,
        lower(co.agreed_range)::float8, upper(co.agreed_range)::float8,
@@ -109,7 +158,7 @@ FROM epi.consensus co
 JOIN epi.clusters c ON c.id = co.cluster_id
 JOIN kg.entities p ON p.id = c.parameter_id
 WHERE c.subject_id = ANY($1) OR c.parameter_id = ANY($1)`
-	rows, err := repo.pool.Query(ctx, query, entityIDs)
+	rows, err := q.Query(ctx, query, entityIDs)
 	if err != nil {
 		return nil, fmt.Errorf("query consensus: %w", err)
 	}
@@ -144,6 +193,16 @@ WHERE c.subject_id = ANY($1) OR c.parameter_id = ANY($1)`
 }
 
 func (repo *Repo) Contradictions(ctx context.Context, entityIDs []string) ([]app.Contradiction, error) {
+	var result []app.Contradiction
+	err := repo.read(ctx, func(q queryer) error {
+		items, err := queryContradictions(ctx, q, entityIDs)
+		result = items
+		return err
+	})
+	return result, err
+}
+
+func queryContradictions(ctx context.Context, q queryer, entityIDs []string) ([]app.Contradiction, error) {
 	const query = `
 SELECT ct.id::text, ct.a_id::text, ct.b_id::text, fa.quote, fb.quote,
        coalesce(ct.judge_rationale, ''), coalesce(ct.confounders, '[]'::jsonb),
@@ -154,7 +213,7 @@ JOIN kg.numeric_facts fa ON fa.id = ct.a_id
 JOIN kg.numeric_facts fb ON fb.id = ct.b_id
 WHERE (c.subject_id = ANY($1) OR c.parameter_id = ANY($1))
   AND ct.status IN ('judge_confirmed','expert_confirmed')`
-	rows, err := repo.pool.Query(ctx, query, entityIDs)
+	rows, err := q.Query(ctx, query, entityIDs)
 	if err != nil {
 		return nil, fmt.Errorf("query contradictions: %w", err)
 	}
@@ -182,6 +241,16 @@ WHERE (c.subject_id = ANY($1) OR c.parameter_id = ANY($1))
 }
 
 func (repo *Repo) Gaps(ctx context.Context, entityIDs []string) ([]app.GapCell, error) {
+	var result []app.GapCell
+	err := repo.read(ctx, func(q queryer) error {
+		items, err := queryGaps(ctx, q, entityIDs)
+		result = items
+		return err
+	})
+	return result, err
+}
+
+func queryGaps(ctx context.Context, q queryer, entityIDs []string) ([]app.GapCell, error) {
 	const query = `
 SELECT coalesce(pr.canonical_name, ''), coalesce(m.canonical_name, ''), cc.condition_key,
        coalesce(cc.score, 0), cc.gap_reasons, cc.domain
@@ -190,7 +259,7 @@ LEFT JOIN kg.entities m ON m.id = cc.material_id
 LEFT JOIN kg.entities pr ON pr.id = cc.process_id
 WHERE cc.gap_flag AND (cc.material_id = ANY($1) OR cc.process_id = ANY($1))
 ORDER BY cc.score`
-	rows, err := repo.pool.Query(ctx, query, entityIDs)
+	rows, err := q.Query(ctx, query, entityIDs)
 	if err != nil {
 		return nil, fmt.Errorf("query gaps: %w", err)
 	}
@@ -207,13 +276,13 @@ ORDER BY cc.score`
 			return nil, fmt.Errorf("scan gap: %w", err)
 		}
 		gap.Label = buildGapLabel(processName, materialName, condition)
-		gap.Neighbors = repo.gapNeighbors(ctx, domain)
+		gap.Neighbors = gapNeighbors(ctx, q, domain)
 		result = append(result, gap)
 	}
 	return result, rows.Err()
 }
 
-func (repo *Repo) gapNeighbors(ctx context.Context, domain string) []string {
+func gapNeighbors(ctx context.Context, q queryer, domain string) []string {
 	const query = `
 SELECT coalesce(pr.canonical_name, '') || ' · ' || coalesce(m.canonical_name, '')
 FROM epi.coverage_cells cc
@@ -222,7 +291,7 @@ LEFT JOIN kg.entities pr ON pr.id = cc.process_id
 WHERE cc.domain = $1 AND NOT cc.gap_flag
 ORDER BY cc.score DESC
 LIMIT 2`
-	rows, err := repo.pool.Query(ctx, query, domain)
+	rows, err := q.Query(ctx, query, domain)
 	if err != nil {
 		return nil
 	}
@@ -239,6 +308,16 @@ LIMIT 2`
 }
 
 func (repo *Repo) Experts(ctx context.Context, entityIDs []string) ([]app.Expert, error) {
+	var result []app.Expert
+	err := repo.read(ctx, func(q queryer) error {
+		items, err := queryExperts(ctx, q, entityIDs)
+		result = items
+		return err
+	})
+	return result, err
+}
+
+func queryExperts(ctx context.Context, q queryer, entityIDs []string) ([]app.Expert, error) {
 	const query = `
 SELECT person.id::text, person.canonical_name, et.weight, et.evidence
 FROM epi.expert_topics et
@@ -246,7 +325,7 @@ JOIN kg.entities person ON person.id = et.person_id
 WHERE et.entity_id = ANY($1)
 ORDER BY et.weight DESC
 LIMIT 5`
-	rows, err := repo.pool.Query(ctx, query, entityIDs)
+	rows, err := q.Query(ctx, query, entityIDs)
 	if err != nil {
 		return nil, fmt.Errorf("query experts: %w", err)
 	}
@@ -278,6 +357,19 @@ LIMIT 5`
 }
 
 func (repo *Repo) EgoGraph(ctx context.Context, entityIDs []string) ([]app.GraphNode, []app.GraphEdge, error) {
+	var (
+		nodes []app.GraphNode
+		edges []app.GraphEdge
+	)
+	err := repo.read(ctx, func(q queryer) error {
+		n, e, err := egoGraph(ctx, q, entityIDs)
+		nodes, edges = n, e
+		return err
+	})
+	return nodes, edges, err
+}
+
+func egoGraph(ctx context.Context, q queryer, entityIDs []string) ([]app.GraphNode, []app.GraphEdge, error) {
 	const nodesQuery = `
 WITH ego AS (
   SELECT unnest($1::uuid[]) AS id
@@ -289,7 +381,7 @@ expanded AS (
 )
 SELECT DISTINCT e.id::text, e.etype::text, e.canonical_name
 FROM kg.entities e JOIN expanded x ON x.id = e.id`
-	nodeRows, err := repo.pool.Query(ctx, nodesQuery, entityIDs)
+	nodeRows, err := q.Query(ctx, nodesQuery, entityIDs)
 	if err != nil {
 		return nil, nil, fmt.Errorf("query graph nodes: %w", err)
 	}
@@ -312,7 +404,7 @@ FROM kg.entities e JOIN expanded x ON x.id = e.id`
 SELECT ed.id::text, ed.src::text, ed.dst::text, ed.rel, ed.weight, coalesce(ed.confidence, 0)
 FROM kg.edges ed
 WHERE ed.src = ANY($1) OR ed.dst = ANY($1)`
-	edgeRows, err := repo.pool.Query(ctx, edgesQuery, keys(nodeSet))
+	edgeRows, err := q.Query(ctx, edgesQuery, keys(nodeSet))
 	if err != nil {
 		return nil, nil, fmt.Errorf("query graph edges: %w", err)
 	}
@@ -333,6 +425,16 @@ WHERE ed.src = ANY($1) OR ed.dst = ANY($1)`
 }
 
 func (repo *Repo) ListEntities(ctx context.Context, entityType string, query string, limit uint32) ([]*kmapv1.EntitySummary, error) {
+	var result []*kmapv1.EntitySummary
+	err := repo.read(ctx, func(q queryer) error {
+		items, err := listEntities(ctx, q, entityType, query, limit)
+		result = items
+		return err
+	})
+	return result, err
+}
+
+func listEntities(ctx context.Context, q queryer, entityType string, query string, limit uint32) ([]*kmapv1.EntitySummary, error) {
 	const sql = `
 SELECT e.id::text, e.slug, e.canonical_name, coalesce(e.canonical_name_en, ''), e.etype::text,
        count(DISTINCT f.id)::int, count(DISTINCT ed.id)::int
@@ -345,7 +447,7 @@ WHERE e.status = 'active'
 GROUP BY e.id, e.slug, e.canonical_name, e.canonical_name_en, e.etype
 ORDER BY count(DISTINCT f.id) DESC, e.canonical_name
 LIMIT $3`
-	rows, err := repo.pool.Query(ctx, sql, entityType, query, int(limit))
+	rows, err := q.Query(ctx, sql, entityType, query, int(limit))
 	if err != nil {
 		return nil, fmt.Errorf("query entities: %w", err)
 	}
@@ -363,6 +465,16 @@ LIMIT $3`
 }
 
 func (repo *Repo) GetEntity(ctx context.Context, entityID string) (*kmapv1.EntityCard, error) {
+	var card *kmapv1.EntityCard
+	err := repo.read(ctx, func(q queryer) error {
+		item, err := getEntity(ctx, q, entityID)
+		card = item
+		return err
+	})
+	return card, err
+}
+
+func getEntity(ctx context.Context, q queryer, entityID string) (*kmapv1.EntityCard, error) {
 	const sql = `
 SELECT e.id::text, e.slug, e.canonical_name, coalesce(e.canonical_name_en, ''), e.etype::text,
        count(DISTINCT f.id)::int, count(DISTINCT ed.id)::int
@@ -373,7 +485,7 @@ WHERE e.id::text = $1 OR e.slug = $1
 GROUP BY e.id, e.slug, e.canonical_name, e.canonical_name_en, e.etype`
 	item := &kmapv1.EntityCard{}
 	var facts, relations uint32
-	if err := repo.pool.QueryRow(ctx, sql, entityID).Scan(&item.Id, &item.Slug, &item.NameRu, &item.NameEn, &item.Type, &facts, &relations); err != nil {
+	if err := q.QueryRow(ctx, sql, entityID).Scan(&item.Id, &item.Slug, &item.NameRu, &item.NameEn, &item.Type, &facts, &relations); err != nil {
 		return nil, fmt.Errorf("query entity: %w", err)
 	}
 	counters, err := structpb.NewStruct(map[string]any{"facts": float64(facts), "relations": float64(relations)})
@@ -381,8 +493,8 @@ GROUP BY e.id, e.slug, e.canonical_name, e.canonical_name_en, e.etype`
 		return nil, fmt.Errorf("build counters: %w", err)
 	}
 	item.Counters = counters
-	item.Synonyms = repo.entityAliases(ctx, item.Id)
-	_, edges, err := repo.EgoGraph(ctx, []string{item.Id})
+	item.Synonyms = entityAliases(ctx, q, item.Id)
+	_, edges, err := egoGraph(ctx, q, []string{item.Id})
 	if err != nil {
 		return nil, err
 	}
@@ -397,6 +509,16 @@ GROUP BY e.id, e.slug, e.canonical_name, e.canonical_name_en, e.etype`
 }
 
 func (repo *Repo) ListExperiments(ctx context.Context, req *kmapv1.ListExperimentsRequest) ([]*kmapv1.ExperimentSummary, error) {
+	var result []*kmapv1.ExperimentSummary
+	err := repo.read(ctx, func(q queryer) error {
+		items, err := listExperiments(ctx, q, req)
+		result = items
+		return err
+	})
+	return result, err
+}
+
+func listExperiments(ctx context.Context, q queryer, req *kmapv1.ListExperimentsRequest) ([]*kmapv1.ExperimentSummary, error) {
 	const sql = `
 SELECT f.id::text, s.canonical_name, p.canonical_name, coalesce(f.conditions, '{}'::jsonb),
        f.value_raw, d.title, d.doc_type::text, f.extraction_confidence
@@ -409,7 +531,7 @@ WHERE ($1 = '' OR s.slug = $1 OR s.canonical_name ILIKE '%' || $1 || '%')
   AND ($3 = 0 OR d.year >= $3)
 ORDER BY d.year DESC NULLS LAST, f.extraction_confidence DESC
 LIMIT 50`
-	rows, err := repo.pool.Query(ctx, sql, req.GetProcess(), req.GetParameter(), req.GetYearFrom())
+	rows, err := q.Query(ctx, sql, req.GetProcess(), req.GetParameter(), req.GetYearFrom())
 	if err != nil {
 		return nil, fmt.Errorf("query experiments: %w", err)
 	}
@@ -429,9 +551,9 @@ LIMIT 50`
 	return result, rows.Err()
 }
 
-func (repo *Repo) entityAliases(ctx context.Context, entityID string) []string {
+func entityAliases(ctx context.Context, q queryer, entityID string) []string {
 	const sql = `SELECT alias FROM kg.entity_aliases WHERE entity_id::text = $1 ORDER BY alias LIMIT 20`
-	rows, err := repo.pool.Query(ctx, sql, entityID)
+	rows, err := q.Query(ctx, sql, entityID)
 	if err != nil {
 		return nil
 	}

@@ -10,8 +10,10 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/catalog/app"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/catalog/domain"
+	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/auth"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/events"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/outbox"
+	platformpg "github.com/maksim-mshp/nornickel-hackathon/internal/platform/pg"
 )
 
 type Repository struct {
@@ -87,6 +89,10 @@ func (repository *Repository) Commit(ctx context.Context, cmd app.CommitCommand,
 		return fmt.Errorf("begin tx: %w", err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
+
+	if err := platformpg.SetRLS(ctx, tx, platformpg.Principal{UserID: "system", DocAccess: auth.AccessRestricted}); err != nil {
+		return err
+	}
 
 	var docYear *int
 	var docGeography string

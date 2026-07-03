@@ -8,7 +8,14 @@ import (
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/epistemic/app"
+	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/auth"
+	platformpg "github.com/maksim-mshp/nornickel-hackathon/internal/platform/pg"
 )
+
+type queryer interface {
+	Query(ctx context.Context, sql string, args ...any) (pgx.Rows, error)
+	QueryRow(ctx context.Context, sql string, args ...any) pgx.Row
+}
 
 type Repo struct {
 	pool *pgxpool.Pool
@@ -18,8 +25,21 @@ func NewRepo(pool *pgxpool.Pool) *Repo {
 	return &Repo{pool: pool}
 }
 
+func rlsPrincipal(ctx context.Context) platformpg.Principal {
+	principal, _ := auth.FromContext(ctx)
+	return platformpg.Principal{UserID: principal.UserID, DocAccess: principal.DocAccess}
+}
+
+func (repo *Repo) read(ctx context.Context, fn func(queryer) error) error {
+	return platformpg.WithRLS(ctx, repo.pool, rlsPrincipal(ctx), func(txCtx context.Context, tx pgx.Tx) error {
+		return fn(tx)
+	})
+}
+
 func (repo *Repo) Coverage(ctx context.Context, domain string) ([]app.CoverageCell, error) {
-	const query = `
+	var cells []app.CoverageCell
+	err := repo.read(ctx, func(q queryer) error {
+		const query = `
 SELECT cc.id::text, cc.domain, coalesce(m.canonical_name, ''), coalesce(pr.canonical_name, ''),
        cc.condition_key, coalesce(cc.score, 0), cc.gap_flag, cc.gap_reasons,
        cc.docs, cc.experiments, cc.facts, cc.experts, cc.ru_docs, cc.foreign_docs,
@@ -29,34 +49,37 @@ LEFT JOIN kg.entities m ON m.id = cc.material_id
 LEFT JOIN kg.entities pr ON pr.id = cc.process_id
 WHERE ($1 = '' OR cc.domain = $1)
 ORDER BY cc.domain, cc.score DESC`
-	rows, err := repo.pool.Query(ctx, query, domain)
-	if err != nil {
-		return nil, fmt.Errorf("query coverage: %w", err)
-	}
-	defer rows.Close()
-
-	var cells []app.CoverageCell
-	for rows.Next() {
-		var (
-			cell       app.CoverageCell
-			components []byte
-		)
-		if err := rows.Scan(
-			&cell.ID, &cell.Domain, &cell.MaterialName, &cell.ProcessName,
-			&cell.ConditionKey, &cell.Score, &cell.GapFlag, &cell.GapReasons,
-			&cell.Docs, &cell.Experiments, &cell.Facts, &cell.Experts, &cell.RuDocs, &cell.ForeignDocs,
-			&cell.ValidatedFacts, &cell.LastSourceYear, &components,
-		); err != nil {
-			return nil, fmt.Errorf("scan coverage: %w", err)
+		rows, err := q.Query(ctx, query, domain)
+		if err != nil {
+			return fmt.Errorf("query coverage: %w", err)
 		}
-		cell.ScoreComponents = decodeMap(components)
-		cells = append(cells, cell)
-	}
-	return cells, rows.Err()
+		defer rows.Close()
+
+		for rows.Next() {
+			var (
+				cell       app.CoverageCell
+				components []byte
+			)
+			if err := rows.Scan(
+				&cell.ID, &cell.Domain, &cell.MaterialName, &cell.ProcessName,
+				&cell.ConditionKey, &cell.Score, &cell.GapFlag, &cell.GapReasons,
+				&cell.Docs, &cell.Experiments, &cell.Facts, &cell.Experts, &cell.RuDocs, &cell.ForeignDocs,
+				&cell.ValidatedFacts, &cell.LastSourceYear, &components,
+			); err != nil {
+				return fmt.Errorf("scan coverage: %w", err)
+			}
+			cell.ScoreComponents = decodeMap(components)
+			cells = append(cells, cell)
+		}
+		return rows.Err()
+	})
+	return cells, err
 }
 
 func (repo *Repo) Contradictions(ctx context.Context, status string, entityID string) ([]app.Contradiction, error) {
-	const query = `
+	var result []app.Contradiction
+	err := repo.read(ctx, func(q queryer) error {
+		const query = `
 SELECT ct.id::text, ct.cluster_id::text, ct.status, ct.dtype, coalesce(ct.severity, 0),
        fa.quote, fb.quote, coalesce(ct.judge_rationale, ''), coalesce(ct.confounders, '[]'::jsonb),
        sub.canonical_name, param.canonical_name
@@ -69,33 +92,34 @@ LEFT JOIN kg.entities param ON param.id = c.parameter_id
 WHERE ($1 = '' OR ct.status = $1)
   AND ($2 = '' OR c.subject_id::text = $2 OR c.parameter_id::text = $2)
 ORDER BY ct.severity DESC NULLS LAST`
-	rows, err := repo.pool.Query(ctx, query, status, entityID)
-	if err != nil {
-		return nil, fmt.Errorf("query contradictions: %w", err)
-	}
-	defer rows.Close()
+		rows, err := q.Query(ctx, query, status, entityID)
+		if err != nil {
+			return fmt.Errorf("query contradictions: %w", err)
+		}
+		defer rows.Close()
 
-	var result []app.Contradiction
-	for rows.Next() {
-		var (
-			contradiction app.Contradiction
-			confounders   []byte
-			paramName     *string
-		)
-		if err := rows.Scan(
-			&contradiction.ID, &contradiction.ClusterID, &contradiction.Status, &contradiction.Dtype,
-			&contradiction.Severity, &contradiction.AStatement, &contradiction.BStatement,
-			&contradiction.Cause, &confounders, &contradiction.Subject, &paramName,
-		); err != nil {
-			return nil, fmt.Errorf("scan contradiction: %w", err)
+		for rows.Next() {
+			var (
+				contradiction app.Contradiction
+				confounders   []byte
+				paramName     *string
+			)
+			if err := rows.Scan(
+				&contradiction.ID, &contradiction.ClusterID, &contradiction.Status, &contradiction.Dtype,
+				&contradiction.Severity, &contradiction.AStatement, &contradiction.BStatement,
+				&contradiction.Cause, &confounders, &contradiction.Subject, &paramName,
+			); err != nil {
+				return fmt.Errorf("scan contradiction: %w", err)
+			}
+			_ = json.Unmarshal(confounders, &contradiction.Confounders)
+			if paramName != nil {
+				contradiction.Parameter = *paramName
+			}
+			result = append(result, contradiction)
 		}
-		_ = json.Unmarshal(confounders, &contradiction.Confounders)
-		if paramName != nil {
-			contradiction.Parameter = *paramName
-		}
-		result = append(result, contradiction)
-	}
-	return result, rows.Err()
+		return rows.Err()
+	})
+	return result, err
 }
 
 func (repo *Repo) DecideContradiction(ctx context.Context, id string, status string, rationale string) (app.Contradiction, error) {
@@ -123,6 +147,10 @@ func (repo *Repo) RecalculateFacts(ctx context.Context, factIDs []string) ([]str
 		return nil, fmt.Errorf("begin tx: %w", err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
+
+	if err := platformpg.SetRLS(ctx, tx, platformpg.Principal{UserID: "system", DocAccess: auth.AccessRestricted}); err != nil {
+		return nil, err
+	}
 
 	clusterKeys, err := upsertClusters(ctx, tx, factIDs)
 	if err != nil {
