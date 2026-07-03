@@ -102,8 +102,8 @@ flowchart TB
 | Эмбеддинги | BAAI/bge-m3 | — | 1024d, 8192 токенов, 100+ языков, dense+sparse; единое RU/EN пространство |
 | Реранкер | BAAI/bge-reranker-v2-m3 | — | кросс-языковой rerank топ-50 |
 | Единицы измерения | Pint | 0.25.x | реестр единиц + кастомные RU-определения; перевод в SI |
-| LLM-провайдер | **DigitalOcean Gradient** (OpenAI-совместимый, ключ владельца, проверен 02.07); альтернативы: реестр организаторов (с 03.07), vLLM on-prem, routerai.ru | — | ограничение хакатона: **только open-weight** (allowlist в llm-routes; проприетарные gpt-5*/claude-* из каталога DO запрещены) |
-| Модели LLM | `openai-gpt-oss-20b` — extraction/parse_query/bind; `deepseek-4-flash` — синтез; `openai-gpt-oss-120b` — judge/эскалации; `mimo-v2.5` — резерв | цены и матрица — [06-extraction.md](06-extraction.md) §2.1 | «чем меньше модель при том же качестве — тем лучше» (критерий жюри); индексация 5k док. ≈ $10–15 |
+| LLM-провайдер | **Yandex AI Studio** (Responses API, OpenAI-совместимый, схема `Api-Key`, `ai.api.cloud.yandex.net`, ключ владельца); эмбеддинги/rerank — DigitalOcean Gradient; альтернатива — vLLM on-prem | — | ограничение хакатона: **только open-weight** (allowlist в llm-routes; `yandexgpt`/`aliceai` и проприетарные модели запрещены) |
+| Модели LLM | `gpt-oss-20b/latest` — extraction/parse_query/bind; `deepseek-v4-flash/latest` — синтез; `gpt-oss-120b/latest` — judge/эскалации; `qwen3.6-35b-a3b/latest` — алиасы | матрица — [06-extraction.md](06-extraction.md) §2.1 | «чем меньше модель при том же качестве — тем лучше» (критерий жюри) |
 | IAM | Keycloak (OIDC/JWT) — прод; `auth.mode: demo` (статические токены-роли) — демо | 26.6.x | требование ТЗ «Управление доступом»: роли, уровни доступа, аудит; RBAC+RLS (ADR-6) |
 | Frontend | Next.js + React + TS, Tailwind, shadcn/ui, Cytoscape.js, TanStack Table | актуальные | из RFC; Cytoscape для ego-графа |
 | Наблюдаемость | OpenTelemetry (traces+metrics+logs) → Prometheus, Grafana, Loki, Tempo | — | сквозной trace REST→gRPC→NATS |

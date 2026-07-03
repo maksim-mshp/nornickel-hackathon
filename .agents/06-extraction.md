@@ -63,7 +63,7 @@
 
 ### 2.1. Задачи и модели (матрица «экономия ресурсов»)
 
-Фактический провайдер — DigitalOcean Gradient (ключ владельца, проверен 02.07 — [15-resources.md](15-resources.md) §1.1–1.2). Цены $/1M in/out.
+Фактический провайдер chat/synthesis — Yandex AI Studio (Responses API, `ai.api.cloud.yandex.net`, схема `Api-Key`, ключ+folder_id в `configs/secrets.yml`); эмбеддинги/rerank — DigitalOcean Gradient. Модели (`configs/base/llm-routes.yml`): `gpt-oss-20b/latest`, `gpt-oss-120b/latest`, `deepseek-v4-flash/latest`, `qwen3.6-35b-a3b/latest`.
 
 | Задача | Модель по умолчанию | Эскалация | Когда эскалируем |
 |---|---|---|---|

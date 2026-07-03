@@ -70,7 +70,7 @@ PDF-экспорт — Phase 2 (gotenberg-сервис из готового MD)
 event: plan          data: QueryPlan (+quality.parser=llm|rules)
 event: evidence      data: {facts[], chunks[], consensus[], contradictions[], gaps[], experts[], graph, stats}
 event: answer.delta  data: {text}
-event: answer.done   data: {answer: AnswerDoc, guard: {numbers_checked, violations: 0, degraded: false}}
+event: answer.done   data: AnswerDoc (плоско: summary, methods[], confidence, guard{numbers_checked, violations, degraded})
 event: error         data: problem+json
 ```
 

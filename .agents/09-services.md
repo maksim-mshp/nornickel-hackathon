@@ -57,7 +57,7 @@ Python-сервисы: Python 3.13 (uv), gRPC-сервер (`grpcio`), ruff+mypy
 ## 7. kmap-llm (Go) — LLM-шлюз
 
 - gRPC: `Complete(task, payload, schema_ref, stream)` → валидированный JSON/стрим токенов.
-- Роутинг задач → upstream+модель (`configs/*/llm-routes.yml`; ключи — `configs/secrets.yml`): OpenAI-совместимые endpoint'ы (DO Gradient / реестр организаторов / vLLM on-prem / routerai.ru). Failover-цепочки, circuit breaker (gobreaker), ретраи с джиттером (только идемпотентные), таймауты по задаче.
+- Роутинг задач → upstream+модель (`configs/*/llm-routes.yml`, `default_provider: yandex`; ключи — `configs/secrets.yml`): OpenAI-совместимые endpoint'ы (Yandex AI Studio `ai.api.cloud.yandex.net` / vLLM on-prem). Failover-цепочки, circuit breaker (gobreaker), ретраи с джиттером (только идемпотентные), таймауты по задаче.
 - JSON Schema-валидация ответа + до 2 repair-попыток (с фидбеком ошибок схемы); structured outputs / guided decoding, если upstream поддерживает (vLLM — поддерживает).
 - Бюджеты: токен-квоты per-task/per-day, конкуренция per-upstream (semaphore), очередь batch-задач (judge) с приоритетом ниже интерактивных.
 - Кэш: PG-таблица `ops.llm_cache` (ключ sha256(model+prompt+schema), TTL по задаче) — судья/извлечение переиспользуются при реплеях (экономия ресурсов — критерий жюри).
