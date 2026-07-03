@@ -27,11 +27,26 @@ UNITS: dict[str, UnitDef] = {
 _NUMBER = r"\d+(?:[.,]\d+)?"
 _UNIT = r"(м/с|m/s|°c|мг/дм³|мг/дм3|мг/л|mg/l|%|а/м²|мпа)"
 
+_RANGE_WORDS = re.compile(rf"от\s+({_NUMBER})\s+до\s+({_NUMBER})\s*{_UNIT}", re.IGNORECASE)
 _RANGE = re.compile(rf"({_NUMBER})\s*[–—-]\s*({_NUMBER})\s*{_UNIT}", re.IGNORECASE)
 _UPPER = re.compile(rf"(?:≤|не более|не выше|до|<)\s*({_NUMBER})\s*{_UNIT}", re.IGNORECASE)
 _LOWER = re.compile(rf"(?:≥|не менее|не ниже|от|свыше|выше|>)\s*({_NUMBER})\s*{_UNIT}", re.IGNORECASE)
 _PM = re.compile(rf"({_NUMBER})\s*±\s*({_NUMBER})\s*{_UNIT}", re.IGNORECASE)
 _EQ = re.compile(rf"({_NUMBER})\s*{_UNIT}", re.IGNORECASE)
+
+_NORMALIZE = {
+    " ": " ",
+    " ": " ",
+    " ": " ",
+    "−": "-",
+    "º": "°",
+}
+
+
+def normalize(text: str) -> str:
+    for source, target in _NORMALIZE.items():
+        text = text.replace(source, target)
+    return text
 
 
 @dataclass
@@ -47,6 +62,8 @@ class Fact:
     parameter_slug: str
     parameter_name: str
     quote: str
+    char_from: int = 0
+    char_to: int = 0
     conditions: dict[str, str] = field(default_factory=dict)
 
 
@@ -73,6 +90,7 @@ def _quote(text: str, start: int, end: int) -> str:
 
 
 def extract_facts(text: str) -> list[Fact]:
+    text = normalize(text)
     facts: list[Fact] = []
     seen: set[tuple[int, int]] = set()
 
@@ -96,9 +114,13 @@ def extract_facts(text: str) -> list[Fact]:
                 parameter_slug=unit.parameter_slug,
                 parameter_name=unit.parameter_name,
                 quote=_quote(text, match.start(), match.end()),
+                char_from=match.start(),
+                char_to=match.end(),
             )
         )
 
+    for match in _RANGE_WORDS.finditer(text):
+        add(match, "range", _num(match.group(1)), _num(match.group(2)), match.group(3))
     for match in _RANGE.finditer(text):
         add(match, "range", _num(match.group(1)), _num(match.group(2)), match.group(3))
     for match in _PM.finditer(text):

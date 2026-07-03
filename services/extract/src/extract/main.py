@@ -68,6 +68,8 @@ def _bundle(document_id: str, text: str, facts: list[Fact]) -> dict:
             "conditions": fact.conditions,
             "condition_hash": _condition_hash(fact.conditions),
             "quote": fact.quote,
+            "char_from": fact.char_from,
+            "char_to": fact.char_to,
             "page": 1,
             "geography": "unknown",
             "extraction_method": "deterministic",
