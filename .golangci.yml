@@ -12,6 +12,7 @@ linters:
     - rowserrcheck
     - unconvert
     - misspell
+    - depguard
   settings:
     gosec:
       excludes:
@@ -22,6 +23,104 @@ linters:
           disabled: true
         - name: exported
           disabled: true
+    depguard:
+      rules:
+        answer:
+          files:
+            - "**/internal/answer/**"
+          deny:
+            - pkg: github.com/maksim-mshp/nornickel-hackathon/internal/catalog
+              desc: контексты не импортируют друг друга — только contracts/ и internal/platform
+            - pkg: github.com/maksim-mshp/nornickel-hackathon/internal/epistemic
+              desc: контексты не импортируют друг друга — только contracts/ и internal/platform
+            - pkg: github.com/maksim-mshp/nornickel-hackathon/internal/gateway
+              desc: контексты не импортируют друг друга — только contracts/ и internal/platform
+            - pkg: github.com/maksim-mshp/nornickel-hackathon/internal/ingest
+              desc: контексты не импортируют друг друга — только contracts/ и internal/platform
+            - pkg: github.com/maksim-mshp/nornickel-hackathon/internal/llm
+              desc: контексты не импортируют друг друга — только contracts/ и internal/platform
+            - pkg: github.com/maksim-mshp/nornickel-hackathon/internal/search
+              desc: контексты не импортируют друг друга — только contracts/ и internal/platform
+        catalog:
+          files:
+            - "**/internal/catalog/**"
+          deny:
+            - pkg: github.com/maksim-mshp/nornickel-hackathon/internal/answer
+              desc: контексты не импортируют друг друга — только contracts/ и internal/platform
+            - pkg: github.com/maksim-mshp/nornickel-hackathon/internal/epistemic
+              desc: контексты не импортируют друг друга — только contracts/ и internal/platform
+            - pkg: github.com/maksim-mshp/nornickel-hackathon/internal/gateway
+              desc: контексты не импортируют друг друга — только contracts/ и internal/platform
+            - pkg: github.com/maksim-mshp/nornickel-hackathon/internal/ingest
+              desc: контексты не импортируют друг друга — только contracts/ и internal/platform
+            - pkg: github.com/maksim-mshp/nornickel-hackathon/internal/llm
+              desc: контексты не импортируют друг друга — только contracts/ и internal/platform
+            - pkg: github.com/maksim-mshp/nornickel-hackathon/internal/search
+              desc: контексты не импортируют друг друга — только contracts/ и internal/platform
+        epistemic:
+          files:
+            - "**/internal/epistemic/**"
+          deny:
+            - pkg: github.com/maksim-mshp/nornickel-hackathon/internal/answer
+              desc: контексты не импортируют друг друга — только contracts/ и internal/platform
+            - pkg: github.com/maksim-mshp/nornickel-hackathon/internal/catalog
+              desc: контексты не импортируют друг друга — только contracts/ и internal/platform
+            - pkg: github.com/maksim-mshp/nornickel-hackathon/internal/gateway
+              desc: контексты не импортируют друг друга — только contracts/ и internal/platform
+            - pkg: github.com/maksim-mshp/nornickel-hackathon/internal/ingest
+              desc: контексты не импортируют друг друга — только contracts/ и internal/platform
+            - pkg: github.com/maksim-mshp/nornickel-hackathon/internal/llm
+              desc: контексты не импортируют друг друга — только contracts/ и internal/platform
+            - pkg: github.com/maksim-mshp/nornickel-hackathon/internal/search
+              desc: контексты не импортируют друг друга — только contracts/ и internal/platform
+        ingest:
+          files:
+            - "**/internal/ingest/**"
+          deny:
+            - pkg: github.com/maksim-mshp/nornickel-hackathon/internal/answer
+              desc: контексты не импортируют друг друга — только contracts/ и internal/platform
+            - pkg: github.com/maksim-mshp/nornickel-hackathon/internal/catalog
+              desc: контексты не импортируют друг друга — только contracts/ и internal/platform
+            - pkg: github.com/maksim-mshp/nornickel-hackathon/internal/epistemic
+              desc: контексты не импортируют друг друга — только contracts/ и internal/platform
+            - pkg: github.com/maksim-mshp/nornickel-hackathon/internal/gateway
+              desc: контексты не импортируют друг друга — только contracts/ и internal/platform
+            - pkg: github.com/maksim-mshp/nornickel-hackathon/internal/llm
+              desc: контексты не импортируют друг друга — только contracts/ и internal/platform
+            - pkg: github.com/maksim-mshp/nornickel-hackathon/internal/search
+              desc: контексты не импортируют друг друга — только contracts/ и internal/platform
+        llm:
+          files:
+            - "**/internal/llm/**"
+          deny:
+            - pkg: github.com/maksim-mshp/nornickel-hackathon/internal/answer
+              desc: контексты не импортируют друг друга — только contracts/ и internal/platform
+            - pkg: github.com/maksim-mshp/nornickel-hackathon/internal/catalog
+              desc: контексты не импортируют друг друга — только contracts/ и internal/platform
+            - pkg: github.com/maksim-mshp/nornickel-hackathon/internal/epistemic
+              desc: контексты не импортируют друг друга — только contracts/ и internal/platform
+            - pkg: github.com/maksim-mshp/nornickel-hackathon/internal/gateway
+              desc: контексты не импортируют друг друга — только contracts/ и internal/platform
+            - pkg: github.com/maksim-mshp/nornickel-hackathon/internal/ingest
+              desc: контексты не импортируют друг друга — только contracts/ и internal/platform
+            - pkg: github.com/maksim-mshp/nornickel-hackathon/internal/search
+              desc: контексты не импортируют друг друга — только contracts/ и internal/platform
+        search:
+          files:
+            - "**/internal/search/**"
+          deny:
+            - pkg: github.com/maksim-mshp/nornickel-hackathon/internal/answer
+              desc: контексты не импортируют друг друга — только contracts/ и internal/platform
+            - pkg: github.com/maksim-mshp/nornickel-hackathon/internal/catalog
+              desc: контексты не импортируют друг друга — только contracts/ и internal/platform
+            - pkg: github.com/maksim-mshp/nornickel-hackathon/internal/epistemic
+              desc: контексты не импортируют друг друга — только contracts/ и internal/platform
+            - pkg: github.com/maksim-mshp/nornickel-hackathon/internal/gateway
+              desc: контексты не импортируют друг друга — только contracts/ и internal/platform
+            - pkg: github.com/maksim-mshp/nornickel-hackathon/internal/ingest
+              desc: контексты не импортируют друг друга — только contracts/ и internal/platform
+            - pkg: github.com/maksim-mshp/nornickel-hackathon/internal/llm
+              desc: контексты не импортируют друг друга — только contracts/ и internal/platform
 issues:
   max-issues-per-linter: 0
   max-same-issues: 0

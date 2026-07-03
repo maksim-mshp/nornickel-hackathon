@@ -225,8 +225,8 @@ func planQueryText(plan *kmapv1.QueryPlan, slugs []string) string {
 
 func readableSlug(slug string) string {
 	name := slug
-	if idx := strings.IndexByte(slug, ':'); idx >= 0 {
-		name = slug[idx+1:]
+	if _, after, found := strings.Cut(slug, ":"); found {
+		name = after
 	}
 	return strings.ReplaceAll(name, "-", " ")
 }
