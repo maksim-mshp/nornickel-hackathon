@@ -274,6 +274,26 @@ func (repository *Repository) MergeEntities(ctx context.Context, entityID string
 	if _, err := tx.Exec(ctx, `UPDATE kg.entity_aliases SET entity_id = $2 WHERE entity_id = $1`, entityID, intoID); err != nil {
 		return fmt.Errorf("reassign aliases: %w", err)
 	}
+	if _, err := tx.Exec(ctx, `UPDATE kg.numeric_facts SET subject_id = $2 WHERE subject_id = $1`, entityID, intoID); err != nil {
+		return fmt.Errorf("reassign fact subjects: %w", err)
+	}
+	if _, err := tx.Exec(ctx, `UPDATE kg.numeric_facts SET parameter_id = $2 WHERE parameter_id = $1`, entityID, intoID); err != nil {
+		return fmt.Errorf("reassign fact parameters: %w", err)
+	}
+	for _, side := range []string{"src", "dst"} {
+		if _, err := tx.Exec(ctx, fmt.Sprintf(`
+UPDATE kg.edges e SET %[1]s = $2 WHERE e.%[1]s = $1
+  AND NOT EXISTS (
+    SELECT 1 FROM kg.edges x
+    WHERE x.rel = e.rel AND x.%[1]s = $2
+      AND x.%[2]s = e.%[2]s AND x.id <> e.id
+  )`, side, map[string]string{"src": "dst", "dst": "src"}[side]), entityID, intoID); err != nil {
+			return fmt.Errorf("reassign edge %s: %w", side, err)
+		}
+	}
+	if _, err := tx.Exec(ctx, `DELETE FROM kg.edges WHERE src = $1 OR dst = $1 OR (src = $2 AND dst = $2)`, entityID, intoID); err != nil {
+		return fmt.Errorf("cleanup merged edges: %w", err)
+	}
 	if _, err := tx.Exec(ctx, `
 INSERT INTO kg.fact_history (fact_kind, fact_id, actor, action, comment)
 VALUES ('entity', $1, $2, 'merged', $3)`, entityID, defaultString(actor, "system"), comment); err != nil {
