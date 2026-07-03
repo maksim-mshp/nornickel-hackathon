@@ -1,0 +1,315 @@
+openapi: 3.1.0
+info:
+  title: kmap REST API
+  version: 0.1.0
+  description: >
+    REST-контур R&D Knowledge Map (kmap). Аутентификация — Bearer-токен
+    (demo-токен или JWT Keycloak). Права по ролям (RBAC): ask доступен всем;
+    browse/search — researcher/analyst/manager/expert/admin; загрузка —
+    analyst/admin; решения по фактам/сущностям/противоречиям — expert/admin.
+    Уровни доступа документов фильтруются в PostgreSQL (RLS).
+servers:
+  - url: /
+    description: Через UI-прокси или напрямую на gateway :8080
+security:
+  - bearerAuth: []
+tags:
+  - name: ask
+  - name: browse
+  - name: documents
+  - name: review
+paths:
+  /v1/ask:
+    post:
+      tags: [ask]
+      summary: Потоковый ответ (SSE) с планом, evidence, синтезом и numeric guard
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [question]
+              properties:
+                question: { type: string }
+      responses:
+        "200":
+          description: Поток server-sent events (plan, evidence, answer.delta, answer.done)
+          content:
+            text/event-stream:
+              schema: { type: string }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /v1/search:
+    post:
+      tags: [browse]
+      summary: Гибридный поиск, возвращает EvidencePack
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        "200":
+          description: EvidencePack
+          content:
+            application/json:
+              schema: { type: object }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /v1/entities:
+    get:
+      tags: [browse]
+      summary: Список сущностей
+      parameters:
+        - { name: type, in: query, schema: { type: string } }
+        - { name: q, in: query, schema: { type: string } }
+        - { $ref: "#/components/parameters/Limit" }
+        - { $ref: "#/components/parameters/Cursor" }
+      responses:
+        "200":
+          description: Сущности
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EntityList"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /v1/entities/{id}:
+    get:
+      tags: [browse]
+      summary: Карточка сущности
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Карточка сущности
+          content:
+            application/json:
+              schema: { type: object }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /v1/entities/{id}/merge:
+    post:
+      tags: [review]
+      summary: Слияние сущностей (expert/admin)
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [into_id]
+              properties:
+                into_id: { type: string }
+                comment: { type: string }
+      responses:
+        "200": { description: Обновлённая сущность }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /v1/experiments:
+    get:
+      tags: [browse]
+      summary: Эксперименты с фильтрами по материалу/процессу/числу
+      parameters:
+        - { name: material, in: query, schema: { type: string } }
+        - { name: process, in: query, schema: { type: string } }
+        - { name: year_from, in: query, schema: { type: integer } }
+        - { name: param, in: query, schema: { type: string } }
+        - { name: op, in: query, schema: { type: string } }
+        - { name: value, in: query, schema: { type: number } }
+        - { name: unit, in: query, schema: { type: string } }
+      responses:
+        "200":
+          description: Эксперименты
+          content:
+            application/json:
+              schema: { type: object }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /v1/experts:
+    get:
+      tags: [browse]
+      summary: Профили экспертов по теме/сущности
+      parameters:
+        - { name: topic, in: query, schema: { type: string } }
+        - { name: entity_id, in: query, schema: { type: string } }
+      responses:
+        "200":
+          description: Эксперты
+          content:
+            application/json:
+              schema: { type: object }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /v1/coverage:
+    get:
+      tags: [browse]
+      summary: Ячейки покрытия (материал × процесс), только счётчики
+      parameters:
+        - { name: domain, in: query, schema: { type: string } }
+        - { name: axis1, in: query, schema: { type: string } }
+        - { name: axis2, in: query, schema: { type: string } }
+      responses:
+        "200":
+          description: Ячейки покрытия
+          content:
+            application/json:
+              schema: { type: object }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /v1/contradictions:
+    get:
+      tags: [browse]
+      summary: Противоречия
+      parameters:
+        - { name: cluster_id, in: query, schema: { type: string } }
+        - { name: entity_id, in: query, schema: { type: string } }
+        - { name: status, in: query, schema: { type: string } }
+      responses:
+        "200":
+          description: Противоречия
+          content:
+            application/json:
+              schema: { type: object }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /v1/contradictions/{id}/decision:
+    post:
+      tags: [review]
+      summary: Решение по противоречию (expert/admin)
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision]
+              properties:
+                decision: { type: string, enum: [confirmed, rejected, resolved] }
+                comment: { type: string }
+      responses:
+        "200": { description: Обновлённое противоречие }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /v1/graph:
+    get:
+      tags: [browse]
+      summary: Ego-граф сущности
+      parameters:
+        - { name: entity_id, in: query, schema: { type: string } }
+        - { name: depth, in: query, schema: { type: integer, minimum: 1, maximum: 3 } }
+        - { name: top_n, in: query, schema: { type: integer } }
+      responses:
+        "200":
+          description: Граф
+          content:
+            application/json:
+              schema: { type: object }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /v1/documents:
+    get:
+      tags: [documents]
+      summary: Список документов (фильтруется RLS по уровню доступа)
+      parameters:
+        - { $ref: "#/components/parameters/Limit" }
+      responses:
+        "200":
+          description: Документы
+          content:
+            application/json:
+              schema: { type: object }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      tags: [documents]
+      summary: Загрузка документа (analyst/admin)
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file: { type: string, format: binary }
+                metadata: { type: string }
+      responses:
+        "200": { description: Документ зарегистрирован }
+        "403": { $ref: "#/components/responses/Forbidden" }
+  /v1/documents/{document_id}/status:
+    get:
+      tags: [documents]
+      summary: Статус конвейера ingestion по документу
+      parameters:
+        - { name: document_id, in: path, required: true, schema: { type: string } }
+      responses:
+        "200":
+          description: Статус
+          content:
+            application/json:
+              schema: { type: object }
+        "404": { description: Документ не найден или нет доступа }
+  /v1/facts/{id}/status:
+    post:
+      tags: [review]
+      summary: Изменение статуса факта (expert/admin) — supersede, не удаление
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string }
+                comment: { type: string }
+                fact_kind: { type: string }
+      responses:
+        "200": { description: Статус обновлён }
+        "403": { $ref: "#/components/responses/Forbidden" }
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  parameters:
+    Limit:
+      name: limit
+      in: query
+      schema: { type: integer, minimum: 1, maximum: 100 }
+    Cursor:
+      name: cursor
+      in: query
+      schema: { type: string }
+  responses:
+    Unauthorized:
+      description: Требуется аутентификация
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Problem" }
+    Forbidden:
+      description: Роль не имеет права на операцию
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Problem" }
+  schemas:
+    Problem:
+      type: object
+      properties:
+        type: { type: string }
+        title: { type: string }
+        status: { type: integer }
+        detail: { type: string }
+    EntitySummary:
+      type: object
+      properties:
+        id: { type: string }
+        slug: { type: string }
+        name: { type: string }
+        nameEn: { type: string }
+        etype: { type: string }
+        counts: { type: object }
+    EntityList:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/EntitySummary" }
+        next_cursor: { type: string }

@@ -14,6 +14,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	kmapv1 "github.com/maksim-mshp/nornickel-hackathon/contracts/gen/go/kmap/v1"
+	"github.com/maksim-mshp/nornickel-hackathon/contracts/openapi"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/audit"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/auth"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/blob"
@@ -153,7 +154,14 @@ func (server *Server) RegisterHTTP(router chi.Router) {
 	router.Post("/v1/facts/{id}/status", server.secure(auth.OpFactDecision, server.updateFactStatusHandler))
 	router.Post("/v1/entities/{id}/merge", server.secure(auth.OpEntityMerge, server.mergeEntityHandler))
 	router.Post("/v1/contradictions/{id}/decision", server.secure(auth.OpContradictionDecision, server.decideContradictionHandler))
+	router.Get("/openapi.yaml", server.cors(server.openAPIHandler))
 	router.Options("/v1/*", server.corsPreflight)
+}
+
+func (server *Server) openAPIHandler(w stdhttp.ResponseWriter, _ *stdhttp.Request) {
+	w.Header().Set("Content-Type", "application/yaml")
+	w.WriteHeader(stdhttp.StatusOK)
+	_, _ = w.Write(openapi.Spec)
 }
 
 func (server *Server) Close() error {
