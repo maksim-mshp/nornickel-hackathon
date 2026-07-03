@@ -69,6 +69,40 @@ func TestAskEmitsOrderedEventsAndPassesGuard(t *testing.T) {
 	}
 }
 
+type hallucinatingSynth struct{}
+
+func (hallucinatingSynth) Synthesize(context.Context, *kmapv1.EvidencePack) (Synthesis, error) {
+	return Synthesis{Summary: "Скорость составляет 999,9 м/с по всем источникам.", Confidence: 0.9}, nil
+}
+
+func TestAskDegradesOnGuardViolation(t *testing.T) {
+	t.Parallel()
+
+	service := NewService(fakeSearch{pack: samplecatholytePack(t)}, WithSynthesizer(hallucinatingSynth{}))
+	var done *kmapv1.AskResponse
+	err := service.Ask(context.Background(), &kmapv1.AskRequest{Question: "скорость католита?"}, func(event *kmapv1.AskResponse) error {
+		if event.GetType() == "answer.done" {
+			done = event
+		}
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("ask failed: %v", err)
+	}
+	if done == nil {
+		t.Fatal("expected answer.done event")
+	}
+	if !done.GetAnswer().GetGuard().GetDegraded() {
+		t.Fatal("expected guard to degrade on hallucinated number")
+	}
+	if done.GetAnswer().GetGuard().GetViolations() != 0 {
+		t.Fatalf("expected zero violations after degradation, got %d", done.GetAnswer().GetGuard().GetViolations())
+	}
+	if strings.Contains(done.GetAnswer().GetSummary(), "999") {
+		t.Fatalf("degraded answer must not contain hallucinated number: %q", done.GetAnswer().GetSummary())
+	}
+}
+
 func TestGuardFlagsForeignNumber(t *testing.T) {
 	t.Parallel()
 

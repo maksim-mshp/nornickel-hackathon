@@ -32,9 +32,31 @@ type Cache interface {
 
 type Emit func(*kmapv1.AskResponse) error
 
+type Synthesis struct {
+	Summary    string
+	Methods    []methodView
+	Confidence float64
+}
+
+type Synthesizer interface {
+	Synthesize(ctx context.Context, pack *kmapv1.EvidencePack) (Synthesis, error)
+}
+
+type extractiveSynthesizer struct{}
+
+func (extractiveSynthesizer) Synthesize(_ context.Context, pack *kmapv1.EvidencePack) (Synthesis, error) {
+	return extractiveSynthesis(pack), nil
+}
+
+func extractiveSynthesis(pack *kmapv1.EvidencePack) Synthesis {
+	summary, methods, confidence := synthesize(pack)
+	return Synthesis{Summary: summary, Methods: methods, Confidence: confidence}
+}
+
 type Service struct {
 	search SearchClient
 	cache  Cache
+	synth  Synthesizer
 }
 
 type Option func(*Service)
@@ -45,8 +67,14 @@ func WithCache(cache Cache) Option {
 	}
 }
 
+func WithSynthesizer(synth Synthesizer) Option {
+	return func(service *Service) {
+		service.synth = synth
+	}
+}
+
 func NewService(search SearchClient, options ...Option) *Service {
-	service := &Service{search: search}
+	service := &Service{search: search, synth: extractiveSynthesizer{}}
 	for _, option := range options {
 		option(service)
 	}
@@ -83,8 +111,19 @@ func (service *Service) Ask(ctx context.Context, req *kmapv1.AskRequest, emit Em
 		return err
 	}
 
-	summary, methods, confidence := synthesize(pack)
-	for _, delta := range chunkDeltas(summary, deltaWordsPerChunk) {
+	result, err := service.synth.Synthesize(ctx, pack)
+	if err != nil {
+		return status.Errorf(codes.Internal, "synthesize: %v", err)
+	}
+	guard := runGuard(result.Summary, pack)
+	degraded := false
+	if guard.violations > 0 {
+		result = extractiveSynthesis(pack)
+		guard = runGuard(result.Summary, pack)
+		degraded = true
+	}
+
+	for _, delta := range chunkDeltas(result.Summary, deltaWordsPerChunk) {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
@@ -93,23 +132,22 @@ func (service *Service) Ask(ctx context.Context, req *kmapv1.AskRequest, emit Em
 		}
 	}
 
-	guard := runGuard(summary, pack)
-	payload, err := methodsStruct(methods)
+	payload, err := methodsStruct(result.Methods)
 	if err != nil {
 		return status.Errorf(codes.Internal, "encode answer: %v", err)
 	}
 	answer := &kmapv1.AnswerDoc{
-		Summary:    summary,
-		Confidence: confidence,
+		Summary:    result.Summary,
+		Confidence: result.Confidence,
 		Payload:    payload,
 		Guard: &kmapv1.GuardReport{
 			NumbersChecked: uint32(guard.numbersChecked),
 			Violations:     uint32(guard.violations),
-			Degraded:       guard.violations > 0,
+			Degraded:       degraded,
 		},
 	}
 
-	if service.cache != nil && guard.violations == 0 {
+	if service.cache != nil && guard.violations == 0 && !degraded {
 		_ = service.cache.Put(ctx, key, &CachedAnswer{Plan: plan, Evidence: pack, Answer: answer})
 	}
 
