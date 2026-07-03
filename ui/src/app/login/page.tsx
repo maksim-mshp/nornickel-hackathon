@@ -1,16 +1,35 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ROLE_LABELS, useRole, type DemoRole } from "@/shared/lib/role";
+import { loginOIDC, ROLE_LABELS, useRole, type DemoRole } from "@/shared/lib/role";
 import { Isolines } from "@/shared/ui/isolines";
 
 export default function LoginPage() {
   const router = useRouter();
   const setRole = useRole((store) => store.setRole);
 
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+
   const enter = (role: DemoRole) => {
     setRole(role);
     router.push("/");
+  };
+
+  const submitOIDC = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setBusy(true);
+    setError("");
+    try {
+      await loginOIDC(username.trim(), password);
+      router.push("/");
+    } catch {
+      setError("Неверный логин или Keycloak недоступен");
+      setBusy(false);
+    }
   };
 
   return (
@@ -26,14 +45,36 @@ export default function LoginPage() {
         </p>
       </div>
       <div className="flex w-full max-w-xs flex-col gap-2">
-        <button
-          type="button"
-          disabled
-          title="Keycloak подключается в prod-режиме"
-          className="h-11 rounded-sm bg-electrolyte font-medium text-bg-0 opacity-40"
-        >
-          Войти через OIDC
-        </button>
+        <form onSubmit={submitOIDC} className="flex flex-col gap-2">
+          <input
+            type="text"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            placeholder="Keycloak-логин (напр. expert)"
+            autoComplete="username"
+            className="h-10 rounded-sm border border-line bg-bg-1 px-3 text-[13px] text-ink-0 placeholder:text-ink-2 focus:border-electrolyte focus:outline-none"
+          />
+          <input
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            placeholder="Пароль"
+            autoComplete="current-password"
+            className="h-10 rounded-sm border border-line bg-bg-1 px-3 text-[13px] text-ink-0 placeholder:text-ink-2 focus:border-electrolyte focus:outline-none"
+          />
+          <button
+            type="submit"
+            disabled={busy || username === "" || password === ""}
+            className="h-11 rounded-sm bg-electrolyte font-medium text-bg-0 transition-opacity disabled:opacity-40"
+          >
+            {busy ? "Вход…" : "Войти через OIDC (Keycloak)"}
+          </button>
+          {error && (
+            <p className="text-[11px] text-melt" role="alert">
+              {error}
+            </p>
+          )}
+        </form>
         <div className="my-2 flex items-center gap-3 text-ink-2">
           <span className="h-px flex-1 bg-line" />
           <span className="font-mono text-[10px] uppercase tracking-wider">

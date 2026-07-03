@@ -5,6 +5,7 @@ import {
   CATHOLYTE_PLAN,
   CATHOLYTE_SUMMARY,
 } from "@/shared/api/mock/catholyte-scenario";
+import { authHeaders } from "@/shared/lib/role";
 
 const ASK_ENDPOINT = "/v1/ask";
 
@@ -19,6 +20,7 @@ export async function* askStream(
       headers: {
         "Content-Type": "application/json",
         Accept: "text/event-stream",
+        ...authHeaders(),
       },
       body: JSON.stringify({ question }),
       signal,

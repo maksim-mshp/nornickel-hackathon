@@ -1,3 +1,5 @@
+import { authHeaders } from "@/shared/lib/role";
+
 export type ExpertProfile = {
   id: string;
   name: string;
@@ -37,7 +39,9 @@ export type DocumentRow = {
 
 async function getJSON<T>(path: string, fallback: T): Promise<T> {
   try {
-    const response = await fetch(path, { headers: { Accept: "application/json" } });
+    const response = await fetch(path, {
+      headers: { Accept: "application/json", ...authHeaders() },
+    });
     if (!response.ok) return fallback;
     const data = (await response.json()) as Partial<Record<string, unknown>>;
     const items = (data as { items?: T }).items;
