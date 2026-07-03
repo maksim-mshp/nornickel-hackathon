@@ -72,7 +72,11 @@ func NewServer(cfg config.Bundle, logger *slog.Logger) (*Server, error) {
 			closeAll()
 			return nil, fmt.Errorf("grpc_clients.%s is required", name)
 		}
-		conn, err := grpc.NewClient(target, grpc.WithTransportCredentials(insecure.NewCredentials()))
+		conn, err := grpc.NewClient(target,
+			grpc.WithTransportCredentials(insecure.NewCredentials()),
+			grpc.WithChainUnaryInterceptor(auth.UnaryClientInterceptor()),
+			grpc.WithChainStreamInterceptor(auth.StreamClientInterceptor()),
+		)
 		if err != nil {
 			closeAll()
 			return nil, fmt.Errorf("create %s grpc client: %w", name, err)

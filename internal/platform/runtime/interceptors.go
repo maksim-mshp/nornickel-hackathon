@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 	grpc_recovery "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/recovery"
+	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/auth"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/metadata"
@@ -21,11 +22,13 @@ func (app *App) grpcServerOptions() []grpc.ServerOption {
 	return []grpc.ServerOption{
 		grpc.ChainUnaryInterceptor(
 			app.requestIDUnaryInterceptor,
+			auth.UnaryServerInterceptor(),
 			app.loggingUnaryInterceptor,
 			grpc_recovery.UnaryServerInterceptor(grpc_recovery.WithRecoveryHandler(app.recoverPanic)),
 		),
 		grpc.ChainStreamInterceptor(
 			app.requestIDStreamInterceptor,
+			auth.StreamServerInterceptor(),
 			app.loggingStreamInterceptor,
 			grpc_recovery.StreamServerInterceptor(grpc_recovery.WithRecoveryHandler(app.recoverPanic)),
 		),

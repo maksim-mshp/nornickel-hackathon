@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 const (
@@ -27,6 +28,22 @@ func SetRLS(ctx context.Context, tx pgx.Tx, principal Principal) error {
 		return fmt.Errorf("set rls context: %w", err)
 	}
 	return nil
+}
+
+func WithRLS(ctx context.Context, pool *pgxpool.Pool, principal Principal, fn func(context.Context, pgx.Tx) error) error {
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return fmt.Errorf("begin rls tx: %w", err)
+	}
+	defer func() { _ = tx.Rollback(ctx) }()
+
+	if err := SetRLS(ctx, tx, principal); err != nil {
+		return err
+	}
+	if err := fn(ctx, tx); err != nil {
+		return err
+	}
+	return tx.Commit(ctx)
 }
 
 func normalizeRLS(principal Principal) (string, string) {

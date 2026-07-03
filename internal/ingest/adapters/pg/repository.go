@@ -10,9 +10,16 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/ingest/app"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/ingest/domain"
+	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/auth"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/events"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/outbox"
+	platformpg "github.com/maksim-mshp/nornickel-hackathon/internal/platform/pg"
 )
+
+func rlsPrincipal(ctx context.Context) platformpg.Principal {
+	principal, _ := auth.FromContext(ctx)
+	return platformpg.Principal{UserID: principal.UserID, DocAccess: principal.DocAccess}
+}
 
 type Repository struct {
 	pool *pgxpool.Pool
@@ -26,14 +33,22 @@ const findIDBySHA256SQL = `select id from core.documents where sha256 = $1`
 
 func (repository *Repository) FindIDBySHA256(ctx context.Context, sha256 []byte) (uuid.UUID, bool, error) {
 	var id uuid.UUID
-	err := repository.pool.QueryRow(ctx, findIDBySHA256SQL, sha256).Scan(&id)
-	if err == pgx.ErrNoRows {
-		return uuid.Nil, false, nil
-	}
+	found := false
+	err := platformpg.WithRLS(ctx, repository.pool, platformpg.Principal{UserID: "system", DocAccess: auth.AccessRestricted}, func(ctx context.Context, tx pgx.Tx) error {
+		scanErr := tx.QueryRow(ctx, findIDBySHA256SQL, sha256).Scan(&id)
+		if scanErr == pgx.ErrNoRows {
+			return nil
+		}
+		if scanErr != nil {
+			return fmt.Errorf("find document by sha256: %w", scanErr)
+		}
+		found = true
+		return nil
+	})
 	if err != nil {
-		return uuid.Nil, false, fmt.Errorf("find document by sha256: %w", err)
+		return uuid.Nil, false, err
 	}
-	return id, true, nil
+	return id, found, nil
 }
 
 const insertDocumentSQL = `insert into core.documents
@@ -53,6 +68,10 @@ func (repository *Repository) Register(ctx context.Context, doc domain.Document,
 		return domain.Document{}, fmt.Errorf("begin tx: %w", err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
+
+	if err := platformpg.SetRLS(ctx, tx, rlsPrincipal(ctx)); err != nil {
+		return domain.Document{}, err
+	}
 
 	if _, err := tx.Exec(ctx, insertDocumentSQL,
 		doc.ID, doc.Title, doc.DocType, nullableString(doc.Lang), nullableInt(doc.Year),
@@ -96,31 +115,34 @@ func (repository *Repository) GetStatus(ctx context.Context, documentID uuid.UUI
 	var (
 		status  string
 		version int
+		stages  []domain.Stage
 	)
-	err := repository.pool.QueryRow(ctx, getDocumentSQL, documentID).Scan(&status, &version)
-	if err == pgx.ErrNoRows {
-		return domain.Document{}, nil, domain.ErrDocumentNotFound
-	}
-	if err != nil {
-		return domain.Document{}, nil, fmt.Errorf("get document status: %w", err)
-	}
-
-	rows, err := repository.pool.Query(ctx, getStagesSQL, documentID, version)
-	if err != nil {
-		return domain.Document{}, nil, fmt.Errorf("query ingest stages: %w", err)
-	}
-	defer rows.Close()
-
-	var stages []domain.Stage
-	for rows.Next() {
-		var stage domain.Stage
-		if err := rows.Scan(&stage.Stage, &stage.Status, &stage.Attempt, &stage.Error); err != nil {
-			return domain.Document{}, nil, fmt.Errorf("scan ingest stage: %w", err)
+	err := platformpg.WithRLS(ctx, repository.pool, rlsPrincipal(ctx), func(ctx context.Context, tx pgx.Tx) error {
+		scanErr := tx.QueryRow(ctx, getDocumentSQL, documentID).Scan(&status, &version)
+		if scanErr == pgx.ErrNoRows {
+			return domain.ErrDocumentNotFound
 		}
-		stages = append(stages, stage)
-	}
-	if err := rows.Err(); err != nil {
-		return domain.Document{}, nil, fmt.Errorf("iterate ingest stages: %w", err)
+		if scanErr != nil {
+			return fmt.Errorf("get document status: %w", scanErr)
+		}
+
+		rows, scanErr := tx.Query(ctx, getStagesSQL, documentID, version)
+		if scanErr != nil {
+			return fmt.Errorf("query ingest stages: %w", scanErr)
+		}
+		defer rows.Close()
+
+		for rows.Next() {
+			var stage domain.Stage
+			if scanErr := rows.Scan(&stage.Stage, &stage.Status, &stage.Attempt, &stage.Error); scanErr != nil {
+				return fmt.Errorf("scan ingest stage: %w", scanErr)
+			}
+			stages = append(stages, stage)
+		}
+		return rows.Err()
+	})
+	if err != nil {
+		return domain.Document{}, nil, err
 	}
 
 	doc := domain.Document{ID: documentID, Version: version, Status: status}
@@ -136,20 +158,26 @@ LEFT JOIN kg.numeric_facts f ON f.document_id = d.id
 GROUP BY d.id, d.title, d.doc_type, d.lang, d.geography, d.access_level, d.status, d.year, d.created_at
 ORDER BY d.created_at DESC
 LIMIT $1`
-	rows, err := repository.pool.Query(ctx, query, int(limit))
-	if err != nil {
-		return nil, fmt.Errorf("query documents: %w", err)
-	}
-	defer rows.Close()
 	var result []app.DocumentSummary
-	for rows.Next() {
-		var item app.DocumentSummary
-		if err := rows.Scan(&item.ID, &item.Title, &item.DocType, &item.Lang, &item.Geography, &item.AccessLevel, &item.Status, &item.Facts, &item.Year); err != nil {
-			return nil, fmt.Errorf("scan document: %w", err)
+	err := platformpg.WithRLS(ctx, repository.pool, rlsPrincipal(ctx), func(ctx context.Context, tx pgx.Tx) error {
+		rows, queryErr := tx.Query(ctx, query, int(limit))
+		if queryErr != nil {
+			return fmt.Errorf("query documents: %w", queryErr)
 		}
-		result = append(result, item)
+		defer rows.Close()
+		for rows.Next() {
+			var item app.DocumentSummary
+			if scanErr := rows.Scan(&item.ID, &item.Title, &item.DocType, &item.Lang, &item.Geography, &item.AccessLevel, &item.Status, &item.Facts, &item.Year); scanErr != nil {
+				return fmt.Errorf("scan document: %w", scanErr)
+			}
+			result = append(result, item)
+		}
+		return rows.Err()
+	})
+	if err != nil {
+		return nil, err
 	}
-	return result, rows.Err()
+	return result, nil
 }
 
 func nullableString(value string) any {

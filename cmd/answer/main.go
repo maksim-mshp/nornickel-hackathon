@@ -9,6 +9,7 @@ import (
 
 	kmapv1 "github.com/maksim-mshp/nornickel-hackathon/contracts/gen/go/kmap/v1"
 	answergrpc "github.com/maksim-mshp/nornickel-hackathon/internal/answer/ports/grpc"
+	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/auth"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/config"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/runtime"
 	"google.golang.org/grpc"
@@ -28,7 +29,11 @@ func build(cfg config.Bundle, _ *slog.Logger) (*runtime.Assembly, error) {
 		return nil, errors.New("grpc_clients.search is required")
 	}
 
-	conn, err := grpc.NewClient(target, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient(target,
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithChainUnaryInterceptor(auth.UnaryClientInterceptor()),
+		grpc.WithChainStreamInterceptor(auth.StreamClientInterceptor()),
+	)
 	if err != nil {
 		return nil, fmt.Errorf("create search grpc client: %w", err)
 	}
