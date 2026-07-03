@@ -1,0 +1,42 @@
+groups:
+  - name: kmap-availability
+    rules:
+      - alert: ServiceDown
+        expr: up{job=~"kmap-.*"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "kmap service {{ $labels.instance }} is down"
+      - alert: GatewayHighErrorRate
+        expr: sum(rate(http_requests_total{job="kmap-gateway",code=~"5.."}[5m])) / sum(rate(http_requests_total{job="kmap-gateway"}[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "gateway 5xx rate above 5% for 5m"
+  - name: kmap-latency
+    rules:
+      - alert: AnswerFirstTokenSlow
+        expr: histogram_quantile(0.95, sum(rate(kmap_answer_first_token_seconds_bucket[5m])) by (le)) > 1.5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "answer first-token p95 above 1.5s SLO"
+  - name: kmap-pipeline
+    rules:
+      - alert: DLQGrowing
+        expr: increase(kmap_dlq_messages_total[15m]) > 0
+        for: 0m
+        labels:
+          severity: warning
+        annotations:
+          summary: "messages landing in DLQ"
+      - alert: BackupStale
+        expr: time() - kmap_backup_last_success_timestamp_seconds > 25200
+        for: 0m
+        labels:
+          severity: critical
+        annotations:
+          summary: "no successful backup in 7h (SLA 6h)"

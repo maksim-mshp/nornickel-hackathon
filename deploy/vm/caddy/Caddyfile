@@ -1,0 +1,28 @@
+{
+	email ops@kmap.local
+}
+
+kmap.example.org {
+	encode zstd gzip
+
+	@api path /v1/* /openapi.json /openapi.yaml /docs /docs/*
+	handle @api {
+		reverse_proxy gateway:8080
+	}
+
+	handle {
+		reverse_proxy ui:3000
+	}
+
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+	}
+
+	log {
+		output stdout
+		format json
+	}
+}

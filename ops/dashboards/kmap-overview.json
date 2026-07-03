@@ -1,0 +1,44 @@
+{
+  "title": "kmap — overview",
+  "schemaVersion": 39,
+  "editable": true,
+  "time": {"from": "now-6h", "to": "now"},
+  "refresh": "30s",
+  "panels": [
+    {
+      "id": 1,
+      "title": "Service up",
+      "type": "stat",
+      "gridPos": {"h": 6, "w": 8, "x": 0, "y": 0},
+      "targets": [{"expr": "up{job=~\"kmap-.*\"}"}]
+    },
+    {
+      "id": 2,
+      "title": "Gateway request rate by code",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 16, "x": 8, "y": 0},
+      "targets": [{"expr": "sum by (code) (rate(http_requests_total{job=\"kmap-gateway\"}[5m]))"}]
+    },
+    {
+      "id": 3,
+      "title": "Answer first-token p95 (SLO 1.5s)",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "targets": [{"expr": "histogram_quantile(0.95, sum(rate(kmap_answer_first_token_seconds_bucket[5m])) by (le))"}]
+    },
+    {
+      "id": 4,
+      "title": "DLQ messages",
+      "type": "timeseries",
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "targets": [{"expr": "sum(increase(kmap_dlq_messages_total[15m]))"}]
+    },
+    {
+      "id": 5,
+      "title": "Backup last success age (h)",
+      "type": "stat",
+      "gridPos": {"h": 6, "w": 8, "x": 0, "y": 16},
+      "targets": [{"expr": "(time() - kmap_backup_last_success_timestamp_seconds) / 3600"}]
+    }
+  ]
+}
