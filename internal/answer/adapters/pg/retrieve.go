@@ -58,26 +58,36 @@ WITH q AS (
   SELECT websearch_to_tsquery('russian', $1) || websearch_to_tsquery('english', $1) AS query
 ),
 ranked AS (
-  SELECT c.id, ts_rank_cd(c.tsv_ru || c.tsv_en, q.query) AS rank
+  SELECT c.document_id, max(ts_rank_cd(c.tsv_ru || c.tsv_en, q.query)) AS rank
   FROM core.chunks c, q
   WHERE (c.tsv_ru || c.tsv_en) @@ q.query
+  GROUP BY c.document_id
   ORDER BY rank DESC
-  LIMIT 80
+  LIMIT 15
+),
+picked AS (
+  SELECT f.id, f.operator, f.vmin, f.vmax, f.unit_orig, f.vmin_si, f.vmax_si, f.unit_code,
+         f.parameter_id, f.relation, f.geography, f.quote, f.page, f.document_id,
+         f.extraction_method, f.extractor_version, f.extraction_confidence, f.validation_status,
+         r.rank,
+         row_number() OVER (PARTITION BY f.document_id ORDER BY f.extraction_confidence DESC) AS rn
+  FROM ranked r
+  JOIN kg.numeric_facts f ON f.document_id = r.document_id
+  WHERE f.unit_code IS NOT NULL
 )
-SELECT f.id::text, f.operator::text, f.vmin::float8, f.vmax::float8, coalesce(f.unit_orig, ''),
-       f.vmin_si::float8, f.vmax_si::float8, coalesce(u.si_unit, ''),
-       coalesce(p.canonical_name, f.relation), coalesce(p.slug, ''),
-       f.geography::text, coalesce(f.quote, ''), coalesce(f.page, 0),
+SELECT p.id::text, p.operator::text, p.vmin::float8, p.vmax::float8, coalesce(p.unit_orig, ''),
+       p.vmin_si::float8, p.vmax_si::float8, coalesce(u.si_unit, ''),
+       coalesce(pe.canonical_name, p.relation), coalesce(pe.slug, ''),
+       p.geography::text, coalesce(p.quote, ''), coalesce(p.page, 0),
        coalesce(d.title, ''), coalesce(d.doc_type::text, ''), coalesce(d.year, 0),
-       f.extraction_method::text, coalesce(f.extractor_version, ''),
-       f.extraction_confidence::float8, f.validation_status::text
-FROM ranked r
-JOIN kg.numeric_facts f ON f.chunk_id = r.id
-JOIN core.documents d ON d.id = f.document_id
-LEFT JOIN kg.entities p ON p.id = f.parameter_id
-LEFT JOIN kg.units u ON u.code = f.unit_code
-WHERE f.unit_code IS NOT NULL
-ORDER BY r.rank DESC, f.extraction_confidence DESC
+       p.extraction_method::text, coalesce(p.extractor_version, ''),
+       p.extraction_confidence::float8, p.validation_status::text
+FROM picked p
+JOIN core.documents d ON d.id = p.document_id
+LEFT JOIN kg.entities pe ON pe.id = p.parameter_id
+LEFT JOIN kg.units u ON u.code = p.unit_code
+WHERE p.rn <= 4
+ORDER BY p.rank DESC, p.extraction_confidence DESC
 LIMIT $2`
 
 type factRow struct {

@@ -170,10 +170,7 @@ func (service *Service) augmentFacts(ctx context.Context, pack *kmapv1.EvidenceP
 	if service.retriever == nil || len(pack.GetFacts()) >= minFactsForAnswer {
 		return pack
 	}
-	query := strings.TrimSpace(strings.Join(terms, " "))
-	if query == "" {
-		query = question
-	}
+	query := ftsQuery(terms, question)
 	facts, err := service.retriever.FactsByText(ctx, query, ftsFactLimit)
 	if err != nil || len(facts) == 0 {
 		return pack
@@ -181,6 +178,20 @@ func (service *Service) augmentFacts(ctx context.Context, pack *kmapv1.EvidenceP
 	pack.Facts = facts
 	pack.Contradictions = nil
 	return pack
+}
+
+func ftsQuery(terms []string, question string) string {
+	cleaned := make([]string, 0, len(terms))
+	for _, term := range terms {
+		term = strings.TrimSpace(term)
+		if term != "" {
+			cleaned = append(cleaned, term)
+		}
+	}
+	if len(cleaned) == 0 {
+		return strings.TrimSpace(question)
+	}
+	return strings.Join(cleaned, " OR ")
 }
 
 func (service *Service) runSynthesis(ctx context.Context, question string, pack *kmapv1.EvidencePack) (Synthesis, error) {
