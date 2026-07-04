@@ -239,7 +239,7 @@ function normalizePlan(value: unknown): QueryPlan {
   };
 }
 
-function normalizeAnswer(value: unknown): AnswerDoc {
+export function normalizeAnswer(value: unknown): AnswerDoc {
   const o = obj(value);
   const g = obj(o.guard);
   return {
@@ -261,7 +261,7 @@ function normalizeAnswer(value: unknown): AnswerDoc {
   };
 }
 
-function normalizePack(data: Record<string, unknown>): EvidencePack {
+export function normalizePack(data: Record<string, unknown>): EvidencePack {
   const gaps = asArray<Record<string, unknown>>(data.gaps).map((gap) => ({
     label: String(gap.label ?? ""),
     score: num(gap.score),

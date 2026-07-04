@@ -1,3 +1,5 @@
+import { normalizeAnswer, normalizePack } from "@/shared/api/ask-client";
+import type { AnswerDoc, EvidencePack } from "@/shared/api/types";
 import { authHeaders } from "@/shared/lib/role";
 
 export type ExpertProfile = {
@@ -590,6 +592,26 @@ export async function getEntityCard(slug: string): Promise<EntityCardLive | null
       year: point.year ?? 0,
       facts: point.facts ?? 0,
     })),
+  };
+}
+
+export type SavedAnswer = {
+  question: string;
+  answer: AnswerDoc;
+  pack: EvidencePack;
+};
+
+export async function getSavedAnswer(id: string): Promise<SavedAnswer | null> {
+  const data = await getObject<{
+    question?: unknown;
+    answer?: unknown;
+    pack?: unknown;
+  }>(`/v1/answers/${encodeURIComponent(id)}`);
+  if (!data || !data.answer) return null;
+  return {
+    question: String(data.question ?? ""),
+    answer: normalizeAnswer(data.answer),
+    pack: normalizePack((data.pack ?? {}) as Record<string, unknown>),
   };
 }
 
