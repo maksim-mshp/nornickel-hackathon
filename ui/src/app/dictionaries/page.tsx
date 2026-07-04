@@ -8,6 +8,7 @@ import {
   type EntitySummaryLive,
   type ParsedConstraint,
 } from "@/shared/api/browse";
+import { useRole } from "@/shared/lib/role";
 
 type UnitRow = { code: string; names: string; dimension: string; si: string; factor: string };
 type SynonymRow = { canonical: string; aliases: { value: string; lang: string; status: string }[] };
@@ -48,6 +49,7 @@ export default function DictionariesPage() {
   const [entities, setEntities] = useState<EntitySummaryLive[]>([]);
   const [constraints, setConstraints] = useState<ParsedConstraint[]>([]);
   const [parsing, setParsing] = useState(false);
+  const roleToken = useRole((store) => store.token);
 
   useEffect(() => {
     let alive = true;
@@ -57,7 +59,7 @@ export default function DictionariesPage() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [roleToken]);
 
   useEffect(() => {
     let alive = true;

@@ -8,6 +8,7 @@ import {
   type DocumentRow,
 } from "@/shared/api/browse";
 import { pluralCount } from "@/shared/lib/plural";
+import { useRole } from "@/shared/lib/role";
 
 const STAGES = ["registered", "parsed", "extracted", "indexed"] as const;
 
@@ -27,6 +28,7 @@ export default function DocumentsPage() {
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const roleToken = useRole((store) => store.token);
 
   const flash = (message: string) => {
     setToast(message);
@@ -56,7 +58,7 @@ export default function DocumentsPage() {
     return () => {
       alive = false;
     };
-  }, [page]);
+  }, [page, roleToken]);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const from = total === 0 ? 0 : page * PAGE_SIZE + 1;

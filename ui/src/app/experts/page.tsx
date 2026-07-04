@@ -3,14 +3,16 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { getExperts, type ExpertProfile } from "@/shared/api/browse";
+import { useRole } from "@/shared/lib/role";
 import { Isolines } from "@/shared/ui/isolines";
 
-const CURRENT_YEAR = 2026;
+const CURRENT_YEAR = new Date().getFullYear();
 
 export default function ExpertsPage() {
   const [experts, setExperts] = useState<ExpertProfile[]>([]);
   const [query, setQuery] = useState("");
   const [activeOnly, setActiveOnly] = useState(false);
+  const roleToken = useRole((store) => store.token);
 
   useEffect(() => {
     let alive = true;
@@ -20,7 +22,7 @@ export default function ExpertsPage() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [roleToken]);
 
   const filtered = useMemo(() => {
     const needle = query.trim().toLowerCase();

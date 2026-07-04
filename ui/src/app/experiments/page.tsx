@@ -3,12 +3,14 @@
 import { useEffect, useMemo, useState } from "react";
 import { getExperiments, type ExperimentRow } from "@/shared/api/browse";
 import { pluralCount } from "@/shared/lib/plural";
+import { useRole } from "@/shared/lib/role";
 
 export default function ExperimentsPage() {
   const [rows, setRows] = useState<ExperimentRow[]>([]);
   const [process, setProcess] = useState<string | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [compare, setCompare] = useState(false);
+  const roleToken = useRole((store) => store.token);
 
   useEffect(() => {
     let alive = true;
@@ -18,7 +20,7 @@ export default function ExperimentsPage() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [roleToken]);
 
   const processes = useMemo(
     () => Array.from(new Set(rows.map((row) => row.process))),

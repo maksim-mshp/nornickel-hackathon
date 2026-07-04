@@ -12,6 +12,7 @@ import {
   type CoverageKpi,
   type RiskItem,
 } from "@/shared/api/mock/coverage-scenario";
+import { useRole } from "@/shared/lib/role";
 import { Isolines } from "@/shared/ui/isolines";
 import { CoverageHeatmap } from "@/widgets/coverage/coverage-heatmap";
 
@@ -23,6 +24,7 @@ const CONTRADICTORY = new Set(["contradictory", "противоречия"]);
 
 export default function CoveragePage() {
   const [live, setLive] = useState<CoverageCellLive[] | null>(null);
+  const roleToken = useRole((store) => store.token);
 
   useEffect(() => {
     let alive = true;
@@ -32,7 +34,7 @@ export default function CoveragePage() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [roleToken]);
 
   const view = useMemo(() => buildView(live), [live]);
 

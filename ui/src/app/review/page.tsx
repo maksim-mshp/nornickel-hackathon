@@ -12,6 +12,7 @@ import {
   type ReviewEntity,
   type ReviewOrphan,
 } from "@/shared/api/browse";
+import { useRole } from "@/shared/lib/role";
 
 type Tab = "entities" | "orphans" | "contradictions";
 
@@ -27,6 +28,7 @@ export default function ReviewPage() {
   const [orphans, setOrphans] = useState<ReviewOrphan[]>([]);
   const [contradictions, setContradictions] = useState<ContradictionLive[]>([]);
   const [toast, setToast] = useState<string | null>(null);
+  const roleToken = useRole((store) => store.token);
 
   useEffect(() => {
     let alive = true;
@@ -44,7 +46,7 @@ export default function ReviewPage() {
     return () => {
       alive = false;
     };
-  }, []);
+  }, [roleToken]);
 
   const counts: Record<Tab, number> = {
     entities: entities.length,
