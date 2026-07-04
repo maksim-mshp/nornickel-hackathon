@@ -11,9 +11,10 @@ Python-сервисы: Python 3.13 (uv), gRPC-сервер (`grpcio`), ruff+mypy
 ## 1. kmap-gateway (Go) — публичный API
 
 - **Назначение:** единственная точка входа UI/интеграций. REST (OpenAPI 3.1 из аннотаций **swag v2**; спека публикуется на `/openapi.json`, Swagger UI на `/docs`), SSE-стриминг ответов, WebSocket не используем.
-- **AuthN:** OIDC (Keycloak 26.6): валидация JWT (JWKS-кэш), маппинг claims → `Principal{user_id, roles[], doc_access}`. Для демо — статические токены-роли (`auth.mode: demo` в YAML).
-- **AuthZ:** middleware RBAC по таблице «роль → операции» ([01-brief.md](01-brief.md) §2.2); установка RLS-контекста запроса (`SET LOCAL app.doc_access`, `app.user_id`) через передачу principal в gRPC-метаданных вниз.
-- **Аудит:** каждое действие (search/view/export/edit/login) → `kmap.audit.v1.*` (fire-and-forget в JetStream) + синхронная запись критичных (export, fact_edit) в PG.
+- **Auth/аудит — устаревшее требование ТЗ (demo-режим as-is, ADR-6): не приоритет, дальше не развивается:**
+  - **AuthN:** OIDC (Keycloak 26.6): валидация JWT (JWKS-кэш), маппинг claims → `Principal{user_id, roles[], doc_access}`. Для демо — статические токены-роли (`auth.mode: demo` в YAML).
+  - **AuthZ:** middleware RBAC по таблице «роль → операции» ([01-brief.md](01-brief.md) §2.2); установка RLS-контекста запроса (`SET LOCAL app.doc_access`, `app.user_id`) через передачу principal в gRPC-метаданных вниз.
+  - **Аудит:** каждое действие (search/view/export/edit/login) → `kmap.audit.v1.*` (fire-and-forget в JetStream) + синхронная запись критичных (export, fact_edit) в PG.
 - **API-поверхность:** см. [10-contracts.md](10-contracts.md) §2.
 - **Зависимости (gRPC):** answer, search, catalog, ingest. **Масштабирование:** stateless; реплики по RPS (compose scale).
 

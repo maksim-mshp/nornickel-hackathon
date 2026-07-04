@@ -307,6 +307,8 @@ CREATE TABLE epi.expert_topics (       -- профили экспертизы (H
 
 ### 3.4. iam / ops / eval
 
+> Схема `iam` и RLS на `core.documents` — **устаревшее требование ТЗ (demo-режим as-is, ADR-6): не приоритет, дальше не развивается.** DDL ниже сохранён как факт кода. `ops` и `eval` к этому не относятся.
+
 ```sql
 CREATE TABLE iam.users (id uuid PRIMARY KEY, oidc_sub text UNIQUE NOT NULL,
   display_name text, email text, person_id uuid, roles text[] NOT NULL DEFAULT '{researcher}',

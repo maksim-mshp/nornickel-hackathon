@@ -8,7 +8,7 @@
 |---|---|---|
 | Доступность API (месяц) | 99.5% (single-host потолок) | systemd-автостарт, healthchecks + restart-политики, деплой с откатом по digest, алерты |
 | `/v1/ask` first token | p95 ≤ 1.5 c | evidence раньше синтеза; rules-fallback парсера |
-| `/v1/ask` полный ответ | p95 ≤ 5 c (НФТ ТЗ: 3–5 c) | бюджет латентности [07-query-pipeline.md](07-query-pipeline.md) §5 |
+| `/v1/ask` полный ответ | p95 ≤ 5 c (НФТ ТЗ: 3–5 c — **желательный, не жёсткий**: обоснованный размен скорости на точность допустим) | бюджет латентности [07-query-pipeline.md](07-query-pipeline.md) §5 |
 | `/v1/search`, браузинг | p95 ≤ 800 мс | реплики PG, HNSW iterative scans, индексная дисциплина |
 | Ingestion одного документа | ≤ 30 c parse (НФТ) | пулы воркеров, буферизация стримом |
 | Свежесть знаний (док → в поиске) | p95 ≤ 5 мин | event-driven конвейер |
@@ -42,16 +42,21 @@
 
 ## 4. Безопасность и ИБ
 
+> **Роли/RBAC/RLS/OIDC — устаревшее требование ТЗ (ADR-6): реализовывать НЕ нужно, на оценку не влияет.** Собранный ранее минимальный контур оставлен в demo-режиме as-is (bullets AuthN/AuthZ/Аудит ниже описывают именно его — как факт кода, а не приоритет). Реальная защита MVP — сетевой периметр, egress-контроль, секреты вне git; они и остаются в фокусе.
+
 - **Периметр**: единственная защита MVP — сетевая: наружу VM открыты только нужные порты (ufw), PG/NATS/MinIO не публикуются на хост (внутренняя docker-сеть); исходящий трафик — только к настроенному LLM-endpoint.
-- **AuthN**: OIDC/Keycloak (прод), короткоживущие JWT + refresh; демо — статические токены-роли (`auth.mode: demo`); сервис-сервис — подписанный gateway'ем principal-контекст в gRPC-метаданных ([03-architecture.md](03-architecture.md) ADR-6).
-- **AuthZ**: RBAC (роли ТЗ + эксперт-валидатор) на операции + **RLS в PG** на уровни доступа документов `public/internal/confidential/restricted` — фильтрация в самом сторе, не в коде приложения; агрегаты (coverage) считаются без раскрытия закрытых текстов (счётчики, не содержимое).
-- **Аудит** (KR): search/view/export/edit/upload/login — в `ops.audit_log` (месячные партиции, retention 1 год) и поток `kmap.audit.v1.*`; экспорт содержит водяной знак: кто/когда/какие источники.
+- **AuthN** _(demo-режим as-is, deprecated)_: OIDC/Keycloak (прод), короткоживущие JWT + refresh; демо — статические токены-роли (`auth.mode: demo`); сервис-сервис — подписанный gateway'ем principal-контекст в gRPC-метаданных ([03-architecture.md](03-architecture.md) ADR-6).
+- **AuthZ** _(demo-режим as-is, deprecated)_: RBAC (роли ТЗ + эксперт-валидатор) на операции + **RLS в PG** на уровни доступа документов `public/internal/confidential/restricted` — фильтрация в самом сторе, не в коде приложения; агрегаты (coverage) считаются без раскрытия закрытых текстов (счётчики, не содержимое).
+- **Аудит** _(demo-режим as-is, deprecated)_: search/view/export/edit/upload/login — в `ops.audit_log` (месячные партиции, retention 1 год) и поток `kmap.audit.v1.*`; экспорт содержит водяной знак: кто/когда/какие источники.
 - **Секреты**: только `configs/secrets.yml` вне git (mode 600 на VM); ротация ключей LLM API.
 - **Данные**: шифрование at-rest (диски/OS-уровень + MinIO SSE), TLS везде; PII сотрудников — только `person`-сущности, доступ по ролям, в JSON-LD экспорт не попадают без роли admin.
 - **LLM-гигиена**: промпты не содержат секретов; журнал вызовов с `llm.log_prompts: false` (YAML) в ИБ-режиме; prompt-injection из документов ограничен: экстракция — строгие схемы (свободный текст модели никуда не исполняется), синтез — только цитирование evidence, guard блокирует внесённые числа.
 - Supply chain: минимальные образы (alpine; slim для ML), trivy-скан в CI, зависимость pinning (go.sum, uv.lock), SBOM (syft) в артефакты релиза.
 
-### 4.1 Статус реализации MVP (контур доступа)
+### 4.1 Статус реализации контура доступа (deprecated — что уже собрано, для справки)
+
+> Ниже — фактическое состояние кода уже собранного контура авторизации. Это **устаревшее требование** (ADR-6), развитие остановлено; раздел сохранён как справка о том, что есть, а не как план работ.
+
 
 - **Ядро** — `internal/platform/auth`: `Principal{UserID, Roles[], DocAccess}`, роли ТЗ (`researcher/analyst/manager/expert/admin/partner`), RBAC-таблица «операция → роли» (`ask/search/browse/document.upload/fact.decision/entity.merge/contradiction.decision`), верификаторы `demo` (статические bearer-токены из `configs/base/gateway.yml`), `oidc` (Keycloak, JWKS через `github.com/coreos/go-oidc/v3`, ленивое обнаружение issuer) и `hybrid` (оба сразу). `doc_access` берётся из claim либо выводится из ролей (`partner→public`, `researcher/analyst→internal`, `manager/expert→confidential`, `admin→restricted`).
 - **Gateway** — middleware `secure(operation)`: bearer → верификация → RBAC → `Principal` в контекст; 401 без токена, 403 без прав; мутации (`document.upload/fact.decision/entity.merge/contradiction.decision`) пишутся в `ops.audit_log`.
@@ -83,7 +88,7 @@
 | надёжность импорта разнородных документов | статусная машина, DLQ, повторные прогоны, failed с причиной |
 | расширяемость (источники/сущности/домены) | ontology-таблицы + JSONB attrs, конфиг-справочники, событийная шина |
 | мультиязычность | bge-m3, двойной FTS, алиасы, языконезависимые слаги |
-| ИБ/роли/аудит | RBAC (роли ТЗ) + RLS (уровни доступа) + audit_log + сетевой периметр + egress-контроль |
+| ИБ | сетевой периметр + egress-контроль + секреты вне git (в фокусе); роли/RBAC/RLS/аудit — устаревшее требование, demo-режим as-is (ADR-6) |
 
 ## 8. Главные риски решения и митигации
 
