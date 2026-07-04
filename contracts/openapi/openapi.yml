@@ -189,6 +189,28 @@ paths:
             application/json:
               schema: { type: object }
         "401": { $ref: "#/components/responses/Unauthorized" }
+  /v1/dictionaries/units:
+    get:
+      tags: [browse]
+      summary: Реестр единиц измерения (kg.units)
+      responses:
+        "200":
+          description: Единицы измерения
+          content:
+            application/json:
+              schema: { type: object }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /v1/dictionaries/synonyms:
+    get:
+      tags: [browse]
+      summary: Словарь синонимов сущностей (canonical + алиасы)
+      responses:
+        "200":
+          description: Группы синонимов
+          content:
+            application/json:
+              schema: { type: object }
+        "401": { $ref: "#/components/responses/Unauthorized" }
   /v1/contradictions/{id}/decision:
     post:
       tags: [review]

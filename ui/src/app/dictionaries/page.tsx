@@ -4,49 +4,21 @@ import { useEffect, useState } from "react";
 import { FactValue } from "@/entities/fact/fact-value";
 import {
   getEntities,
+  getSynonyms,
+  getUnits,
   parseQueryConstraints,
   type EntitySummaryLive,
   type ParsedConstraint,
+  type SynonymRow,
+  type UnitRow,
 } from "@/shared/api/browse";
 import { useRole } from "@/shared/lib/role";
-
-type UnitRow = { code: string; names: string; dimension: string; si: string; factor: string };
-type SynonymRow = { canonical: string; aliases: { value: string; lang: string; status: string }[] };
-
-const UNITS: UnitRow[] = [
-  { code: "m_per_s", names: "м/с · m/s", dimension: "velocity", si: "m/s", factor: "1" },
-  { code: "celsius", names: "°C · град", dimension: "temperature", si: "K", factor: "+273,15" },
-  { code: "mg_per_dm3", names: "мг/дм³ · mg/dm3", dimension: "mass_concentration", si: "kg/m³", factor: "1e-3" },
-  { code: "mg_per_l", names: "мг/л · mg/L", dimension: "mass_concentration", si: "kg/m³", factor: "1e-3" },
-  { code: "a_per_m2", names: "А/м² · A/m2", dimension: "current_density", si: "A/m²", factor: "1" },
-  { code: "percent", names: "% · мас.% · об.%", dimension: "ratio", si: "%", factor: "1" },
-  { code: "mpa", names: "МПа · MPa", dimension: "pressure", si: "Pa", factor: "1e6" },
-];
-
-const SYNONYMS: SynonymRow[] = [
-  {
-    canonical: "электроэкстракция никеля",
-    aliases: [
-      { value: "electrowinning", lang: "en", status: "active" },
-      { value: "электровыделение никеля", lang: "ru", status: "active" },
-    ],
-  },
-  {
-    canonical: "сухой остаток",
-    aliases: [
-      { value: "TDS", lang: "en", status: "active" },
-      { value: "солесодержание", lang: "ru", status: "pending" },
-    ],
-  },
-  {
-    canonical: "печь взвешенной плавки",
-    aliases: [{ value: "ПВП", lang: "ru", status: "active" }],
-  },
-];
 
 export default function DictionariesPage() {
   const [test, setTest] = useState("скорость потока 0,8–1,0 м/с");
   const [entities, setEntities] = useState<EntitySummaryLive[]>([]);
+  const [units, setUnits] = useState<UnitRow[]>([]);
+  const [synonyms, setSynonyms] = useState<SynonymRow[]>([]);
   const [constraints, setConstraints] = useState<ParsedConstraint[]>([]);
   const [parsing, setParsing] = useState(false);
   const roleToken = useRole((store) => store.token);
@@ -55,6 +27,12 @@ export default function DictionariesPage() {
     let alive = true;
     getEntities().then((items) => {
       if (alive) setEntities(items);
+    });
+    getUnits().then((items) => {
+      if (alive) setUnits(items);
+    });
+    getSynonyms().then((items) => {
+      if (alive) setSynonyms(items);
     });
     return () => {
       alive = false;
@@ -121,7 +99,7 @@ export default function DictionariesPage() {
             Синонимы
           </h2>
           <div className="flex flex-col gap-3">
-            {SYNONYMS.map((row) => (
+            {synonyms.map((row) => (
               <div key={row.canonical} className="rounded-sm border border-line bg-bg-1 p-3">
                 <p className="text-[13px] font-semibold text-ink-0">{row.canonical}</p>
                 <div className="mt-2 flex flex-wrap gap-1.5">
@@ -160,7 +138,7 @@ export default function DictionariesPage() {
                 </tr>
               </thead>
               <tbody>
-                {UNITS.map((unit, index) => (
+                {units.map((unit, index) => (
                   <tr key={unit.code} className={`border-b border-line/60 ${index % 2 ? "bg-bg-1/40" : ""}`}>
                     <td className="px-2 py-1.5 font-mono text-electrolyte">{unit.code}</td>
                     <td className="px-2 py-1.5 font-mono text-ink-0">{unit.names}</td>

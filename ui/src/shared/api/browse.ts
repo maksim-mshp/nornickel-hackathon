@@ -695,3 +695,98 @@ export async function getEntities(query = ""): Promise<EntitySummaryLive[]> {
     etype: item.etype ?? "",
   }));
 }
+
+export type UnitRow = {
+  code: string;
+  names: string;
+  dimension: string;
+  si: string;
+  factor: string;
+};
+
+export type SynonymAlias = { value: string; lang: string; status: string };
+export type SynonymRow = { canonical: string; aliases: SynonymAlias[] };
+
+const UNITS_FALLBACK: UnitRow[] = [
+  { code: "m_per_s", names: "м/с · m/s", dimension: "velocity", si: "m/s", factor: "1" },
+  { code: "celsius", names: "°C · град", dimension: "temperature", si: "K", factor: "+273,15" },
+  { code: "mg_per_dm3", names: "мг/дм³ · mg/dm3", dimension: "mass_concentration", si: "kg/m³", factor: "1e-3" },
+  { code: "mg_per_l", names: "мг/л · mg/L", dimension: "mass_concentration", si: "kg/m³", factor: "1e-3" },
+  { code: "a_per_m2", names: "А/м² · A/m2", dimension: "current_density", si: "A/m²", factor: "1" },
+  { code: "percent", names: "% · мас.% · об.%", dimension: "ratio", si: "%", factor: "1" },
+  { code: "mpa", names: "МПа · MPa", dimension: "pressure", si: "Pa", factor: "1e6" },
+];
+
+const SYNONYMS_FALLBACK: SynonymRow[] = [
+  {
+    canonical: "электроэкстракция никеля",
+    aliases: [
+      { value: "electrowinning", lang: "en", status: "active" },
+      { value: "электровыделение никеля", lang: "ru", status: "active" },
+    ],
+  },
+  {
+    canonical: "сухой остаток",
+    aliases: [
+      { value: "TDS", lang: "en", status: "active" },
+      { value: "солесодержание", lang: "ru", status: "pending" },
+    ],
+  },
+  {
+    canonical: "печь взвешенной плавки",
+    aliases: [{ value: "ПВП", lang: "ru", status: "active" }],
+  },
+];
+
+type UnitApi = {
+  code?: string;
+  names?: string[] | null;
+  dimension?: string;
+  si_unit?: string;
+  si_factor?: number;
+  si_offset?: number;
+};
+
+function formatUnitNumber(value: number): string {
+  if (value === 0) return "0";
+  const abs = Math.abs(value);
+  if (abs < 1e-3 || abs >= 1e6) return value.toExponential().replace("e+", "e");
+  return String(value);
+}
+
+function formatUnitFactor(factor: number, offset: number): string {
+  const parts: string[] = [];
+  if (factor !== 1 || offset === 0) parts.push(formatUnitNumber(factor));
+  if (offset !== 0) parts.push(`+${formatUnitNumber(offset)}`);
+  return parts.join(" · ");
+}
+
+export async function getUnits(): Promise<UnitRow[]> {
+  const items = await getList<UnitApi>("/v1/dictionaries/units", []);
+  if (items.length === 0) return UNITS_FALLBACK;
+  return items.map((item) => ({
+    code: item.code ?? "",
+    names: (item.names ?? []).join(" · "),
+    dimension: item.dimension ?? "",
+    si: item.si_unit ?? "",
+    factor: formatUnitFactor(item.si_factor ?? 1, item.si_offset ?? 0),
+  }));
+}
+
+type SynonymApi = {
+  canonical?: string;
+  aliases?: { value?: string; lang?: string; status?: string }[] | null;
+};
+
+export async function getSynonyms(): Promise<SynonymRow[]> {
+  const items = await getList<SynonymApi>("/v1/dictionaries/synonyms", []);
+  if (items.length === 0) return SYNONYMS_FALLBACK;
+  return items.map((item) => ({
+    canonical: item.canonical ?? "",
+    aliases: (item.aliases ?? []).map((alias) => ({
+      value: alias.value ?? "",
+      lang: alias.lang ?? "ru",
+      status: alias.status ?? "active",
+    })),
+  }));
+}

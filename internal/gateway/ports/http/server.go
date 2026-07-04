@@ -177,6 +177,8 @@ func (server *Server) RegisterHTTP(router chi.Router) {
 	router.Get("/v1/experts", server.secure(auth.OpBrowse, server.expertsHandler))
 	router.Get("/v1/coverage", server.secure(auth.OpBrowse, server.coverageHandler))
 	router.Get("/v1/contradictions", server.secure(auth.OpBrowse, server.contradictionsHandler))
+	router.Get("/v1/dictionaries/units", server.secure(auth.OpBrowse, server.dictionaryUnitsHandler))
+	router.Get("/v1/dictionaries/synonyms", server.secure(auth.OpBrowse, server.dictionarySynonymsHandler))
 	router.Get("/v1/review/queue", server.secure(auth.OpBrowse, server.reviewQueueHandler))
 	router.Get("/v1/graph", server.secure(auth.OpBrowse, server.graphHandler))
 	router.Get("/v1/documents", server.secure(auth.OpBrowse, server.documentsHandler))
