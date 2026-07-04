@@ -1,9 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { copyShareLink, exportCsv, exportMarkdown } from "@/features/ask/export";
 import type { AskState } from "@/features/ask/use-ask";
-import type { Fact } from "@/shared/api/types";
+import type { Fact, QueryPlan } from "@/shared/api/types";
 import { pluralCount } from "@/shared/lib/plural";
 import { ConsensusSpectrum } from "@/widgets/consensus-spectrum/consensus-spectrum";
 import { ContradictionCard } from "./contradiction-card";
@@ -14,6 +14,25 @@ import { PlanChip } from "./plan-chip";
 import { MethodsList, SummaryText } from "./summary-view";
 
 type TabKey = "summary" | "evidence" | "contradictions" | "gaps" | "experts";
+
+function intentTab(intent: QueryPlan["intent"] | undefined): TabKey {
+  switch (intent) {
+    case "expert_search":
+      return "experts";
+    case "gap_analysis":
+      return "gaps";
+    case "contradiction_analysis":
+      return "contradictions";
+    default:
+      return "summary";
+  }
+}
+
+function EmptyTab({ text }: { text: string }) {
+  return (
+    <p className="py-8 text-center text-[12px] text-ink-2">{text}</p>
+  );
+}
 
 export function AnswerFeed({
   state,
@@ -29,6 +48,10 @@ export function AnswerFeed({
   const [tab, setTab] = useState<TabKey>("summary");
   const [shared, setShared] = useState(false);
   const { plan, pack, answer, summaryText, phase, error, question } = state;
+
+  useEffect(() => {
+    if (plan) setTab(intentTab(plan.intent));
+  }, [plan]);
 
   const selectRef = (ref: string) => {
     const fact = pack?.facts.find((f) => f.ref === ref);
@@ -107,9 +130,9 @@ export function AnswerFeed({
                 <h3 className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink-2">
                   Консенсус источников
                 </h3>
-                {pack.consensus.map((consensus) => (
+                {pack.consensus.map((consensus, index) => (
                   <ConsensusSpectrum
-                    key={consensus.parameter.slug}
+                    key={`${consensus.parameter.slug}-${index}`}
                     consensus={consensus}
                   />
                 ))}
@@ -129,14 +152,18 @@ export function AnswerFeed({
           ))}
         {tab === "contradictions" &&
           (pack ? (
-            <div className="flex flex-col gap-3">
-              {pack.contradictions.map((contradiction) => (
-                <ContradictionCard
-                  key={contradiction.id}
-                  contradiction={contradiction}
-                />
-              ))}
-            </div>
+            pack.contradictions.length > 0 ? (
+              <div className="flex flex-col gap-3">
+                {pack.contradictions.map((contradiction) => (
+                  <ContradictionCard
+                    key={contradiction.id}
+                    contradiction={contradiction}
+                  />
+                ))}
+              </div>
+            ) : (
+              <EmptyTab text="Подтверждённых противоречий по этому запросу не найдено" />
+            )
           ) : (
             <FeedSkeleton lines={3} />
           ))}
@@ -148,7 +175,11 @@ export function AnswerFeed({
           ))}
         {tab === "experts" &&
           (pack ? (
-            <ExpertsList experts={pack.experts} />
+            pack.experts.length > 0 ? (
+              <ExpertsList experts={pack.experts} />
+            ) : (
+              <EmptyTab text="Профили экспертов по этому запросу не найдены" />
+            )
           ) : (
             <FeedSkeleton lines={3} />
           ))}

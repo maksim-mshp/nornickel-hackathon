@@ -1,6 +1,5 @@
 import type { NumericValue } from "@/shared/api/types";
-
-const nf = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 4 });
+import { formatNumber } from "@/shared/lib/format";
 
 const PREFIX: Partial<Record<NumericValue["operator"], string>> = {
   lt: "<",
@@ -12,11 +11,25 @@ const PREFIX: Partial<Record<NumericValue["operator"], string>> = {
   to: "до",
 };
 
+function bounds(value: NumericValue) {
+  const min = value.vmin !== undefined ? formatNumber(value.vmin) : "";
+  const max = value.vmax !== undefined ? formatNumber(value.vmax) : "";
+  return { min, max };
+}
+
+function isRange(value: NumericValue): boolean {
+  return (
+    (value.operator === "range" || value.operator === "pm") &&
+    value.vmin !== undefined &&
+    value.vmax !== undefined
+  );
+}
+
 export function formatFactValue(value: NumericValue): string {
-  const min = value.vmin !== undefined ? nf.format(value.vmin) : "";
-  const max = value.vmax !== undefined ? nf.format(value.vmax) : "";
-  if (value.operator === "range") return `${min}–${max}`;
-  if (value.operator === "pm") return `${min} ± ${max}`;
+  const { min, max } = bounds(value);
+  if (isRange(value)) {
+    return value.operator === "pm" ? `${min} ± ${max}` : `${min}–${max}`;
+  }
   const prefix = PREFIX[value.operator];
   const body = min || max;
   return prefix ? `${prefix} ${body}` : body;
@@ -29,28 +42,24 @@ export function FactValue({
   value: NumericValue;
   className?: string;
 }) {
-  const min = value.vmin !== undefined ? nf.format(value.vmin) : "";
-  const max = value.vmax !== undefined ? nf.format(value.vmax) : "";
+  const { min, max } = bounds(value);
   const prefix = PREFIX[value.operator];
+  const range = isRange(value);
 
   return (
     <span
       className={`inline-flex items-baseline gap-1 whitespace-nowrap font-mono tabular-nums ${className}`}
     >
-      {prefix && (
+      {!range && prefix && (
         <span className="font-normal text-electrolyte">{prefix}</span>
       )}
       <span className="font-bold text-ink-0">
-        {value.operator === "range" ? (
+        {range ? (
           <>
             {min}
-            <span className="font-normal text-electrolyte">–</span>
-            {max}
-          </>
-        ) : value.operator === "pm" ? (
-          <>
-            {min}
-            <span className="font-normal text-electrolyte"> ± </span>
+            <span className="font-normal text-electrolyte">
+              {value.operator === "pm" ? " ± " : "–"}
+            </span>
             {max}
           </>
         ) : (

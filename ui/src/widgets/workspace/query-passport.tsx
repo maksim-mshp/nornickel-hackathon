@@ -90,9 +90,9 @@ function PassportField({
       <span className="font-mono text-[10px] text-ink-2">{label}</span>
       <div className="mt-1 flex min-h-6 flex-wrap gap-1">
         {values && values.length > 0 ? (
-          values.map((value) => (
+          values.map((value, index) => (
             <span
-              key={value}
+              key={`${value}-${index}`}
               className="rounded-sm border border-line bg-bg-0 px-1.5 py-0.5 text-[11px] text-ink-0"
             >
               {value}

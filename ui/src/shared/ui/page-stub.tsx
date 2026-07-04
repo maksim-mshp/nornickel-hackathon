@@ -23,8 +23,8 @@ export function PageStub({
           раздел в разработке · состав экрана
         </p>
         <ul className="mt-3 flex flex-col gap-2">
-          {plannedBlocks.map((block) => (
-            <li key={block} className="flex items-center gap-3">
+          {plannedBlocks.map((block, index) => (
+            <li key={`${block}-${index}`} className="flex items-center gap-3">
               <span className="hatch h-4 w-10 shrink-0 rounded-sm" />
               <span className="text-[13px] text-ink-1">{block}</span>
             </li>

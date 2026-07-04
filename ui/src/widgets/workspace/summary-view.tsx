@@ -21,7 +21,7 @@ export function SummaryText({
       {parts.map((part, index) =>
         index % 2 === 1 ? (
           <button
-            key={index}
+            key={`ref-${index}-${part}`}
             type="button"
             onClick={() => onRefClick(part)}
             className="mx-0.5 rounded-sm border border-electrolyte/40 bg-bg-2 px-1 font-mono text-[11px] font-bold text-electrolyte transition-colors hover:bg-electrolyte hover:text-bg-0"
@@ -29,7 +29,7 @@ export function SummaryText({
             {part}
           </button>
         ) : (
-          <Fragment key={index}>{part}</Fragment>
+          <Fragment key={`text-${index}`}>{part}</Fragment>
         ),
       )}
       {streaming && (

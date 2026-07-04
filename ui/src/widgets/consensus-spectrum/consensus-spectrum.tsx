@@ -1,4 +1,5 @@
 import type { Consensus } from "@/shared/api/types";
+import { formatNumber } from "@/shared/lib/format";
 
 const WIDTH = 640;
 const ROW_H = 26;
@@ -13,12 +14,34 @@ const VERDICT_LABELS: Record<Consensus["verdict"], string> = {
   insufficient: "мало данных",
 };
 
-const nf = new Intl.NumberFormat("ru-RU", { maximumFractionDigits: 2 });
+const nf = (value: number) => formatNumber(value, 2);
 
 export function ConsensusSpectrum({ consensus }: { consensus: Consensus }) {
-  const values = consensus.sources.flatMap((s) => [s.vmin, s.vmax]);
-  const lo = Math.min(...values, consensus.agreedMin);
-  const hi = Math.max(...values, consensus.agreedMax);
+  if (consensus.sources.length === 0) {
+    return (
+      <figure className="rounded-sm border border-line bg-bg-1 p-4">
+        <figcaption className="flex flex-wrap items-baseline gap-2">
+          <span className="text-[13px] font-semibold text-ink-0">
+            {consensus.parameter.name}
+          </span>
+          <span className="font-mono text-[11px] text-ink-2">
+            {consensus.unit}
+          </span>
+        </figcaption>
+        <p className="mt-2 text-[12px] text-ink-2">
+          Недостаточно источников для спектра.
+        </p>
+      </figure>
+    );
+  }
+
+  const values = [
+    ...consensus.sources.flatMap((s) => [s.vmin, s.vmax]),
+    consensus.agreedMin,
+    consensus.agreedMax,
+  ];
+  const lo = values.reduce((a, b) => Math.min(a, b), values[0]);
+  const hi = values.reduce((a, b) => Math.max(a, b), values[0]);
   const span = hi - lo || 1;
   const plotW = WIDTH - LABEL_W - PAD_X * 2;
   const x = (v: number) => LABEL_W + PAD_X + ((v - lo) / span) * plotW;
@@ -64,8 +87,8 @@ export function ConsensusSpectrum({ consensus }: { consensus: Consensus }) {
           fill="var(--electrolyte)"
           opacity="0.12"
         />
-        {ticks.map((tick) => (
-          <g key={tick}>
+        {ticks.map((tick, index) => (
+          <g key={`tick-${index}`}>
             <line
               x1={x(tick)}
               y1={AXIS_H - 6}
@@ -82,7 +105,7 @@ export function ConsensusSpectrum({ consensus }: { consensus: Consensus }) {
               fontSize="9"
               fontFamily="var(--font-jetbrains)"
             >
-              {nf.format(tick)}
+              {nf(tick)}
             </text>
           </g>
         ))}
@@ -93,7 +116,7 @@ export function ConsensusSpectrum({ consensus }: { consensus: Consensus }) {
             source.vmin <= consensus.agreedMax;
           const color = overlaps ? "var(--electrolyte)" : "var(--melt)";
           return (
-            <g key={source.title}>
+            <g key={`source-${index}`}>
               <text
                 x={0}
                 y={y + 3}
@@ -153,8 +176,8 @@ export function ConsensusSpectrum({ consensus }: { consensus: Consensus }) {
         />
       </svg>
       <p className="mt-1 font-mono text-[10px] text-ink-2">
-        agreed range: {nf.format(consensus.agreedMin)}–
-        {nf.format(consensus.agreedMax)} {consensus.unit}
+        agreed range: {nf(consensus.agreedMin)}–
+        {nf(consensus.agreedMax)} {consensus.unit}
       </p>
     </figure>
   );
