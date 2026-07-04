@@ -44,7 +44,7 @@ export const COVERAGE_PROCESSES = [
 ];
 
 export const COVERAGE_CELLS: CoverageCell[] = [
-  { material: "никелевый штейн", process: "электроэкстракция", score: 86, facts: 412, experiments: 38, reasons: [] },
+  { material: "никелевый штейн", process: "электроэкстракция", score: 86, facts: 468, experiments: 38, reasons: [] },
   { material: "никелевый штейн", process: "флотация", score: 71, facts: 234, experiments: 21, reasons: [] },
   { material: "никелевый штейн", process: "выщелачивание", score: 64, facts: 187, experiments: 14, reasons: [] },
   { material: "никелевый штейн", process: "обжиг", score: 58, facts: 121, experiments: 9, reasons: ["устарело"] },
