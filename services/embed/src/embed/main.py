@@ -28,7 +28,7 @@ def _bind(addr: str) -> str:
 def _build_backend(cfg: Config):
     if cfg.backend == "remote" and cfg.api_key and cfg.remote_endpoint:
         logger.info("embed backend: remote (%s)", cfg.remote_model)
-        inner = RemoteEmbedder(cfg.remote_endpoint, cfg.api_key, cfg.remote_model)
+        inner = RemoteEmbedder(cfg.remote_endpoint, cfg.api_key, cfg.remote_model, cfg.remote_max_retries)
     else:
         if cfg.backend == "remote":
             logger.warning("embed backend: remote configured but no key/endpoint — offline fallback to deterministic")
@@ -41,7 +41,7 @@ def _build_backend(cfg: Config):
 def _build_reranker(cfg: Config):
     if cfg.backend == "remote" and cfg.api_key and cfg.remote_endpoint:
         logger.info("rerank backend: remote (%s)", cfg.reranker_model)
-        return RemoteReranker(cfg.remote_endpoint, cfg.api_key, cfg.reranker_model)
+        return RemoteReranker(cfg.remote_endpoint, cfg.api_key, cfg.reranker_model, cfg.remote_max_retries)
     logger.info("rerank backend: local token-overlap")
     return LocalReranker()
 

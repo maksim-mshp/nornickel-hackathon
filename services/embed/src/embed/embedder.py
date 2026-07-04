@@ -3,6 +3,8 @@ import json
 import math
 import random
 import re
+import time
+import urllib.error
 import urllib.request
 from collections import OrderedDict
 
@@ -54,10 +56,10 @@ class DeterministicEmbedder:
 
 
 class RemoteEmbedder:
-    def __init__(self, endpoint: str, api_key: str, model: str) -> None:
+    def __init__(self, endpoint: str, api_key: str, model: str, max_retries: int = 6) -> None:
         from openai import OpenAI
 
-        self._client = OpenAI(base_url=endpoint, api_key=api_key)
+        self._client = OpenAI(base_url=endpoint, api_key=api_key, max_retries=max(0, max_retries))
         self._model = model
 
     def embed(self, texts: list[str]) -> list[list[float]]:
@@ -66,10 +68,11 @@ class RemoteEmbedder:
 
 
 class RemoteReranker:
-    def __init__(self, endpoint: str, api_key: str, model: str) -> None:
+    def __init__(self, endpoint: str, api_key: str, model: str, max_retries: int = 6) -> None:
         self._endpoint = endpoint.rstrip("/") + "/rerank"
         self._api_key = api_key
         self._model = model
+        self._max_retries = max(0, max_retries)
 
     def rerank(self, query: str, passages: list[str]) -> list[tuple[int, float]]:
         if not passages:
@@ -83,11 +86,31 @@ class RemoteReranker:
             headers={"Content-Type": "application/json", "Authorization": f"Bearer {self._api_key}"},
             method="POST",
         )
-        with urllib.request.urlopen(request, timeout=30) as response:
-            body = json.loads(response.read())
+        body = self._send(request)
         scored = [(int(item["index"]), float(item["relevance_score"])) for item in body["results"]]
         scored.sort(key=lambda item: item[1], reverse=True)
         return scored
+
+    def _send(self, request: urllib.request.Request) -> dict:
+        for attempt in range(self._max_retries + 1):
+            try:
+                with urllib.request.urlopen(request, timeout=30) as response:
+                    return json.loads(response.read())
+            except urllib.error.HTTPError as error:
+                if error.code != 429 or attempt == self._max_retries:
+                    raise
+                time.sleep(_retry_delay(error, attempt))
+        raise RuntimeError("rerank retries exhausted")
+
+
+def _retry_delay(error: urllib.error.HTTPError, attempt: int) -> float:
+    header = error.headers.get("Retry-After") if error.headers else None
+    if header:
+        try:
+            return min(float(header), 30.0)
+        except ValueError:
+            pass
+    return min(2.0**attempt, 30.0) + random.uniform(0.0, 0.5)
 
 
 class LocalReranker:

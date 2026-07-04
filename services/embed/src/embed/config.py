@@ -14,6 +14,7 @@ class Config:
     remote_model: str
     reranker_model: str
     api_key: str
+    remote_max_retries: int
     cache_size: int
 
 
@@ -54,5 +55,6 @@ def load() -> Config:
         remote_model=remote.get("model", "bge-m3"),
         reranker_model=remote.get("reranker_model", "bge-reranker-v2-m3"),
         api_key=remote.get("api_key", ""),
+        remote_max_retries=int(remote.get("max_retries", 6)),
         cache_size=int(embed.get("cache_size", 4096)),
     )
