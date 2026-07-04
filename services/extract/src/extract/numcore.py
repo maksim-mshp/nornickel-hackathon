@@ -118,6 +118,7 @@ def normalize(text: str) -> str:
     for char in _DASH_CHARS:
         text = text.replace(char, "-")
     text = text.replace("º", "°")
+    text = text.replace("μ", "µ")
     text = _SCIENTIFIC.sub(_scientific, text)
     return text
 
@@ -152,8 +153,8 @@ def _si(value: float | None, unit: UnitDef) -> float | None:
     return value * unit.factor + unit.offset
 
 
-def _unit(raw: str) -> UnitDef:
-    return UNITS[raw.lower()]
+def _unit(raw: str) -> UnitDef | None:
+    return UNITS.get(raw.lower())
 
 
 def _quote(text: str, start: int, end: int) -> str:
@@ -197,6 +198,8 @@ def extract_facts(text: str) -> list[Fact]:
             return
         spans.append(span)
         unit = _unit(unit_raw)
+        if unit is None:
+            return
         parameter = PARAMETERS[unit.dimension]
         vmin_si = _si(vmin, unit)
         vmax_si = _si(vmax, unit)
