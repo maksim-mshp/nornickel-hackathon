@@ -53,6 +53,10 @@ tasks:
     cmds:
       - docker compose -f deploy/compose/docker-compose.yml --profile app up -d --build
 
+  bootstrap:
+    cmds:
+      - docker compose -f deploy/compose/docker-compose.yml --profile app up -d --build bootstrap
+
   tools:
     cmds:
       - go install github.com/bufbuild/buf/cmd/buf@latest

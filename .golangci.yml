@@ -13,6 +13,12 @@ linters:
     - unconvert
     - misspell
     - depguard
+  exclusions:
+    rules:
+      - path: cmd/bootstrap/main\.go
+        linters:
+          - gosec
+        text: G304
   settings:
     gosec:
       excludes:

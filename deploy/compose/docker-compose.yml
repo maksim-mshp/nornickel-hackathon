@@ -105,6 +105,23 @@ services:
     entrypoint: ["psql", "postgres://kmap:kmap@postgres:5432/kmap?sslmode=disable", "-v", "ON_ERROR_STOP=1", "-f", "/seeds/demo.sql"]
     restart: "no"
 
+  bootstrap:
+    build:
+      context: ../..
+      args:
+        SERVICE: bootstrap
+    profiles: [app]
+    depends_on:
+      minio:
+        condition: service_healthy
+      ingest:
+        condition: service_healthy
+    volumes:
+      - ../../configs:/configs:ro
+      - ../../data-sources:/data-sources:ro
+    command: ["--config", "/configs", "--env", "demo"]
+    restart: "no"
+
   gateway:
     build:
       context: ../..

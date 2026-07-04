@@ -1,0 +1,10 @@
+grpc_clients:
+  ingest: ingest:9091
+
+bootstrap:
+  corpus_dir: /data-sources
+  include_extensions: [pdf, docx, doc, xlsx, xls, pptx, ppt, htm, html, txt, md, csv, rtf]
+  geography: unknown
+  access_level: internal
+  concurrency: 4
+  max_file_mb: 200

@@ -44,6 +44,12 @@ Durable pull-консьюмеры (по одному на сервис-этап)
 - каталог экспериментов CSV/XLSX → маппинг колонок (конфиг `configs/base/ingest/experiments-mapping.yml`) → строки уходят сразу в catalog как эксперименты + numeric-факты с `extraction_method='catalog'`, `confidence=0.99`; текстовое представление строки (шаблон из RFC §12.2) идёт в chunks для семантического поиска;
 - справочники материалов/оборудования/единиц, перечень сотрудников/лабораторий, таксономия тегов → `kmapctl seed` → kmap-catalog (сущности со `created_by='seed'`).
 
+### 3.1. Первичная загрузка корпуса (kmap-bootstrap, Go, one-shot)
+
+Джоб `cmd/bootstrap` наполняет систему всем локальным корпусом при первом запуске: рекурсивно обходит смонтированный каталог `bootstrap.corpus_dir` (`data-sources/`), для каждого файла из allowlist расширений (`bootstrap.include_extensions`) считает sha256, кладёт объект в `kmap-raw` по детерминированному ключу `<sha256>.<ext>` (повторная запись безвредна; уже существующий объект не перезаливается) и вызывает `IngestService.RegisterDocument` — дальше документ идёт обычным конвейером (§1). Декларируемые метаданные выводятся из пути: `doc_type` по расширению (таблицы→`dataset`, html→`web`, иначе `report`), `year` — первый год `19xx/20xx` из относительного пути, `source_path` сохраняется в `meta`; `geography`/`access_level` — из конфига.
+
+Идемпотентность сквозная: дедуп по `core.documents.sha256` (§2) делает повторные запуски no-op'ами, поэтому джоб безопасно перезапускается на каждом `docker compose up` (профиль `app`, `restart: no`, `depends_on` ingest+minio `healthy`) — паттерн init-контейнера, как `migrate`/`seed`/`minio-init`. Ручной перезапуск — `task bootstrap`. Файлы крупнее `bootstrap.max_file_mb` пропускаются (лимит parse §4).
+
 ## 4. Этап 2: Parse (kmap-parse, Python + Docling)
 
 - Docling 2.x: PDF/DOCX/HTML/PPTX/XLSX → DoclingDocument; конвертация в наш **DocIR** (стабильный внутренний формат, версия схемы `docir/1`):
