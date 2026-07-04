@@ -208,6 +208,7 @@ paths:
       summary: Список документов (фильтруется RLS по уровню доступа)
       parameters:
         - { $ref: "#/components/parameters/Limit" }
+        - { $ref: "#/components/parameters/Offset" }
       responses:
         "200":
           description: Документы
@@ -274,6 +275,10 @@ components:
       name: limit
       in: query
       schema: { type: integer, minimum: 1, maximum: 100 }
+    Offset:
+      name: offset
+      in: query
+      schema: { type: integer, minimum: 0 }
     Cursor:
       name: cursor
       in: query

@@ -39,18 +39,42 @@ export type DocumentRow = {
   ncSuspectRate: number;
 };
 
-async function getJSON<T>(path: string, fallback: T): Promise<T> {
+type FetchReason = "forbidden" | "notfound" | "unavailable";
+
+type Outcome<T> =
+  | { ok: true; data: T }
+  | { ok: false; reason: FetchReason; status: number };
+
+async function fetchOutcome<T>(path: string): Promise<Outcome<T>> {
   try {
     const response = await fetch(path, {
       headers: { Accept: "application/json", ...authHeaders() },
     });
-    if (!response.ok) return fallback;
-    const data = (await response.json()) as Partial<Record<string, unknown>>;
-    const items = (data as { items?: T }).items;
-    return (items ?? (data as T)) ?? fallback;
+    if (response.ok) return { ok: true, data: (await response.json()) as T };
+    const reason: FetchReason =
+      response.status === 401 || response.status === 403
+        ? "forbidden"
+        : response.status === 404
+          ? "notfound"
+          : "unavailable";
+    return { ok: false, reason, status: response.status };
   } catch {
-    return fallback;
+    return { ok: false, reason: "unavailable", status: 0 };
   }
+}
+
+async function getList<T>(path: string, mock: T[]): Promise<T[]> {
+  const outcome = await fetchOutcome<unknown>(path);
+  if (!outcome.ok) return outcome.reason === "unavailable" ? mock : [];
+  const data = outcome.data;
+  if (Array.isArray(data)) return data as T[];
+  const items = (data as { items?: unknown }).items;
+  return Array.isArray(items) ? (items as T[]) : mock;
+}
+
+async function getObject<T>(path: string): Promise<T | null> {
+  const outcome = await fetchOutcome<T>(path);
+  return outcome.ok ? outcome.data : null;
 }
 
 const EXPERTS: ExpertProfile[] = [
@@ -175,11 +199,11 @@ const DOCUMENTS: DocumentRow[] = [
 export async function getExperts(
   entityId = "process:nickel-electrowinning",
 ): Promise<ExpertProfile[]> {
-  const items = await getJSON<Partial<ExpertProfile>[]>(
+  const items = await getList<Partial<ExpertProfile>>(
     `/v1/experts?entity_id=${encodeURIComponent(entityId)}`,
     EXPERTS,
   );
-  if (!Array.isArray(items) || items.length === 0) return EXPERTS;
+  if (items.length === 0) return EXPERTS;
   return items.map((item) => ({
     id: item.id ?? "",
     name: item.name ?? "",
@@ -194,8 +218,22 @@ export async function getExperts(
   }));
 }
 
-export function getExperiments(): Promise<ExperimentRow[]> {
-  return getJSON("/v1/experiments", EXPERIMENTS);
+export async function getExperiments(): Promise<ExperimentRow[]> {
+  const items = await getList<Partial<ExperimentRow>>(
+    "/v1/experiments",
+    EXPERIMENTS,
+  );
+  return items.map((row) => ({
+    id: row.id ?? "",
+    code: row.code ?? "",
+    material: row.material ?? "",
+    process: row.process ?? "",
+    conditions: row.conditions ?? {},
+    result: row.result ?? "",
+    source: row.source ?? "",
+    docType: row.docType ?? "",
+    confidence: row.confidence ?? 0,
+  }));
 }
 
 export type DocumentsPage = { items: DocumentRow[]; total: number };
@@ -278,8 +316,8 @@ type CoverageApiCell = {
 };
 
 export async function getCoverageCells(): Promise<CoverageCellLive[] | null> {
-  const items = await getJSON<CoverageApiCell[] | null>("/v1/coverage", null);
-  if (!Array.isArray(items) || items.length === 0) return null;
+  const items = await getList<CoverageApiCell>("/v1/coverage", []);
+  if (items.length === 0) return null;
   return items.map((cell) => ({
     material: cell.counters?.material ?? cell.material ?? "",
     process: cell.counters?.process ?? cell.process ?? "",
@@ -305,8 +343,7 @@ export async function getContradictions(status = ""): Promise<ContradictionLive[
   const path = status
     ? `/v1/contradictions?status=${encodeURIComponent(status)}`
     : "/v1/contradictions";
-  const items = await getJSON<Partial<ContradictionLive>[]>(path, []);
-  if (!Array.isArray(items)) return [];
+  const items = await getList<Partial<ContradictionLive>>(path, []);
   return items.map((item) => ({
     id: item.id ?? "",
     status: item.status ?? "",
@@ -337,11 +374,10 @@ export type ReviewOrphan = {
 };
 
 export async function getReviewEntities(): Promise<ReviewEntity[]> {
-  const items = await getJSON<Partial<ReviewEntity>[]>(
+  const items = await getList<Partial<ReviewEntity>>(
     "/v1/review/queue?kind=entities",
     [],
   );
-  if (!Array.isArray(items)) return [];
   return items.map((item) => ({
     id: item.id ?? "",
     slug: item.slug ?? "",
@@ -353,11 +389,10 @@ export async function getReviewEntities(): Promise<ReviewEntity[]> {
 }
 
 export async function getReviewOrphans(): Promise<ReviewOrphan[]> {
-  const items = await getJSON<Partial<ReviewOrphan>[]>(
+  const items = await getList<Partial<ReviewOrphan>>(
     "/v1/review/queue?kind=orphans",
     [],
   );
-  if (!Array.isArray(items)) return [];
   return items.map((item) => ({
     id: item.id ?? "",
     value: item.value ?? "",
@@ -477,11 +512,9 @@ const REL_LABELS: Record<string, string> = {
 
 async function graphRelations(
   anchorId: string,
-  slug: string,
 ): Promise<{ group: string; items: { slug: string; name: string; weight: number }[] }[]> {
-  const graph = await getJSON<GraphApi | null>(
-    `/v1/graph?entity_id=${encodeURIComponent(slug)}&depth=1&top_n=40`,
-    null,
+  const graph = await getObject<GraphApi>(
+    `/v1/graph?entity_id=${encodeURIComponent(anchorId)}&depth=1&top_n=40`,
   );
   if (!graph || !Array.isArray(graph.edges)) return [];
   const labels = new Map<string, string>();
@@ -520,14 +553,13 @@ export type EntityCardLive = {
 };
 
 export async function getEntityCard(slug: string): Promise<EntityCardLive | null> {
-  const data = await getJSON<EntityCardApi | null>(
+  const data = await getObject<EntityCardApi>(
     `/v1/entities/${encodeURIComponent(slug)}`,
-    null,
   );
   if (!data || (!data.slug && !data.nameRu && !data.id)) return null;
 
   const counters = data.counters ?? {};
-  const relations = data.id ? await graphRelations(data.id, data.slug ?? slug) : [];
+  const relations = data.id ? await graphRelations(data.id) : [];
 
   return {
     slug: data.slug ?? slug,
@@ -565,8 +597,7 @@ export async function getEntities(query = ""): Promise<EntitySummaryLive[]> {
   const path = query
     ? `/v1/entities?q=${encodeURIComponent(query)}`
     : "/v1/entities";
-  const items = await getJSON<Partial<EntitySummaryLive>[]>(path, []);
-  if (!Array.isArray(items)) return [];
+  const items = await getList<Partial<EntitySummaryLive>>(path, []);
   return items.map((item) => ({
     id: item.id ?? "",
     slug: item.slug ?? "",
