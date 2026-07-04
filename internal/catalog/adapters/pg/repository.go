@@ -130,7 +130,7 @@ UPDATE core.documents
 SET status = 'failed',
     meta = coalesce(meta, '{}'::jsonb) || jsonb_build_object('failure_reason', $2::text),
     updated_at = now()
-WHERE id = $1 AND status <> 'indexed'`
+WHERE id = $1 AND status NOT IN ('indexed', 'archived')`
 
 func (repository *Repository) Commit(ctx context.Context, cmd app.CommitCommand, committed events.Envelope, clusterDirty events.Envelope) error {
 	tx, err := repository.pool.Begin(ctx)
