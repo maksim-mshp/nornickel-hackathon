@@ -3,10 +3,13 @@ import type {
   AskEvent,
   Consensus,
   Contradiction,
+  EntityRef,
   EvidencePack,
   EvidenceStats,
   Expert,
   Fact,
+  NumericValue,
+  Provenance,
   QueryPlan,
 } from "@/shared/api/types";
 import {
@@ -20,6 +23,7 @@ import { authHeaders } from "@/shared/lib/role";
 const ASK_ENDPOINT = "/v1/ask";
 const MAX_CONNECT_RETRIES = 2;
 const RETRY_BASE_MS = 400;
+const IDLE_TIMEOUT_MS = 30_000;
 
 async function connectAsk(question: string, signal?: AbortSignal): Promise<Response | null> {
   for (let attempt = 0; ; attempt++) {
@@ -56,6 +60,40 @@ export async function* askStream(
   yield* parseSSE(response.body, signal);
 }
 
+function readWithTimeout(
+  reader: ReadableStreamDefaultReader<Uint8Array>,
+  ms: number,
+  signal?: AbortSignal,
+): Promise<ReadableStreamReadResult<Uint8Array>> {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(
+      () => reject(new DOMException("idle-timeout", "TimeoutError")),
+      ms,
+    );
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(new DOMException("aborted", "AbortError"));
+    };
+    if (signal?.aborted) {
+      onAbort();
+      return;
+    }
+    signal?.addEventListener("abort", onAbort, { once: true });
+    reader.read().then(
+      (result) => {
+        clearTimeout(timer);
+        signal?.removeEventListener("abort", onAbort);
+        resolve(result);
+      },
+      (error) => {
+        clearTimeout(timer);
+        signal?.removeEventListener("abort", onAbort);
+        reject(error);
+      },
+    );
+  });
+}
+
 async function* parseSSE(
   body: ReadableStream<Uint8Array>,
   signal?: AbortSignal,
@@ -66,7 +104,15 @@ async function* parseSSE(
 
   try {
     while (true) {
-      const { value, done } = await reader.read();
+      let result: ReadableStreamReadResult<Uint8Array>;
+      try {
+        result = await readWithTimeout(reader, IDLE_TIMEOUT_MS, signal);
+      } catch (error) {
+        if ((error as Error).name === "AbortError") throw error;
+        yield { type: "error", message: "Ответ прервался: превышено время ожидания" };
+        return;
+      }
+      const { value, done } = result;
       if (done) break;
       buffer += decoder.decode(value, { stream: true });
 
@@ -80,7 +126,7 @@ async function* parseSSE(
       }
     }
   } finally {
-    if (signal?.aborted) await reader.cancel().catch(() => {});
+    await reader.cancel().catch(() => {});
   }
 }
 
@@ -88,10 +134,137 @@ function asArray<T>(value: unknown): T[] {
   return Array.isArray(value) ? (value as T[]) : [];
 }
 
+function obj(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" ? (value as Record<string, unknown>) : {};
+}
+
+function num(value: unknown, fallback = 0): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function normalizeEntityRef(value: unknown): EntityRef {
+  const o = obj(value);
+  return { slug: String(o.slug ?? ""), name: String(o.name ?? "") };
+}
+
+function normalizeNumericValue(value: unknown): NumericValue {
+  const o = obj(value);
+  return {
+    operator: (o.operator as NumericValue["operator"]) ?? "eq",
+    vmin: typeof o.vmin === "number" ? o.vmin : undefined,
+    vmax: typeof o.vmax === "number" ? o.vmax : undefined,
+    unit: String(o.unit ?? ""),
+  };
+}
+
+function normalizeProvenance(value: unknown): Provenance {
+  const o = obj(value);
+  return {
+    documentId: String(o.documentId ?? ""),
+    title: String(o.title ?? ""),
+    docType: String(o.docType ?? ""),
+    page: num(o.page),
+    quote: String(o.quote ?? ""),
+    year: num(o.year),
+  };
+}
+
+function normalizeFact(value: unknown): Fact {
+  const o = obj(value);
+  const sc = obj(o.scoreComponents);
+  return {
+    id: String(o.id ?? ""),
+    ref: String(o.ref ?? ""),
+    subject: normalizeEntityRef(o.subject),
+    parameter: normalizeEntityRef(o.parameter),
+    value: normalizeNumericValue(o.value),
+    si: normalizeNumericValue(o.si ?? o.value),
+    conditions:
+      o.conditions && typeof o.conditions === "object"
+        ? (o.conditions as Record<string, string>)
+        : {},
+    geography: (o.geography as Fact["geography"]) ?? "unknown",
+    provenance: normalizeProvenance(o.provenance),
+    extractionMethod: (o.extractionMethod as Fact["extractionMethod"]) ?? "deterministic",
+    extractorVersion: String(o.extractorVersion ?? ""),
+    confidence: num(o.confidence),
+    validationStatus: (o.validationStatus as Fact["validationStatus"]) ?? "machine_extracted",
+    score: num(o.score),
+    scoreComponents: {
+      match: num(sc.match),
+      rerank: num(sc.rerank),
+      source: num(sc.source),
+      validation: num(sc.validation),
+      freshness: num(sc.freshness),
+    },
+  };
+}
+
+const PLAN_INTENTS: QueryPlan["intent"][] = [
+  "technology_search",
+  "experiment_search",
+  "literature_review",
+  "expert_search",
+  "gap_analysis",
+  "contradiction_analysis",
+  "comparison",
+  "entity_lookup",
+];
+
+function normalizePlan(value: unknown): QueryPlan {
+  const o = obj(value);
+  const e = obj(o.entities);
+  const intent = PLAN_INTENTS.includes(o.intent as QueryPlan["intent"])
+    ? (o.intent as QueryPlan["intent"])
+    : "technology_search";
+  return {
+    intent,
+    entities: {
+      materials: asArray<unknown>(e.materials).map(normalizeEntityRef),
+      processes: asArray<unknown>(e.processes).map(normalizeEntityRef),
+      properties: asArray<unknown>(e.properties).map(normalizeEntityRef),
+    },
+    paramConstraints: asArray<unknown>(o.paramConstraints).map((c) => {
+      const co = obj(c);
+      return {
+        parameter: normalizeEntityRef(co.parameter),
+        value: normalizeNumericValue(co.value),
+      };
+    }),
+    geography: (o.geography as QueryPlan["geography"]) ?? "any",
+    yearFrom: typeof o.yearFrom === "number" ? o.yearFrom : undefined,
+    yearTo: typeof o.yearTo === "number" ? o.yearTo : undefined,
+    parser: o.parser === "rules" ? "rules" : "llm",
+    confidence: num(o.confidence),
+  };
+}
+
+function normalizeAnswer(value: unknown): AnswerDoc {
+  const o = obj(value);
+  const g = obj(o.guard);
+  return {
+    summary: String(o.summary ?? ""),
+    confidence: num(o.confidence),
+    methods: asArray<unknown>(o.methods).map((m) => {
+      const mo = obj(m);
+      return {
+        name: String(mo.name ?? ""),
+        applicability: String(mo.applicability ?? ""),
+        citations: asArray<string>(mo.citations),
+      };
+    }),
+    guard: {
+      numbersChecked: num(g.numbersChecked),
+      violations: num(g.violations),
+      degraded: Boolean(g.degraded ?? false),
+    },
+  };
+}
+
 function normalizePack(data: Record<string, unknown>): EvidencePack {
   const gaps = asArray<Record<string, unknown>>(data.gaps).map((gap) => ({
     label: String(gap.label ?? ""),
-    score: Number(gap.score ?? 0),
+    score: num(gap.score),
     reasons: asArray<string>(gap.reasons),
     neighbors: asArray<string>(gap.neighbors),
   }));
@@ -103,7 +276,7 @@ function normalizePack(data: Record<string, unknown>): EvidencePack {
     yearTo: 0,
   };
   return {
-    facts: asArray<Fact>(data.facts),
+    facts: asArray<unknown>(data.facts).map(normalizeFact),
     consensus: asArray<Consensus>(data.consensus),
     contradictions: asArray<Contradiction>(data.contradictions),
     gaps,
@@ -124,20 +297,26 @@ function parseFrame(frame: string): AskEvent | null {
   }
   if (!event || dataLines.length === 0) return null;
 
-  const data = JSON.parse(dataLines.join("\n"));
+  let data: unknown;
+  try {
+    data = JSON.parse(dataLines.join("\n"));
+  } catch {
+    return null;
+  }
+  const d = obj(data);
   switch (event) {
     case "plan":
-      return { type: "plan", plan: data as QueryPlan };
+      return { type: "plan", plan: normalizePlan(data) };
     case "evidence":
-      return { type: "evidence", pack: normalizePack(data as Record<string, unknown>) };
+      return { type: "evidence", pack: normalizePack(d) };
     case "answer.delta":
-      return { type: "answer.delta", text: String(data.text ?? "") };
+      return { type: "answer.delta", text: String(d.text ?? "") };
     case "answer.done":
-      return { type: "answer.done", answer: data as AnswerDoc };
+      return { type: "answer.done", answer: normalizeAnswer(data) };
     case "error":
       return {
         type: "error",
-        message: String(data.detail ?? data.title ?? data.message ?? "Ошибка ответа"),
+        message: String(d.detail ?? d.title ?? d.message ?? "Ошибка ответа"),
       };
     default:
       return null;

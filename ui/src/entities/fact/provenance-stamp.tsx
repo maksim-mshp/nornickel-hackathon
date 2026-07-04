@@ -84,8 +84,10 @@ const STATUS_META: Record<
   },
 };
 
-export function ValidationBadge({ status }: { status: ValidationStatus }) {
-  const meta = STATUS_META[status];
+const STATUS_FALLBACK = { label: "не размечено", className: "text-ink-2 border-line" };
+
+export function ValidationBadge({ status }: { status: string }) {
+  const meta = STATUS_META[status as ValidationStatus] ?? STATUS_FALLBACK;
   return (
     <span
       className={`inline-flex items-center whitespace-nowrap rounded-sm border px-1.5 py-0.5 font-mono text-[10px] uppercase tracking-wide ${meta.className}`}
