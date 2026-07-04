@@ -1,4 +1,5 @@
 import type { Expert, GapCell } from "@/shared/api/types";
+import { reasonLabel } from "@/shared/lib/reasons";
 
 export function GapsList({
   gaps,
@@ -37,7 +38,7 @@ export function GapsList({
                   key={`${reason}-${reasonIndex}`}
                   className="rounded-sm border border-void/40 px-1.5 py-0.5 font-mono text-[10px] text-void"
                 >
-                  {reason}
+                  {reasonLabel(reason)}
                 </span>
               ))}
             </div>

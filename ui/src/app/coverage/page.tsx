@@ -12,6 +12,7 @@ import {
   type CoverageKpi,
   type RiskItem,
 } from "@/shared/api/mock/coverage-scenario";
+import { reasonLabel } from "@/shared/lib/reasons";
 import { useRole } from "@/shared/lib/role";
 import { Isolines } from "@/shared/ui/isolines";
 import { CoverageHeatmap } from "@/widgets/coverage/coverage-heatmap";
@@ -114,7 +115,7 @@ function buildView(live: CoverageCellLive[] | null) {
       .filter((cell) => predicate(cell.reasons))
       .map((cell) => ({
         label: `${cell.material} × ${cell.process}`,
-        detail: cell.reasons.join(", "),
+        detail: cell.reasons.map(reasonLabel).join(", "),
         question: `Что известно про ${cell.process} для материала «${cell.material}»?`,
       }));
 
@@ -146,6 +147,7 @@ function KpiCard({ kpi }: { kpi: CoverageKpi }) {
 }
 
 function Sparkline({ points }: { points: number[] }) {
+  if (points.length < 2) return null;
   const min = Math.min(...points);
   const max = Math.max(...points);
   const span = max - min || 1;
@@ -168,7 +170,9 @@ function Sparkline({ points }: { points: number[] }) {
   );
 }
 
-const TONE_CLASSES: Record<string, string> = {
+type Tone = "melt" | "anode" | "void";
+
+const TONE_CLASSES: Record<Tone, string> = {
   melt: "border-melt/40 text-melt",
   anode: "border-anode/40 text-anode",
   void: "border-void/40 text-void",
@@ -180,7 +184,7 @@ function RiskColumn({
   items,
 }: {
   title: string;
-  tone: string;
+  tone: Tone;
   items: RiskItem[];
 }) {
   return (
@@ -190,9 +194,9 @@ function RiskColumn({
         {items.length === 0 && (
           <p className="text-[11px] text-ink-2">нет</p>
         )}
-        {items.map((item) => (
+        {items.map((item, index) => (
           <Link
-            key={item.label}
+            key={`${item.label}-${index}`}
             href={`/?q=${encodeURIComponent(item.question)}`}
             className="group block"
           >

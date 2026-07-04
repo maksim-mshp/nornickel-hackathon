@@ -1,13 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   COVERAGE_CELLS,
   COVERAGE_MATERIALS,
   COVERAGE_PROCESSES,
   type CoverageCell,
 } from "@/shared/api/mock/coverage-scenario";
+import { reasonLabel } from "@/shared/lib/reasons";
+
+const KEY_SEP = "||";
 
 export function CoverageHeatmap({
   cells = COVERAGE_CELLS,
@@ -20,10 +23,15 @@ export function CoverageHeatmap({
 }) {
   const [selected, setSelected] = useState<CoverageCell | null>(null);
 
+  const cellMap = useMemo(() => {
+    const map = new Map<string, CoverageCell>();
+    for (const cell of cells) {
+      map.set(`${cell.material}${KEY_SEP}${cell.process}`, cell);
+    }
+    return map;
+  }, [cells]);
   const cellFor = (material: string, process: string) =>
-    cells.find(
-      (cell) => cell.material === material && cell.process === process,
-    );
+    cellMap.get(`${material}${KEY_SEP}${process}`);
 
   return (
     <div className="flex flex-col gap-4 xl:flex-row">
@@ -117,12 +125,12 @@ function CellDetails({ cell }: { cell: CoverageCell }) {
       </div>
       {cell.reasons.length > 0 && (
         <div className="flex flex-wrap gap-1.5">
-          {cell.reasons.map((reason) => (
+          {cell.reasons.map((reason, index) => (
             <span
-              key={reason}
+              key={`${reason}-${index}`}
               className="rounded-sm border border-void/40 px-1.5 py-0.5 font-mono text-[10px] text-void"
             >
-              {reason}
+              {reasonLabel(reason)}
             </span>
           ))}
         </div>
