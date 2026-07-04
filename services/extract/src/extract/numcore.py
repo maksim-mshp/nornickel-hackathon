@@ -65,7 +65,7 @@ _UNIT = "(?:" + "|".join(re.escape(alias) for alias in _ALIASES) + ")"
 _UNIT_TAIL = r"(?![0-9A-Za-zА-Яа-яЁё])"
 _UNIT_GROUP = rf"({_UNIT}){_UNIT_TAIL}"
 _NUM = (
-    r"(?:[+-]?\d{1,3}(?:[ ]\d{3})+(?:[.,]\d+)?"
+    r"(?:[+-]?\d{1,3}(?:[ ]\d{3}){1,3}(?:[.,]\d+)?"
     r"|[+-]?\d+(?:[.,]\d+)?(?:[eE][+-]?\d+)?)"
 )
 
@@ -88,6 +88,16 @@ _GT = re.compile(rf"(?:>|\bсвыше|\bвыше|\bболее|\bбольше)\s*
 _LT = re.compile(rf"(?:<|\bменее|\bниже|\bменьше)\s*({_NUM})\s*{_UNIT_GROUP}", re.IGNORECASE)
 _PH_PREFIX = re.compile(rf"\b(?:pH|рН)\s*[:=]?\s*({_NUM})(?![0-9A-Za-zА-Яа-яЁё])", re.IGNORECASE)
 _EQ = re.compile(rf"({_NUM})\s*{_UNIT_GROUP}", re.IGNORECASE)
+
+_BARE_NUMBER = re.compile(r"\d[\d.,]*")
+_UNIT_AFTER = re.compile(rf"\s*{_UNIT}{_UNIT_TAIL}", re.IGNORECASE)
+
+_MAGNITUDE_CEILING = 1e12
+_TABLE_ROW_MIN_BARE = 5
+_LINE_WINDOW = 120
+_LINE_MAX = 400
+_QUOTE_MAX = 240
+_WHITESPACE = re.compile(r"\s+")
 
 _STOP_CONTEXT = re.compile(
     r"(?:\b(?:рис(?:унок|унке|\.)?|табл(?:ица|ице|\.)?|формул\w*|уравнени\w*|гост(?:\s*р)?|ост|ту|"
@@ -158,15 +168,45 @@ def _unit(raw: str) -> UnitDef | None:
 
 
 def _quote(text: str, start: int, end: int) -> str:
-    left = text.rfind(".", 0, start)
+    left = max(text.rfind(".", 0, start), text.rfind("\n", 0, start))
     right = text.find(".", end)
+    newline = text.find("\n", end)
+    if newline >= 0 and (right < 0 or newline < right):
+        right = newline
     left = 0 if left < 0 else left + 1
     right = len(text) if right < 0 else right
-    return text[left:right].strip()
+    snippet = _WHITESPACE.sub(" ", text[left:right]).strip()
+    if len(snippet) > _QUOTE_MAX:
+        match = _WHITESPACE.sub(" ", text[start:end]).strip()
+        pad = max(0, (_QUOTE_MAX - len(match)) // 2)
+        head = snippet.find(match)
+        if head < 0:
+            snippet = snippet[:_QUOTE_MAX].rstrip()
+        else:
+            snippet = snippet[max(0, head - pad) : head + len(match) + pad].strip()
+    return snippet
 
 
 def _stopped(text: str, start: int) -> bool:
     return _STOP_CONTEXT.search(text[max(0, start - 30) : start]) is not None
+
+
+def _table_row(text: str, start: int, end: int) -> bool:
+    line_start = text.rfind("\n", 0, start) + 1
+    newline = text.find("\n", end)
+    line_end = len(text) if newline < 0 else newline
+    if line_end - line_start > _LINE_MAX:
+        line_start = max(line_start, start - _LINE_WINDOW)
+        line_end = min(line_end, end + _LINE_WINDOW)
+    line = text[line_start:line_end]
+    bare = 0
+    for match in _BARE_NUMBER.finditer(line):
+        if _UNIT_AFTER.match(line, match.end()):
+            continue
+        bare += 1
+        if bare >= _TABLE_ROW_MIN_BARE:
+            return True
+    return False
 
 
 def _sanity(vmin_si: float | None, vmax_si: float | None, parameter: ParameterDef) -> bool:
@@ -196,10 +236,15 @@ def extract_facts(text: str) -> list[Fact]:
                 return
         if _stopped(text, span[0]):
             return
+        if _table_row(text, span[0], span[1]):
+            return
         spans.append(span)
         unit = _unit(unit_raw)
         if unit is None:
             return
+        for value in (vmin, vmax):
+            if value is not None and abs(value) >= _MAGNITUDE_CEILING:
+                return
         if vmin is not None and vmax is not None and vmin > vmax:
             vmin, vmax = vmax, vmin
         parameter = PARAMETERS[unit.dimension]

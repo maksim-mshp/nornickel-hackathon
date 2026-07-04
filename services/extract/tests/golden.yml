@@ -704,3 +704,12 @@
   vmin: 100
   vmax: 100
   unit_code: rub_per_m3
+- text: "Россия 162 154 165 185 190 195 200 205 %"
+  none: true
+- text: "South Africa 300 265 216 186 185 185 185 185 %"
+  none: true
+- text: "Refined Use 174 861 808 218 177 175 501 %"
+  none: true
+- text: производительность 1 000 000 т/год при плотности тока 250 А/м²
+  count: 2
+  operator: eq
