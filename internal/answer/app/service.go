@@ -18,7 +18,7 @@ import (
 
 const deltaWordsPerChunk = 8
 
-const defaultSynthesisTimeout = 18 * time.Second
+const defaultSynthesisTimeout = 35 * time.Second
 
 type SearchClient interface {
 	Search(ctx context.Context, in *kmapv1.SearchRequest, opts ...grpc.CallOption) (*kmapv1.SearchResponse, error)
