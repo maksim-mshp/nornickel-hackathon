@@ -69,7 +69,8 @@ var paramDisplay = map[string]string{
 	"velocity":            "скорость",
 	"length":              "длина",
 	"temperature":         "температура",
-	"acidity":             "pH",
+	"acidity":             "кислотность",
+	"ph":                  "кислотность",
 	"cost":                "стоимость",
 	"mass fraction":       "массовая доля",
 }
