@@ -253,11 +253,17 @@ func ftsTermsQuery(terms []string, question string) string {
 	for _, term := range terms {
 		add(term)
 	}
+	if len(out) >= 2 {
+		return strings.Join(out, " OR ")
+	}
 	for _, word := range strings.FieldsFunc(question, func(r rune) bool {
 		return !unicode.IsLetter(r) && !unicode.IsDigit(r)
 	}) {
 		if len([]rune(word)) >= 3 {
 			add(word)
+		}
+		if len(out) >= 10 {
+			break
 		}
 	}
 	return strings.Join(out, " OR ")
