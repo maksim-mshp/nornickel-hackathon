@@ -751,7 +751,7 @@ function formatUnitNumber(value: number): string {
   if (value === 0) return "0";
   const abs = Math.abs(value);
   if (abs < 1e-3 || abs >= 1e6) return value.toExponential().replace("e+", "e");
-  return String(value);
+  return parseFloat(value.toPrecision(6)).toString();
 }
 
 function formatUnitFactor(factor: number, offset: number): string {
