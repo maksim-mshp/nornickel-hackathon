@@ -177,19 +177,16 @@ func filterNumber(fields map[string]*structpb.Value, key string) (float64, bool)
 func routeQuestion(question string) route {
 	lower := strings.ToLower(question)
 	switch {
-	case containsAny(lower, "католит", "циркуляц", "электроэкстракц", "electrowinning", "диафрагмен"):
-		intent := "technology_search"
-		if containsAny(lower, "кто ", "эксперт", "работал", "компетенц") {
-			intent = "expert_search"
-		}
+	case containsAny(lower, "католит", "циркуляц", "электроэкстракц", "electrowinning", "catholyte", "electrowin", "диафрагмен"):
 		return route{
-			intent:     intent,
+			intent:     "technology_search",
 			materials:  []ref{{"material:catholyte", "католит"}},
 			processes:  []ref{{"process:nickel-electrowinning", "электроэкстракция никеля"}},
-			properties: []ref{{"parameter:catholyte-flow-rate", "скорость потока"}},
+			properties: electrowinningParameters(lower),
 			matched:    true,
 		}
-	case containsAny(lower, "обессолива", "сухой остаток", "сульфат", "обогатительн", "хлорид", "минерализац"):
+	case containsAny(lower, "обессолива", "сухой остаток", "сульфат", "обогатительн", "хлорид", "минерализац",
+		"desalination", "sulfate", "sulphate", "chloride", "reverse osmosis", "ion exchange", "brine"):
 		return route{
 			intent:     "technology_search",
 			materials:  []ref{{"material:sulfates", "сульфаты"}, {"material:chlorides", "хлориды"}},
@@ -197,7 +194,8 @@ func routeQuestion(question string) route {
 			properties: []ref{{"property:tds", "сухой остаток"}},
 			matched:    true,
 		}
-	case containsAny(lower, "кучн", "выщелачив", "холодном климат", "холодный климат", "заполярь"):
+	case containsAny(lower, "кучн", "выщелачив", "холодном климат", "холодный климат", "заполярь",
+		"heap leach", "leaching", "cold climate"):
 		return route{
 			intent:     "gap_analysis",
 			materials:  []ref{{"material:nickel-ore", "никелевая руда"}},
@@ -213,12 +211,30 @@ func routeQuestion(question string) route {
 	}
 }
 
+func electrowinningParameters(lower string) []ref {
+	var params []ref
+	if containsAny(lower, "температ", "temperature") {
+		params = append(params, ref{"parameter:temperature", "температура электролита"})
+	}
+	if containsAny(lower, "плотност тока", "плотности тока", "плотность тока", "current density", "current-density") {
+		params = append(params, ref{"parameter:current-density", "плотность тока"})
+	}
+	if containsAny(lower, "скорост", "циркуляц", "flow rate", "flow-rate", "velocity") {
+		params = append(params, ref{"parameter:catholyte-flow-rate", "скорость циркуляции католита"})
+	}
+	if len(params) == 0 {
+		params = append(params, ref{"parameter:catholyte-flow-rate", "скорость циркуляции католита"})
+	}
+	return params
+}
+
 func refineIntent(question string, base string, geography string) string {
 	lower := strings.ToLower(question)
 	switch {
-	case containsAny(lower, "кто ", "работал", "эксперт", "компетенц", "специалист"):
+	case containsAny(lower, "кто ", "работал", "эксперт", "компетенц", "специалист", "who ", "expert", "specialist", "competenc"):
 		return "expert_search"
-	case containsAny(lower, "есть ли данные", "пробел", "не изучен", "белые пятна", "изучал ли"):
+	case containsAny(lower, "есть ли данные", "пробел", "не изучен", "белые пятна", "изучал ли",
+		"is there data", "any data", "gap", "unexplored", "understudied"):
 		return "gap_analysis"
 	case geography == "compare":
 		return "comparison"
@@ -257,12 +273,12 @@ type constraintRule struct {
 }
 
 var constraintRules = []constraintRule{
-	{keywords: []string{"сухой остаток", "сухого остатка", "tds"}, parameter: "property:tds", name: "сухой остаток"},
-	{keywords: []string{"сульфат"}, parameter: "parameter:sulfate-concentration", name: "концентрация сульфатов"},
-	{keywords: []string{"хлорид"}, parameter: "parameter:chloride-concentration", name: "концентрация хлоридов"},
-	{keywords: []string{"скорост"}, parameter: "parameter:catholyte-flow-rate", name: "скорость потока"},
-	{keywords: []string{"температ"}, parameter: "parameter:temperature", name: "температура"},
-	{keywords: []string{"плотност тока", "плотности тока"}, parameter: "parameter:current-density", name: "плотность тока"},
+	{keywords: []string{"сухой остаток", "сухого остатка", "tds", "dry residue"}, parameter: "property:tds", name: "сухой остаток"},
+	{keywords: []string{"сульфат", "sulfate", "sulphate"}, parameter: "parameter:sulfate-concentration", name: "концентрация сульфатов"},
+	{keywords: []string{"хлорид", "chloride"}, parameter: "parameter:chloride-concentration", name: "концентрация хлоридов"},
+	{keywords: []string{"скорост", "flow rate", "velocity"}, parameter: "parameter:catholyte-flow-rate", name: "скорость потока"},
+	{keywords: []string{"температ", "temperature"}, parameter: "parameter:temperature", name: "температура"},
+	{keywords: []string{"плотност тока", "плотности тока", "current density"}, parameter: "parameter:current-density", name: "плотность тока"},
 }
 
 func extractConstraints(question string) []*kmapv1.ParamConstraint {
@@ -334,6 +350,7 @@ var querySIUnits = map[string]unitSI{
 	"мг/дм3": {1e-3, 0, "kg/m^3"},
 	"мг/л":   {1e-3, 0, "kg/m^3"},
 	"mg/l":   {1e-3, 0, "kg/m^3"},
+	"mg/dm3": {1e-3, 0, "kg/m^3"},
 	"%":      {1, 0, "ratio"},
 	"а/м²":   {1, 0, "A/m^2"},
 	"мпа":    {1e6, 0, "Pa"},
@@ -370,7 +387,7 @@ func detectOperator(segment string) (op string, hasUpper bool, hasLower bool) {
 }
 
 func detectUnit(segment string) string {
-	units := []string{"мг/дм³", "мг/дм3", "мг/л", "г/л", "м/с", "°c", "а/м²", "а/дм²", "мпа", "%"}
+	units := []string{"мг/дм³", "мг/дм3", "мг/л", "mg/dm3", "mg/l", "г/л", "м/с", "m/s", "°c", "а/м²", "а/дм²", "мпа", "%"}
 	for _, unit := range units {
 		if strings.Contains(segment, unit) {
 			return strings.ReplaceAll(unit, "°c", "°C")
@@ -404,8 +421,8 @@ func detectLang(question string) string {
 
 func detectGeography(question string) string {
 	lower := strings.ToLower(question)
-	hasRu := containsAny(lower, "росси", "отечествен", "заполярь")
-	hasForeign := containsAny(lower, "зарубеж", "мировой практик", "за рубеж", "world")
+	hasRu := containsAny(lower, "росси", "отечествен", "заполярь", "russia", "domestic")
+	hasForeign := containsAny(lower, "зарубеж", "мировой практик", "за рубеж", "world", "foreign", "abroad", "international", "global")
 	switch {
 	case hasRu && hasForeign:
 		return "compare"
