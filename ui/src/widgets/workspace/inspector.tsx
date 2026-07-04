@@ -8,6 +8,7 @@ import {
   docTypeLabel,
 } from "@/entities/fact/provenance-stamp";
 import type { EvidencePack, Fact, QueryPlan } from "@/shared/api/types";
+import { downloadDocumentSource } from "@/shared/lib/download";
 import { IconGraph } from "@/shared/ui/icons";
 import { EgoGraph } from "@/widgets/ego-graph/ego-graph";
 
@@ -115,8 +116,42 @@ function QuotePane({ fact }: { fact: Fact | null }) {
           {fact.extractorVersion} · confidence{" "}
           {Math.round(fact.confidence * 100)}%
         </p>
+        <DownloadSourceButton documentId={fact.provenance.documentId} />
       </div>
     </div>
+  );
+}
+
+function DownloadSourceButton({ documentId }: { documentId: string }) {
+  const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
+  const label =
+    status === "loading"
+      ? "Загрузка оригинала…"
+      : status === "error"
+        ? "Оригинал недоступен"
+        : "↓ Скачать оригинал";
+  return (
+    <button
+      type="button"
+      disabled={status === "loading"}
+      onClick={async () => {
+        setStatus("loading");
+        try {
+          await downloadDocumentSource(documentId);
+          setStatus("idle");
+        } catch {
+          setStatus("error");
+          setTimeout(() => setStatus("idle"), 3000);
+        }
+      }}
+      className={`mt-1 inline-flex w-fit items-center gap-1.5 rounded-sm border px-2 py-1 font-mono text-[10px] transition-colors disabled:opacity-60 ${
+        status === "error"
+          ? "border-melt/50 text-melt"
+          : "border-line text-ink-1 hover:border-electrolyte hover:text-electrolyte"
+      }`}
+    >
+      {label}
+    </button>
   );
 }
 
