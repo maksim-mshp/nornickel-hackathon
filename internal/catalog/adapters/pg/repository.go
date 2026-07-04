@@ -132,6 +132,10 @@ SET status = 'failed',
     updated_at = now()
 WHERE id = $1 AND status NOT IN ('indexed', 'archived')`
 
+func noNull(text string) string {
+	return strings.ReplaceAll(text, "\x00", "")
+}
+
 func (repository *Repository) Commit(ctx context.Context, cmd app.CommitCommand, committed events.Envelope, clusterDirty events.Envelope) error {
 	tx, err := repository.pool.Begin(ctx)
 	if err != nil {
@@ -161,7 +165,7 @@ func (repository *Repository) Commit(ctx context.Context, cmd app.CommitCommand,
 	for _, entity := range cmd.NewEntities {
 		var actualID uuid.UUID
 		err := tx.QueryRow(ctx, insertEntitySQL,
-			entity.ID, entity.EType, entity.CanonicalName, nullableString(entity.CanonicalNameEN),
+			entity.ID, entity.EType, noNull(entity.CanonicalName), nullableString(noNull(entity.CanonicalNameEN)),
 			entity.Slug, entity.Status, entity.CreatedBy,
 		).Scan(&actualID)
 		if err != nil {
@@ -170,7 +174,7 @@ func (repository *Repository) Commit(ctx context.Context, cmd app.CommitCommand,
 		if actualID != entity.ID {
 			remap[entity.ID] = actualID
 		}
-		if _, err := tx.Exec(ctx, insertAliasSQL, actualID, entity.CanonicalName, "ru"); err != nil {
+		if _, err := tx.Exec(ctx, insertAliasSQL, actualID, noNull(entity.CanonicalName), "ru"); err != nil {
 			return fmt.Errorf("insert alias %q: %w", entity.CanonicalName, err)
 		}
 	}
@@ -189,7 +193,7 @@ func (repository *Repository) Commit(ctx context.Context, cmd app.CommitCommand,
 			kind = "text"
 		}
 		if _, err := tx.Exec(ctx, insertChunkSQL,
-			insert.UUID, cmd.DocumentID, cmd.Version, chunk.Ordinal, chunk.Text, kind,
+			insert.UUID, cmd.DocumentID, cmd.Version, chunk.Ordinal, noNull(chunk.Text), kind,
 			nullableInt(chunk.PageFrom), nullableInt(chunk.PageTo),
 			chunk.CharFrom, chunk.CharTo,
 			nullableString(chunk.Lang), stringArray(chunk.SectionPath),
@@ -210,9 +214,9 @@ func (repository *Repository) Commit(ctx context.Context, cmd app.CommitCommand,
 		}
 		if _, err := tx.Exec(ctx, insertFactSQL,
 			fact.ID, cmd.DocumentID, fact.ChunkID, remapID(fact.SubjectID), remapID(fact.ParameterID),
-			fact.Relation, fact.Operator, fact.ValueRaw, fact.VMin, fact.VMax,
+			fact.Relation, fact.Operator, noNull(fact.ValueRaw), fact.VMin, fact.VMax,
 			nullableString(fact.UnitOrig), nullableString(fact.UnitCode), fact.VMinSI, fact.VMaxSI,
-			nullableJSON(fact.Conditions), fact.ConditionHash, fact.Quote,
+			nullableJSON(fact.Conditions), fact.ConditionHash, noNull(fact.Quote),
 			nullableInt(fact.Page), nullableInt(fact.CharFrom), nullableInt(fact.CharTo),
 			geography, docYear, fact.ExtractionMethod, fact.ExtractorVersion, fact.Confidence, status,
 		); err != nil {
