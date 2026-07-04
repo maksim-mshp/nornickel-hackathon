@@ -64,9 +64,17 @@ cr AS (
   WHERE c.tsv_ru @@ q.query OR c.tsv_en @@ q.query
 ),
 dr AS (
-  SELECT document_id, max(crank) AS drank
+  SELECT document_id, max(crank) AS chunk_rank
   FROM cr
   GROUP BY document_id
+  ORDER BY chunk_rank DESC
+  LIMIT 40
+),
+drt AS (
+  SELECT dr.document_id,
+         dr.chunk_rank + 3 * ts_rank(to_tsvector('russian', d.title) || to_tsvector('english', d.title), q.query) AS drank
+  FROM dr
+  JOIN core.documents d ON d.id = dr.document_id, q
   ORDER BY drank DESC
   LIMIT 12
 ),
@@ -74,13 +82,13 @@ picked AS (
   SELECT f.id, f.operator, f.vmin, f.vmax, f.unit_orig, f.vmin_si, f.vmax_si, f.unit_code,
          f.parameter_id, f.relation, f.geography, f.quote, f.page, f.document_id,
          f.extraction_method, f.extractor_version, f.extraction_confidence, f.validation_status,
-         dr.drank, coalesce(cr.crank, 0) AS crank,
+         drt.drank, coalesce(cr.crank, 0) AS crank,
          row_number() OVER (
            PARTITION BY f.document_id
            ORDER BY coalesce(cr.crank, 0) DESC, f.extraction_confidence DESC
          ) AS rn
-  FROM dr
-  JOIN kg.numeric_facts f ON f.document_id = dr.document_id AND f.unit_code IS NOT NULL
+  FROM drt
+  JOIN kg.numeric_facts f ON f.document_id = drt.document_id AND f.unit_code IS NOT NULL
   LEFT JOIN cr ON cr.chunk_id = f.chunk_id
 )
 SELECT p.id::text, p.operator::text, p.vmin::float8, p.vmax::float8, coalesce(p.unit_orig, ''),
