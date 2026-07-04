@@ -1,0 +1,2 @@
+gateway_origin: http://gateway:8080
+keycloak_origin: http://keycloak:8080

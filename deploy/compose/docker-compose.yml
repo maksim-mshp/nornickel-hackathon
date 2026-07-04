@@ -350,6 +350,8 @@ services:
   ui:
     build:
       context: ../../ui
+      additional_contexts:
+        configs: ../../configs
     profiles: [app]
     depends_on:
       gateway:

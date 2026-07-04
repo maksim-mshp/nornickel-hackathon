@@ -1,0 +1,2 @@
+gateway_origin: http://localhost:8080
+keycloak_origin: http://localhost:8081
