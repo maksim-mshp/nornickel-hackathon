@@ -28,7 +28,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type AnswerServiceClient interface {
 	Ask(ctx context.Context, in *AskRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[AskResponse], error)
-	ParseQuery(ctx context.Context, in *ParseQueryRequest, opts ...grpc.CallOption) (*QueryPlan, error)
+	ParseQuery(ctx context.Context, in *ParseQueryRequest, opts ...grpc.CallOption) (*ParseQueryResponse, error)
 }
 
 type answerServiceClient struct {
@@ -58,9 +58,9 @@ func (c *answerServiceClient) Ask(ctx context.Context, in *AskRequest, opts ...g
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type AnswerService_AskClient = grpc.ServerStreamingClient[AskResponse]
 
-func (c *answerServiceClient) ParseQuery(ctx context.Context, in *ParseQueryRequest, opts ...grpc.CallOption) (*QueryPlan, error) {
+func (c *answerServiceClient) ParseQuery(ctx context.Context, in *ParseQueryRequest, opts ...grpc.CallOption) (*ParseQueryResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(QueryPlan)
+	out := new(ParseQueryResponse)
 	err := c.cc.Invoke(ctx, AnswerService_ParseQuery_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -73,7 +73,7 @@ func (c *answerServiceClient) ParseQuery(ctx context.Context, in *ParseQueryRequ
 // for forward compatibility.
 type AnswerServiceServer interface {
 	Ask(*AskRequest, grpc.ServerStreamingServer[AskResponse]) error
-	ParseQuery(context.Context, *ParseQueryRequest) (*QueryPlan, error)
+	ParseQuery(context.Context, *ParseQueryRequest) (*ParseQueryResponse, error)
 	mustEmbedUnimplementedAnswerServiceServer()
 }
 
@@ -87,7 +87,7 @@ type UnimplementedAnswerServiceServer struct{}
 func (UnimplementedAnswerServiceServer) Ask(*AskRequest, grpc.ServerStreamingServer[AskResponse]) error {
 	return status.Error(codes.Unimplemented, "method Ask not implemented")
 }
-func (UnimplementedAnswerServiceServer) ParseQuery(context.Context, *ParseQueryRequest) (*QueryPlan, error) {
+func (UnimplementedAnswerServiceServer) ParseQuery(context.Context, *ParseQueryRequest) (*ParseQueryResponse, error) {
 	return nil, status.Error(codes.Unimplemented, "method ParseQuery not implemented")
 }
 func (UnimplementedAnswerServiceServer) mustEmbedUnimplementedAnswerServiceServer() {}

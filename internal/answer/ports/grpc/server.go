@@ -25,6 +25,10 @@ func (server *Server) Ask(req *kmapv1.AskRequest, stream kmapv1.AnswerService_As
 	return server.service.Ask(stream.Context(), req, stream.Send)
 }
 
-func (server *Server) ParseQuery(_ context.Context, req *kmapv1.ParseQueryRequest) (*kmapv1.QueryPlan, error) {
-	return server.service.ParseQuery(req.GetQuestion())
+func (server *Server) ParseQuery(_ context.Context, req *kmapv1.ParseQueryRequest) (*kmapv1.ParseQueryResponse, error) {
+	plan, err := server.service.ParseQuery(req.GetQuestion())
+	if err != nil {
+		return nil, err
+	}
+	return &kmapv1.ParseQueryResponse{Plan: plan}, nil
 }

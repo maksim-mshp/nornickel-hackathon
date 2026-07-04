@@ -9,7 +9,7 @@ option go_package = "github.com/maksim-mshp/nornickel-hackathon/contracts/gen/go
 
 service AnswerService {
   rpc Ask(AskRequest) returns (stream AskResponse);
-  rpc ParseQuery(ParseQueryRequest) returns (QueryPlan);
+  rpc ParseQuery(ParseQueryRequest) returns (ParseQueryResponse);
 }
 
 message AskRequest {
@@ -23,6 +23,10 @@ message ParseQueryRequest {
   string question = 1;
   Principal principal = 2;
   string lang = 3;
+}
+
+message ParseQueryResponse {
+  QueryPlan plan = 1;
 }
 
 message AskResponse {

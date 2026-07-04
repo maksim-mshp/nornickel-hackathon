@@ -35,7 +35,7 @@ func (server *Server) queryParseHandler(w stdhttp.ResponseWriter, r *stdhttp.Req
 		return
 	}
 
-	plan, err := server.answer.ParseQuery(r.Context(), &kmapv1.ParseQueryRequest{
+	resp, err := server.answer.ParseQuery(r.Context(), &kmapv1.ParseQueryRequest{
 		Question:  request.Question,
 		Lang:      request.Lang,
 		Principal: principalFromContext(r),
@@ -44,7 +44,7 @@ func (server *Server) queryParseHandler(w stdhttp.ResponseWriter, r *stdhttp.Req
 		writeGRPCProblem(w, r, err)
 		return
 	}
-	writeDataJSON(w, stdhttp.StatusOK, mapPlan(plan))
+	writeDataJSON(w, stdhttp.StatusOK, mapPlan(resp.GetPlan()))
 }
 
 func (server *Server) askHandler(w stdhttp.ResponseWriter, r *stdhttp.Request) {
