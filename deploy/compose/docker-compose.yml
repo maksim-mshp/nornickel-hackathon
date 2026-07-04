@@ -307,8 +307,8 @@ services:
     volumes:
       - ../../configs:/configs:ro
     command: ["--config", "/configs", "--env", "demo"]
-    mem_limit: 5g
-    cpus: 6.0
+    mem_limit: 512m
+    cpus: 1.5
     restart: unless-stopped
 
   parse:

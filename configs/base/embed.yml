@@ -9,9 +9,5 @@ embed:
     model: bge-m3
     reranker_model: bge-reranker-v2-m3
     max_retries: 6
-  local:
-    model: BAAI/bge-m3
-    max_length: 1024
-    batch_size: 16
-    threads: 6
+    max_concurrency: 2
   cache_size: 4096

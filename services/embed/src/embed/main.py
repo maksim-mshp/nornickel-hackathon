@@ -10,7 +10,6 @@ from embed.config import Config, load
 from embed.embedder import (
     CachingEmbedder,
     DeterministicEmbedder,
-    LocalEmbedder,
     LocalReranker,
     RemoteEmbedder,
     RemoteReranker,
@@ -27,12 +26,11 @@ def _bind(addr: str) -> str:
 
 
 def _build_backend(cfg: Config):
-    if cfg.backend in ("local", "torch"):
-        logger.info("embed backend: local %s (cpu, %d threads)", cfg.local_model, cfg.local_threads)
-        inner = LocalEmbedder(cfg.local_model, cfg.local_max_length, cfg.local_batch, cfg.local_threads)
-    elif cfg.backend == "remote" and cfg.api_key and cfg.remote_endpoint:
-        logger.info("embed backend: remote (%s)", cfg.remote_model)
-        inner = RemoteEmbedder(cfg.remote_endpoint, cfg.api_key, cfg.remote_model, cfg.remote_max_retries)
+    if cfg.backend == "remote" and cfg.api_key and cfg.remote_endpoint:
+        logger.info("embed backend: remote (%s, concurrency %d)", cfg.remote_model, cfg.remote_max_concurrency)
+        inner = RemoteEmbedder(
+            cfg.remote_endpoint, cfg.api_key, cfg.remote_model, cfg.remote_max_retries, cfg.remote_max_concurrency
+        )
     else:
         if cfg.backend == "remote":
             logger.warning("embed backend: remote configured but no key/endpoint — offline fallback to deterministic")

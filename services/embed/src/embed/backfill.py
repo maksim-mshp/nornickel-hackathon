@@ -3,8 +3,8 @@ import os
 
 import psycopg
 
-from embed.config import load
-from embed.embedder import LocalEmbedder
+from embed.config import Config, load
+from embed.embedder import DeterministicEmbedder, RemoteEmbedder
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger("embed-backfill")
@@ -18,12 +18,20 @@ def _dsn() -> str:
 
 
 def _batch_size() -> int:
-    return int(os.environ.get("BACKFILL_BATCH", "256"))
+    return int(os.environ.get("BACKFILL_BATCH", "64"))
+
+
+def _embedder(cfg: Config):
+    if cfg.backend == "remote" and cfg.api_key and cfg.remote_endpoint:
+        return RemoteEmbedder(
+            cfg.remote_endpoint, cfg.api_key, cfg.remote_model, cfg.remote_max_retries, cfg.remote_max_concurrency
+        )
+    return DeterministicEmbedder()
 
 
 def main() -> None:
     cfg = load()
-    embedder = LocalEmbedder(cfg.local_model, cfg.local_max_length, cfg.local_batch, cfg.local_threads)
+    embedder = _embedder(cfg)
     batch = _batch_size()
     total = 0
     with psycopg.connect(_dsn()) as conn:

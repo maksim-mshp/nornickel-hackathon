@@ -3,6 +3,7 @@ import json
 import math
 import random
 import re
+import threading
 import time
 import urllib.error
 import urllib.request
@@ -56,42 +57,19 @@ class DeterministicEmbedder:
 
 
 class RemoteEmbedder:
-    def __init__(self, endpoint: str, api_key: str, model: str, max_retries: int = 6) -> None:
+    def __init__(
+        self, endpoint: str, api_key: str, model: str, max_retries: int = 6, max_concurrency: int = 2
+    ) -> None:
         from openai import OpenAI
 
         self._client = OpenAI(base_url=endpoint, api_key=api_key, max_retries=max(0, max_retries))
         self._model = model
+        self._semaphore = threading.Semaphore(max(1, max_concurrency))
 
     def embed(self, texts: list[str]) -> list[list[float]]:
-        response = self._client.embeddings.create(model=self._model, input=texts)
+        with self._semaphore:
+            response = self._client.embeddings.create(model=self._model, input=texts)
         return [item.embedding for item in response.data]
-
-
-class LocalEmbedder:
-    def __init__(self, model_name: str, max_length: int = 1024, batch_size: int = 16, threads: int = 4) -> None:
-        import torch
-        from transformers import AutoModel, AutoTokenizer
-
-        torch.set_num_threads(max(1, threads))
-        self._torch = torch
-        self._tokenizer = AutoTokenizer.from_pretrained(model_name)
-        self._model = AutoModel.from_pretrained(model_name)
-        self._model.eval()
-        self._max_length = max_length
-        self._batch = max(1, batch_size)
-
-    def embed(self, texts: list[str]) -> list[list[float]]:
-        result: list[list[float]] = []
-        with self._torch.inference_mode():
-            for start in range(0, len(texts), self._batch):
-                window = texts[start : start + self._batch]
-                batch = self._tokenizer(
-                    window, padding=True, truncation=True, max_length=self._max_length, return_tensors="pt"
-                )
-                hidden = self._model(**batch).last_hidden_state[:, 0]
-                normalized = self._torch.nn.functional.normalize(hidden, p=2, dim=1)
-                result.extend(row.tolist() for row in normalized)
-        return result
 
 
 class RemoteReranker:
