@@ -100,13 +100,45 @@ INSERT INTO kg.entities (etype, canonical_name, canonical_name_en, slug, attrs) 
   ('climate', 'холодный климат', 'cold climate', 'climate:cold', '{}')
 ON CONFLICT (slug) DO NOTHING;
 
+INSERT INTO kg.entities (etype, canonical_name, canonical_name_en, slug, attrs) VALUES
+  ('parameter', 'скорость потока', 'flow rate', 'parameter:flow-rate', '{}'),
+  ('parameter', 'давление', 'pressure', 'parameter:pressure', '{}'),
+  ('parameter', 'плотность тока', 'current density', 'parameter:current-density', '{}'),
+  ('parameter', 'доля', 'ratio', 'parameter:ratio', '{}'),
+  ('parameter', 'показатель pH', 'pH', 'parameter:ph', '{}'),
+  ('parameter', 'концентрация', 'concentration', 'parameter:concentration', '{}'),
+  ('parameter', 'содержание', 'content', 'parameter:content', '{}'),
+  ('parameter', 'молярная концентрация', 'molar concentration', 'parameter:molar-concentration', '{}'),
+  ('parameter', 'производительность', 'throughput', 'parameter:throughput', '{}'),
+  ('parameter', 'объёмный расход', 'volumetric flow', 'parameter:volumetric-flow', '{}'),
+  ('parameter', 'удельный расход энергии', 'energy intensity', 'parameter:energy-intensity', '{}'),
+  ('parameter', 'размер', 'size', 'parameter:size', '{}'),
+  ('parameter', 'длительность', 'duration', 'parameter:duration', '{}'),
+  ('parameter', 'частота вращения', 'rotation speed', 'parameter:rotation-speed', '{}'),
+  ('parameter', 'удельная стоимость', 'cost', 'parameter:cost', '{}')
+ON CONFLICT (slug) DO NOTHING;
+
 INSERT INTO kg.parameter_defs (parameter_id, dimension, si_unit, plausible_min, plausible_max, notes)
 SELECT id, dimension, si_unit, pmin, pmax, notes FROM (VALUES
   ('parameter:catholyte-flow-rate', 'velocity', 'm/s', 0, 20, 'circulation velocity'),
   ('parameter:temperature', 'temperature', 'K', 173, 2300, 'process temperature'),
   ('parameter:cathode-purity-gain', 'ratio', '%', 0, 100, 'relative gain'),
   ('parameter:sulfate-removal', 'ratio', '%', 0, 100, 'removal efficiency'),
-  ('parameter:recovery', 'ratio', '%', 0, 100, 'permeate recovery')
+  ('parameter:recovery', 'ratio', '%', 0, 100, 'permeate recovery'),
+  ('parameter:flow-rate', 'velocity', 'm/s', 0, 50, 'flow velocity'),
+  ('parameter:pressure', 'pressure', 'Pa', 0, 1000000000, 'process pressure'),
+  ('parameter:current-density', 'current_density', 'A/m^2', 0, 100000, 'current density'),
+  ('parameter:ratio', 'ratio', '%', 0, 1000, 'share or fraction'),
+  ('parameter:ph', 'acidity', 'pH', 0, 14, 'acidity'),
+  ('parameter:concentration', 'mass_concentration', 'kg/m^3', 0, 5000, 'mass concentration'),
+  ('parameter:content', 'mass_fraction', 'kg/kg', 0, 1, 'mass fraction'),
+  ('parameter:molar-concentration', 'molar_concentration', 'mol/m^3', 0, 100000, 'molar concentration'),
+  ('parameter:throughput', 'mass_flow', 'kg/s', 0, 10000, 'mass throughput'),
+  ('parameter:volumetric-flow', 'volumetric_flow', 'm^3/s', 0, 1000, 'volumetric flow'),
+  ('parameter:energy-intensity', 'specific_energy', 'J/kg', 0, 1000000000, 'specific energy'),
+  ('parameter:size', 'length', 'm', 0, 10000, 'linear size'),
+  ('parameter:duration', 'duration', 's', 0, 1000000000, 'duration'),
+  ('parameter:rotation-speed', 'rotational_speed', '1/s', 0, 100000, 'rotational speed')
 ) AS defs(slug, dimension, si_unit, pmin, pmax, notes)
 JOIN kg.entities e ON e.slug = defs.slug
 ON CONFLICT (parameter_id) DO NOTHING;
