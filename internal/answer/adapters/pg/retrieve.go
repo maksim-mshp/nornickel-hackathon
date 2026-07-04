@@ -89,7 +89,7 @@ SELECT p.id::text, p.operator::text, p.vmin::float8, p.vmax::float8, coalesce(p.
        p.geography::text, coalesce(p.quote, ''), coalesce(p.page, 0),
        coalesce(d.title, ''), coalesce(d.doc_type::text, ''), coalesce(d.year, 0),
        p.extraction_method::text, coalesce(p.extractor_version, ''),
-       p.extraction_confidence::float8, p.validation_status::text
+       p.extraction_confidence::float8, p.validation_status::text, p.document_id::text
 FROM picked p
 JOIN core.documents d ON d.id = p.document_id
 LEFT JOIN kg.entities pe ON pe.id = p.parameter_id
@@ -101,7 +101,7 @@ LIMIT $3`
 type factRow struct {
 	id, operator, unitOrig, siUnit    string
 	paramName, paramSlug, geography   string
-	quote, docTitle, docType          string
+	quote, docTitle, docType, docID   string
 	method, version, validationStatus string
 	vmin, vmax, vminSi, vmaxSi        sql.NullFloat64
 	page, year                        int
@@ -131,7 +131,7 @@ func (retriever *Retriever) FactsByText(ctx context.Context, termsQuery string, 
 			&row.geography, &row.quote, &row.page,
 			&row.docTitle, &row.docType, &row.year,
 			&row.method, &row.version,
-			&row.confidence, &row.validationStatus,
+			&row.confidence, &row.validationStatus, &row.docID,
 		); err != nil {
 			return nil, fmt.Errorf("scan fact: %w", err)
 		}
@@ -169,7 +169,7 @@ func factPayload(row factRow, ref string) (*structpb.Struct, error) {
 		"si":        si,
 		"geography": row.geography,
 		"provenance": map[string]any{
-			"documentId": "",
+			"documentId": row.docID,
 			"title":      row.docTitle,
 			"docType":    row.docType,
 			"page":       float64(row.page),

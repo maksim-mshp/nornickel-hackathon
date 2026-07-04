@@ -176,30 +176,78 @@ func (service *Service) augmentFacts(ctx context.Context, pack *kmapv1.EvidenceP
 	}
 	pack.Facts = facts
 	pack.Contradictions = nil
-	if stats, err := structpb.NewStruct(map[string]any{"sources": float64(factSources(facts))}); err == nil {
+	if stats, err := structpb.NewStruct(factStats(facts)); err == nil {
 		pack.Stats = stats
 	}
 	return pack
 }
 
-func factSources(facts []*kmapv1.Fact) int {
-	titles := map[string]bool{}
+func factStats(facts []*kmapv1.Fact) map[string]any {
+	docGeo := map[string]string{}
+	docYear := map[string]int{}
 	for _, fact := range facts {
-		title := fact.GetPayload().GetFields()["provenance"].GetStructValue().GetFields()["title"].GetStringValue()
-		if title != "" {
-			titles[title] = true
+		fields := fact.GetPayload().GetFields()
+		prov := fields["provenance"].GetStructValue().GetFields()
+		key := prov["documentId"].GetStringValue()
+		if key == "" {
+			key = prov["title"].GetStringValue()
+		}
+		if key == "" {
+			continue
+		}
+		docGeo[key] = fields["geography"].GetStringValue()
+		if year := int(prov["year"].GetNumberValue()); year > 0 {
+			docYear[key] = year
 		}
 	}
-	return len(titles)
+	ru, foreign, yearFrom, yearTo := 0, 0, 0, 0
+	for key, geo := range docGeo {
+		switch geo {
+		case "ru":
+			ru++
+		case "foreign":
+			foreign++
+		}
+		if year := docYear[key]; year > 0 {
+			if yearFrom == 0 || year < yearFrom {
+				yearFrom = year
+			}
+			if year > yearTo {
+				yearTo = year
+			}
+		}
+	}
+	return map[string]any{
+		"sources":        float64(len(docGeo)),
+		"ruSources":      float64(ru),
+		"foreignSources": float64(foreign),
+		"yearFrom":       float64(yearFrom),
+		"yearTo":         float64(yearTo),
+	}
+}
+
+var ftsStopTerms = map[string]bool{
+	"переработка": true, "переработки": true, "обзор": true, "анализ": true,
+	"метод": true, "методы": true, "методов": true, "способ": true, "способы": true, "способов": true,
+	"технология": true, "технологии": true, "технологий": true, "техническое": true, "технических": true, "технической": true,
+	"решение": true, "решения": true, "решений": true, "практика": true, "практике": true, "практики": true,
+	"мировая": true, "мировой": true, "отечественная": true, "отечественной": true,
+	"современные": true, "современных": true, "существующих": true, "информация": true, "информации": true,
+	"производство": true, "производства": true, "предприятие": true, "предприятий": true,
+	"промышленность": true, "промышленности": true, "использование": true, "использования": true,
+	"организация": true, "организации": true, "показатель": true, "показатели": true,
+	"данные": true, "данных": true, "источник": true, "источники": true, "источников": true,
+	"литературный": true, "литературного": true,
 }
 
 func ftsTermsQuery(terms []string) string {
 	cleaned := make([]string, 0, len(terms))
 	for _, term := range terms {
 		term = strings.TrimSpace(term)
-		if term != "" {
-			cleaned = append(cleaned, term)
+		if term == "" || ftsStopTerms[strings.ToLower(term)] {
+			continue
 		}
+		cleaned = append(cleaned, term)
 	}
 	return strings.Join(cleaned, " OR ")
 }

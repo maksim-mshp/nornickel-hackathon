@@ -44,6 +44,8 @@ func allowedNumbers(pack *kmapv1.EvidencePack) []float64 {
 		fields := item.GetPayload().GetFields()
 		addRange(fields["value"].GetStructValue())
 		addRange(fields["si"].GetStructValue())
+		quote := fields["provenance"].GetStructValue().GetFields()["quote"].GetStringValue()
+		values = append(values, numericLiterals(normalizeUnitDigits(quote))...)
 	}
 	for _, item := range pack.GetConsensus() {
 		fields := item.GetFields()
