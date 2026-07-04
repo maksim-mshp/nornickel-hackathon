@@ -19,6 +19,11 @@ class Config:
     nats_url: str
     s3: S3Config
     workers: int
+    llm_addr: str
+    embed_addr: str
+    embed_mode: str
+    embed_batch: int
+    llm_char_limit: int
 
 
 def _deep_merge(base: dict, overlay: dict) -> dict:
@@ -49,6 +54,7 @@ def load() -> Config:
 
     s3 = merged.get("s3", {})
     buckets = s3.get("buckets", {})
+    extract = merged.get("extract", {})
     return Config(
         nats_url=merged.get("nats", {}).get("url", "nats://localhost:4222"),
         s3=S3Config(
@@ -58,5 +64,10 @@ def load() -> Config:
             use_ssl=bool(s3.get("use_ssl", False)),
             bundles_bucket=buckets.get("bundles", "kmap-bundles"),
         ),
-        workers=int(merged.get("extract", {}).get("workers", 0)),
+        workers=int(extract.get("workers", 0)),
+        llm_addr=str(extract.get("llm_addr", "llm:9094")),
+        embed_addr=str(extract.get("embed_addr", "embed:9097")),
+        embed_mode=str(extract.get("embed_mode", "passage")),
+        embed_batch=int(extract.get("embed_batch", 64)),
+        llm_char_limit=int(extract.get("llm_char_limit", 12000)),
     )

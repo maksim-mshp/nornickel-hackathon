@@ -336,6 +336,10 @@ services:
         condition: service_healthy
       minio:
         condition: service_healthy
+      llm:
+        condition: service_healthy
+      embed:
+        condition: service_started
     volumes:
       - ../../configs:/configs:ro
     command: ["--config", "/configs", "--env", "demo"]

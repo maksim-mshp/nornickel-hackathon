@@ -25,3 +25,10 @@ s3:
 
 parse:
   ocr: "off"
+
+extract:
+  llm_addr: llm:9094
+  embed_addr: embed:9097
+  embed_mode: passage
+  embed_batch: 64
+  llm_char_limit: 12000
