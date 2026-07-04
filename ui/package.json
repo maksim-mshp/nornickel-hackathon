@@ -27,6 +27,7 @@
     "zustand": "^5.0.8"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3.3.5",
     "@tailwindcss/postcss": "^4.1.16",
     "@types/cytoscape": "^3.31.0",
     "@types/node": "^22.18.6",
