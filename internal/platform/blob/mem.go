@@ -40,6 +40,17 @@ func (store *MemStore) Put(_ context.Context, bucket string, key string, reader 
 	return store.URI(bucket, key), nil
 }
 
+func (store *MemStore) Exists(_ context.Context, bucket string, key string) (bool, error) {
+	store.mu.Lock()
+	defer store.mu.Unlock()
+	objects, ok := store.buckets[bucket]
+	if !ok {
+		return false, nil
+	}
+	_, ok = objects[key]
+	return ok, nil
+}
+
 func (store *MemStore) Get(_ context.Context, bucket string, key string) (io.ReadCloser, error) {
 	store.mu.Lock()
 	defer store.mu.Unlock()

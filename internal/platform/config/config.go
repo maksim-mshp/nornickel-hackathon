@@ -23,6 +23,16 @@ type Runtime struct {
 	LLM         LLM               `koanf:"llm"`
 	Cache       Cache             `koanf:"cache"`
 	Auth        Auth              `koanf:"auth"`
+	Bootstrap   Bootstrap         `koanf:"bootstrap"`
+}
+
+type Bootstrap struct {
+	CorpusDir         string   `koanf:"corpus_dir"`
+	IncludeExtensions []string `koanf:"include_extensions"`
+	Geography         string   `koanf:"geography"`
+	AccessLevel       string   `koanf:"access_level"`
+	Concurrency       int      `koanf:"concurrency"`
+	MaxFileMB         int      `koanf:"max_file_mb"`
 }
 
 type Auth struct {
@@ -223,6 +233,10 @@ func validateEnv(env string) error {
 	}
 }
 
+var grpcServices = map[string]struct{}{
+	"ingest": {}, "catalog": {}, "llm": {}, "search": {}, "answer": {}, "epistemic": {},
+}
+
 func validateRuntime(service string, runtime Runtime) error {
 	if runtime.Log.Level == "" {
 		return errors.New("log.level is required")
@@ -230,14 +244,19 @@ func validateRuntime(service string, runtime Runtime) error {
 	if runtime.Log.Format == "" {
 		return errors.New("log.format is required")
 	}
-	if service == "gateway" && runtime.HTTP.Addr == "" {
-		return errors.New("http.addr is required for gateway")
+	if service == "gateway" {
+		if runtime.HTTP.Addr == "" {
+			return errors.New("http.addr is required for gateway")
+		}
+		return nil
 	}
-	if service != "gateway" && runtime.GRPC.Addr == "" {
-		return fmt.Errorf("grpc.addr is required for %s", service)
-	}
-	if runtime.Health.Addr == "" && runtime.HTTP.Addr == "" {
-		return errors.New("health.addr or http.addr is required")
+	if _, ok := grpcServices[service]; ok {
+		if runtime.GRPC.Addr == "" {
+			return fmt.Errorf("grpc.addr is required for %s", service)
+		}
+		if runtime.Health.Addr == "" && runtime.HTTP.Addr == "" {
+			return errors.New("health.addr or http.addr is required")
+		}
 	}
 	return nil
 }

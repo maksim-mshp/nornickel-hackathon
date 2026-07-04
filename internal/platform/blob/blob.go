@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	stdhttp "net/http"
 	"strings"
 
 	"github.com/minio/minio-go/v7"
@@ -25,6 +26,7 @@ type Store interface {
 	EnsureBucket(ctx context.Context, bucket string) error
 	Put(ctx context.Context, bucket string, key string, reader io.Reader, size int64) (string, error)
 	Get(ctx context.Context, bucket string, key string) (io.ReadCloser, error)
+	Exists(ctx context.Context, bucket string, key string) (bool, error)
 	URI(bucket string, key string) string
 }
 
@@ -68,6 +70,17 @@ func (store *MinIO) Put(ctx context.Context, bucket string, key string, reader i
 		return "", fmt.Errorf("put object %s/%s: %w", bucket, key, err)
 	}
 	return store.URI(bucket, key), nil
+}
+
+func (store *MinIO) Exists(ctx context.Context, bucket string, key string) (bool, error) {
+	if _, err := store.client.StatObject(ctx, bucket, key, minio.StatObjectOptions{}); err != nil {
+		response := minio.ToErrorResponse(err)
+		if response.Code == "NoSuchKey" || response.StatusCode == stdhttp.StatusNotFound {
+			return false, nil
+		}
+		return false, fmt.Errorf("stat object %s/%s: %w", bucket, key, err)
+	}
+	return true, nil
 }
 
 func (store *MinIO) Get(ctx context.Context, bucket string, key string) (io.ReadCloser, error) {
