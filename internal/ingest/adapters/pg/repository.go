@@ -174,11 +174,11 @@ SELECT d.id, d.title, d.doc_type::text, coalesce(d.lang, ''), d.geography::text,
        coalesce(count(f.id) FILTER (WHERE f.extraction_confidence < 0.9)::float8 / nullif(count(f.id), 0), 0)
 FROM core.documents d
 LEFT JOIN kg.numeric_facts f ON f.document_id = d.id
-WHERE d.id::text NOT LIKE $3
+WHERE d.id::text NOT LIKE $3 AND d.status <> 'archived'
 GROUP BY d.id, d.title, d.doc_type, d.lang, d.geography, d.access_level, d.status, d.year, d.current_version, d.created_at
 ORDER BY (d.status = 'indexed') DESC, d.created_at DESC, d.id DESC
 LIMIT $1 OFFSET $2`
-	const countQuery = `SELECT count(*) FROM core.documents WHERE id::text NOT LIKE $1`
+	const countQuery = `SELECT count(*) FROM core.documents WHERE id::text NOT LIKE $1 AND status <> 'archived'`
 	var (
 		result []app.DocumentSummary
 		total  uint32
