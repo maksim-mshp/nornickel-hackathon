@@ -200,6 +200,8 @@ def extract_facts(text: str) -> list[Fact]:
         unit = _unit(unit_raw)
         if unit is None:
             return
+        if vmin is not None and vmax is not None and vmin > vmax:
+            vmin, vmax = vmax, vmin
         parameter = PARAMETERS[unit.dimension]
         vmin_si = _si(vmin, unit)
         vmax_si = _si(vmax, unit)

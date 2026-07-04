@@ -257,6 +257,7 @@ func (service *Service) classifyFacts(ctx context.Context, facts []domain.Numeri
 		return fmt.Errorf("load parameter defs: %w", err)
 	}
 	for index := range facts {
+		facts[index].NormalizeBounds()
 		var def *domain.ParameterDef
 		if value, ok := defs[facts[index].ParameterID]; ok {
 			def = &value

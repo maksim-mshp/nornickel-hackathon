@@ -67,6 +67,15 @@ func (d ParameterDef) plausible(vmin *float64, vmax *float64) bool {
 	return true
 }
 
+func (fact *NumericFact) NormalizeBounds() {
+	if fact.VMin != nil && fact.VMax != nil && *fact.VMin > *fact.VMax {
+		fact.VMin, fact.VMax = fact.VMax, fact.VMin
+	}
+	if fact.VMinSI != nil && fact.VMaxSI != nil && *fact.VMinSI > *fact.VMaxSI {
+		fact.VMinSI, fact.VMaxSI = fact.VMaxSI, fact.VMinSI
+	}
+}
+
 func ClassifyFact(fact NumericFact, def *ParameterDef) (string, float32) {
 	confidence := fact.Confidence
 	if strings.TrimSpace(fact.UnitCode) == "" {
