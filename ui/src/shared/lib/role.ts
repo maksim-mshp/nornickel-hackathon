@@ -34,6 +34,11 @@ export const ROLE_ROUTES: Record<DemoRole, string[]> = {
   partner: ["/"],
 };
 
+export const DEFAULT_ROLE: DemoRole = "partner";
+
+const PUBLIC_ROUTES = ["/login"];
+const DETAIL_ROUTES = ["/entity", "/answers"];
+
 type RoleStore = {
   role: DemoRole;
   token: string;
@@ -44,8 +49,8 @@ type RoleStore = {
 export const useRole = create<RoleStore>()(
   persist(
     (set) => ({
-      role: "admin",
-      token: "demo-admin",
+      role: DEFAULT_ROLE,
+      token: `demo-${DEFAULT_ROLE}`,
       setRole: (role) => set({ role, token: `demo-${role}` }),
       setAuth: (role, token) => set({ role, token }),
     }),
@@ -53,8 +58,15 @@ export const useRole = create<RoleStore>()(
   ),
 );
 
+function matchesPrefix(route: string, href: string): boolean {
+  if (route === "/") return href === "/";
+  return href === route || href.startsWith(`${route}/`);
+}
+
 export function routeAllowed(role: DemoRole, href: string): boolean {
-  return ROLE_ROUTES[role].includes(href);
+  if (PUBLIC_ROUTES.some((route) => matchesPrefix(route, href))) return true;
+  if (DETAIL_ROUTES.some((route) => matchesPrefix(route, href))) return true;
+  return ROLE_ROUTES[role].some((route) => matchesPrefix(route, href));
 }
 
 export function authHeaders(): Record<string, string> {
@@ -113,6 +125,9 @@ export async function loginOIDC(
   }
   const data = (await response.json()) as { access_token?: string };
   const token = data.access_token ?? "";
+  if (!token) {
+    throw new Error("Keycloak не вернул токен доступа");
+  }
   const role = roleFromToken(token);
   useRole.getState().setAuth(role, token);
   return role;

@@ -1,10 +1,11 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import {
+  DEFAULT_ROLE,
   ROLE_LABELS,
   routeAllowed,
   useRole,
@@ -36,6 +37,7 @@ const NAV_ITEMS = [
 
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
   const role = useRole((store) => store.role);
   const t = useTranslations();
   const [hydrated, setHydrated] = useState(false);
@@ -44,6 +46,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
     applyTheme(readTheme());
     setHydrated(true);
   }, []);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    if (!routeAllowed(role, pathname)) router.replace("/");
+  }, [hydrated, role, pathname, router]);
 
   const navItems = NAV_ITEMS.filter(
     ({ href }) => !hydrated || routeAllowed(role, href),
@@ -174,7 +181,7 @@ function RoleSwitcher() {
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => setHydrated(true), []);
-  const shown = hydrated ? role : "admin";
+  const shown = hydrated ? role : DEFAULT_ROLE;
 
   return (
     <label className="flex items-center gap-2 text-[12px] text-ink-1">
