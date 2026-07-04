@@ -2,6 +2,7 @@ package pg
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -214,12 +215,23 @@ WHERE c.subject_id = ANY($1) OR c.parameter_id = ANY($1)`
 	var result []app.Consensus
 	for rows.Next() {
 		var (
-			slug, name, verdict           string
-			agreedMin, agreedMax, overlap float64
-			stats                         []byte
+			slug, name, verdict    string
+			agreedMinN, agreedMaxN sql.NullFloat64
+			overlap                float64
+			stats                  []byte
 		)
-		if err := rows.Scan(&slug, &name, &verdict, &agreedMin, &agreedMax, &overlap, &stats); err != nil {
+		if err := rows.Scan(&slug, &name, &verdict, &agreedMinN, &agreedMaxN, &overlap, &stats); err != nil {
 			return nil, fmt.Errorf("scan consensus: %w", err)
+		}
+		if !agreedMinN.Valid && !agreedMaxN.Valid {
+			continue
+		}
+		agreedMin, agreedMax := agreedMinN.Float64, agreedMaxN.Float64
+		if !agreedMinN.Valid {
+			agreedMin = agreedMax
+		}
+		if !agreedMaxN.Valid {
+			agreedMax = agreedMin
 		}
 		parsed := struct {
 			Unit    string                `json:"unit"`
