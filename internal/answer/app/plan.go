@@ -38,13 +38,14 @@ func buildPlan(question string, filters *structpb.Struct) (*kmapv1.QueryPlan, er
 		return nil, err
 	}
 
+	geography := detectGeography(question)
 	plan := &kmapv1.QueryPlan{
 		Schema:           "queryplan/1",
-		Intent:           selected.intent,
+		Intent:           refineIntent(question, selected.intent, geography),
 		Lang:             detectLang(question),
 		Entities:         entities,
 		ParamConstraints: extractConstraints(question),
-		Geography:        detectGeography(question),
+		Geography:        geography,
 		Quality:          quality,
 	}
 	if err := applyFilters(plan, filters); err != nil {
@@ -206,12 +207,23 @@ func routeQuestion(question string) route {
 		}
 	default:
 		return route{
-			intent:     "technology_search",
-			materials:  []ref{{"material:catholyte", "католит"}},
-			processes:  []ref{{"process:nickel-electrowinning", "электроэкстракция никеля"}},
-			properties: []ref{{"parameter:catholyte-flow-rate", "скорость потока"}},
-			matched:    false,
+			intent:  "technology_search",
+			matched: false,
 		}
+	}
+}
+
+func refineIntent(question string, base string, geography string) string {
+	lower := strings.ToLower(question)
+	switch {
+	case containsAny(lower, "кто ", "работал", "эксперт", "компетенц", "специалист"):
+		return "expert_search"
+	case containsAny(lower, "есть ли данные", "пробел", "не изучен", "белые пятна", "изучал ли"):
+		return "gap_analysis"
+	case geography == "compare":
+		return "comparison"
+	default:
+		return base
 	}
 }
 
