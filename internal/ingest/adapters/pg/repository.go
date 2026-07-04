@@ -56,7 +56,8 @@ func (repository *Repository) FindIDBySHA256(ctx context.Context, sha256 []byte)
 
 const insertDocumentSQL = `insert into core.documents
 (id, title, doc_type, lang, year, geography, access_level, source_uri, sha256, status, current_version, uploaded_by, meta)
-values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`
+values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+on conflict (sha256) do nothing`
 
 const insertVersionSQL = `insert into core.document_versions
 (document_id, version, blob_uri) values ($1, $2, $3)`
@@ -65,32 +66,44 @@ const upsertStageSQL = `insert into ops.ingest_jobs (document_id, version, stage
 values ($1, $2, $3, $4)
 on conflict (document_id, version, stage) do update set status = excluded.status, finished_at = now()`
 
-func (repository *Repository) Register(ctx context.Context, doc domain.Document, envelope events.Envelope) (domain.Document, error) {
+func (repository *Repository) Register(ctx context.Context, doc domain.Document, envelope events.Envelope) (domain.Document, bool, error) {
 	tx, err := repository.pool.Begin(ctx)
 	if err != nil {
-		return domain.Document{}, fmt.Errorf("begin tx: %w", err)
+		return domain.Document{}, false, fmt.Errorf("begin tx: %w", err)
 	}
 	defer func() { _ = tx.Rollback(ctx) }()
 
 	if err := platformpg.SetRLS(ctx, tx, rlsPrincipal(ctx)); err != nil {
-		return domain.Document{}, err
+		return domain.Document{}, false, err
 	}
 
-	if _, err := tx.Exec(ctx, insertDocumentSQL,
+	tag, err := tx.Exec(ctx, insertDocumentSQL,
 		doc.ID, doc.Title, doc.DocType, nullableString(doc.Lang), nullableInt(doc.Year),
 		doc.Geography, doc.AccessLevel, doc.SourceURI, doc.SHA256, doc.Status, doc.Version,
 		uploadedBy(doc.UploadedBy), nullableJSON(doc.Meta),
-	); err != nil {
-		return domain.Document{}, fmt.Errorf("insert document: %w", err)
+	)
+	if err != nil {
+		return domain.Document{}, false, fmt.Errorf("insert document: %w", err)
+	}
+	if tag.RowsAffected() == 0 {
+		var existingID uuid.UUID
+		if err := tx.QueryRow(ctx, findIDBySHA256SQL, doc.SHA256).Scan(&existingID); err != nil {
+			return domain.Document{}, false, fmt.Errorf("find existing document: %w", err)
+		}
+		existing := doc
+		existing.ID = existingID
+		existing.Version = 1
+		existing.Status = domain.StatusRegistered
+		return existing, true, nil
 	}
 
 	if _, err := tx.Exec(ctx, insertVersionSQL, doc.ID, doc.Version, doc.BlobURI); err != nil {
-		return domain.Document{}, fmt.Errorf("insert document version: %w", err)
+		return domain.Document{}, false, fmt.Errorf("insert document version: %w", err)
 	}
 
 	for _, stage := range domain.DefaultStages() {
 		if _, err := tx.Exec(ctx, upsertStageSQL, doc.ID, doc.Version, stage.Stage, stage.Status); err != nil {
-			return domain.Document{}, fmt.Errorf("upsert stage %q: %w", stage.Stage, err)
+			return domain.Document{}, false, fmt.Errorf("upsert stage %q: %w", stage.Stage, err)
 		}
 	}
 
@@ -99,13 +112,13 @@ func (repository *Repository) Register(ctx context.Context, doc domain.Document,
 		AggregateType: "document",
 		AggregateID:   &doc.ID,
 	}); err != nil {
-		return domain.Document{}, fmt.Errorf("append outbox: %w", err)
+		return domain.Document{}, false, fmt.Errorf("append outbox: %w", err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
-		return domain.Document{}, fmt.Errorf("commit tx: %w", err)
+		return domain.Document{}, false, fmt.Errorf("commit tx: %w", err)
 	}
-	return doc, nil
+	return doc, false, nil
 }
 
 const getDocumentSQL = `select status, current_version from core.documents where id = $1`

@@ -12,9 +12,10 @@ import (
 )
 
 type fakeRepository struct {
-	docs        map[uuid.UUID]domain.Document
-	stages      map[uuid.UUID][]domain.Stage
-	registerErr error
+	docs              map[uuid.UUID]domain.Document
+	stages            map[uuid.UUID][]domain.Stage
+	registerErr       error
+	registerDuplicate bool
 }
 
 func newFakeRepository() *fakeRepository {
@@ -33,13 +34,16 @@ func (repo *fakeRepository) FindIDBySHA256(_ context.Context, sha256 []byte) (uu
 	return uuid.Nil, false, nil
 }
 
-func (repo *fakeRepository) Register(_ context.Context, doc domain.Document, _ events.Envelope) (domain.Document, error) {
+func (repo *fakeRepository) Register(_ context.Context, doc domain.Document, _ events.Envelope) (domain.Document, bool, error) {
 	if repo.registerErr != nil {
-		return domain.Document{}, repo.registerErr
+		return domain.Document{}, false, repo.registerErr
+	}
+	if repo.registerDuplicate {
+		return doc, true, nil
 	}
 	repo.docs[doc.ID] = doc
 	repo.stages[doc.ID] = domain.DefaultStages()
-	return doc, nil
+	return doc, false, nil
 }
 
 func (repo *fakeRepository) GetStatus(_ context.Context, documentID uuid.UUID) (domain.Document, []domain.Stage, error) {
@@ -134,6 +138,22 @@ func TestRegisterDocumentDeduplicatesBySHA256(t *testing.T) {
 	}
 	if len(repo.docs) != 1 {
 		t.Fatalf("expected 1 stored document, got %d", len(repo.docs))
+	}
+}
+
+func TestRegisterDocumentHandlesConcurrentDuplicate(t *testing.T) {
+	t.Parallel()
+
+	repo := newFakeRepository()
+	repo.registerDuplicate = true
+	service := NewService(repo)
+
+	result, err := service.RegisterDocument(t.Context(), RegisterCommand{BlobURI: "s3://kmap-raw/x", SHA256: []byte("race")})
+	if err != nil {
+		t.Fatalf("expected register to succeed on concurrent duplicate: %v", err)
+	}
+	if !result.Duplicate {
+		t.Fatal("expected duplicate result when insert conflicts")
 	}
 }
 

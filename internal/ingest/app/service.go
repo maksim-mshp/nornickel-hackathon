@@ -86,11 +86,11 @@ func (service *Service) RegisterDocument(ctx context.Context, cmd RegisterComman
 		return RegisterResult{}, err
 	}
 
-	saved, err := service.repository.Register(ctx, doc, envelope)
+	saved, duplicate, err := service.repository.Register(ctx, doc, envelope)
 	if err != nil {
 		return RegisterResult{}, err
 	}
-	return RegisterResult{DocumentID: saved.ID, Version: saved.Version, Status: saved.Status}, nil
+	return RegisterResult{DocumentID: saved.ID, Version: saved.Version, Status: saved.Status, Duplicate: duplicate}, nil
 }
 
 type StatusResult struct {
