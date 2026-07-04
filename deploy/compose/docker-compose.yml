@@ -308,7 +308,7 @@ services:
       - ../../configs:/configs:ro
     command: ["--config", "/configs", "--env", "demo"]
     mem_limit: 5g
-    cpus: 4.0
+    cpus: 6.0
     restart: unless-stopped
 
   parse:
@@ -344,7 +344,7 @@ services:
       - ../../configs:/configs:ro
     command: ["--config", "/configs", "--env", "demo"]
     mem_limit: 3g
-    cpus: 4.0
+    cpus: 8.0
     restart: unless-stopped
 
   ui:

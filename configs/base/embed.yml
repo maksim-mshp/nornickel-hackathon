@@ -13,5 +13,5 @@ embed:
     model: BAAI/bge-m3
     max_length: 1024
     batch_size: 16
-    threads: 4
+    threads: 6
   cache_size: 4096

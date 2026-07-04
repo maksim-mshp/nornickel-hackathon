@@ -9,6 +9,7 @@ dependencies = [
     "pyyaml>=6.0",
     "openai>=1.40",
     "transformers>=4.45",
+    "psycopg[binary]>=3.2",
 ]
 
 [project.optional-dependencies]
@@ -16,6 +17,7 @@ dev = ["ruff>=0.6"]
 
 [project.scripts]
 kmap-embed = "embed.main:main"
+kmap-embed-backfill = "embed.backfill:main"
 
 [build-system]
 requires = ["hatchling"]

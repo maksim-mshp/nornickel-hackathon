@@ -1,3 +1,0 @@
-extract:
-  workers: 3
-  embed_batch: 32
