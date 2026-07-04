@@ -11,7 +11,12 @@ import {
   useRole,
   type DemoRole,
 } from "@/shared/lib/role";
-import { applyTheme, readTheme, toggleTheme } from "@/shared/lib/theme";
+import {
+  applyTheme,
+  readTheme,
+  toggleTheme,
+  type ThemeName,
+} from "@/shared/lib/theme";
 import { CommandPalette } from "@/widgets/command-palette/command-palette";
 import {
   IconBook,
@@ -141,16 +146,19 @@ function Header() {
 
 function ThemeToggle() {
   const t = useTranslations("header");
-  const [, force] = useState(0);
+  const [theme, setTheme] = useState<ThemeName>("night");
+
+  useEffect(() => setTheme(readTheme()), []);
+
   return (
     <button
       type="button"
       title={t("toggleTheme")}
-      onClick={() => {
-        toggleTheme();
-        force((n) => n + 1);
-      }}
-      className="flex h-9 w-9 items-center justify-center rounded-sm text-ink-2 transition-colors hover:bg-bg-2 hover:text-ink-0"
+      aria-label={t("toggleTheme")}
+      onClick={() => setTheme(toggleTheme())}
+      className={`flex h-9 w-9 items-center justify-center rounded-sm text-ink-2 transition-all hover:bg-bg-2 hover:text-ink-0 ${
+        theme === "protocol" ? "rotate-180 text-anode" : ""
+      }`}
     >
       <IconTheme width={18} height={18} />
     </button>

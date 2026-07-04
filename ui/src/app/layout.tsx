@@ -29,6 +29,8 @@ export const metadata: Metadata = {
     "Поисково-аналитическая система знаний для горно-металлургических исследований",
 };
 
+const themeScript = `(function(){try{var t=localStorage.getItem('kmap-theme');if(t!=='protocol'&&t!=='night'){t=window.matchMedia('(prefers-color-scheme: light)').matches?'protocol':'night';}document.documentElement.dataset.theme=t;}catch(e){}})();`;
+
 export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
@@ -41,6 +43,9 @@ export default async function RootLayout({
       className={`${display.variable} ${text.variable} ${mono.variable}`}
       suppressHydrationWarning
     >
+      <head>
+        <script dangerouslySetInnerHTML={{ __html: themeScript }} />
+      </head>
       <body>
         <NextIntlClientProvider locale={locale} messages={messages}>
           <AppShell>{children}</AppShell>
