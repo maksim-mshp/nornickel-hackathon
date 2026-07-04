@@ -196,41 +196,60 @@ export function getExperiments(): Promise<ExperimentRow[]> {
   return getJSON("/v1/experiments", EXPERIMENTS);
 }
 
-export async function getDocuments(): Promise<DocumentRow[]> {
+export type DocumentsPage = { items: DocumentRow[]; total: number };
+
+export async function getDocuments(offset = 0, limit = 50): Promise<DocumentsPage> {
   try {
-    const all: DocumentRow[] = [];
-    let cursor = "";
-    for (let page = 0; page < 100; page++) {
-      const url = cursor
-        ? `/v1/documents?limit=100&cursor=${encodeURIComponent(cursor)}`
-        : "/v1/documents?limit=100";
-      const response = await fetch(url, {
-        headers: { Accept: "application/json", ...authHeaders() },
-      });
-      if (!response.ok) return all;
-      const data = (await response.json()) as {
-        items?: DocumentRow[];
-        next_cursor?: string;
-      };
-      if (Array.isArray(data.items)) all.push(...data.items);
-      cursor = data.next_cursor ?? "";
-      if (!cursor) break;
-    }
-    return all;
+    const response = await fetch(`/v1/documents?limit=${limit}&offset=${offset}`, {
+      headers: { Accept: "application/json", ...authHeaders() },
+    });
+    if (!response.ok) return { items: DOCUMENTS, total: DOCUMENTS.length };
+    const data = (await response.json()) as {
+      items?: DocumentRow[];
+      total?: number;
+    };
+    const items = Array.isArray(data.items) ? data.items : [];
+    return { items, total: data.total ?? items.length };
   } catch {
-    return DOCUMENTS;
+    return { items: DOCUMENTS, total: DOCUMENTS.length };
   }
 }
 
-export async function openDocumentSource(id: string): Promise<boolean> {
+function filenameFromDisposition(header: string | null): string {
+  if (!header) return "";
+  const encoded = header.match(/filename\*=UTF-8''([^;]+)/i);
+  if (encoded) {
+    try {
+      return decodeURIComponent(encoded[1].trim());
+    } catch {
+      /* fall through to plain filename */
+    }
+  }
+  const plain = header.match(/filename="?([^";]+)"?/i);
+  return plain ? plain[1].trim() : "";
+}
+
+export async function openDocumentSource(
+  id: string,
+  fallbackName = "",
+): Promise<boolean> {
   try {
     const response = await fetch(`/v1/documents/${encodeURIComponent(id)}/file`, {
       headers: { ...authHeaders() },
     });
     if (!response.ok) return false;
     const blob = await response.blob();
+    const filename =
+      filenameFromDisposition(response.headers.get("Content-Disposition")) ||
+      fallbackName ||
+      id;
     const url = URL.createObjectURL(blob);
-    window.open(url, "_blank", "noopener");
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
     setTimeout(() => URL.revokeObjectURL(url), 60_000);
     return true;
   } catch {

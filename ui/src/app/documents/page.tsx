@@ -9,6 +9,8 @@ import {
 
 const STAGES = ["registered", "parsed", "extracted", "indexed"] as const;
 
+const PAGE_SIZE = 50;
+
 const GEO_LABELS: Record<string, string> = {
   ru: "РФ",
   foreign: "заруб.",
@@ -18,11 +20,14 @@ const GEO_LABELS: Record<string, string> = {
 
 export default function DocumentsPage() {
   const [rows, setRows] = useState<DocumentRow[]>([]);
+  const [total, setTotal] = useState(0);
+  const [page, setPage] = useState(0);
+  const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
-  const openSource = async (id: string) => {
-    const ok = await openDocumentSource(id);
+  const openSource = async (row: DocumentRow) => {
+    const ok = await openDocumentSource(row.id, row.title);
     if (!ok) {
       setToast("Исходный файл недоступен в хранилище");
       setTimeout(() => setToast(null), 3000);
@@ -31,13 +36,22 @@ export default function DocumentsPage() {
 
   useEffect(() => {
     let alive = true;
-    getDocuments().then((data) => {
-      if (alive) setRows(data);
+    setLoading(true);
+    getDocuments(page * PAGE_SIZE, PAGE_SIZE).then((data) => {
+      if (!alive) return;
+      setRows(data.items);
+      setTotal(data.total);
+      setExpanded(null);
+      setLoading(false);
     });
     return () => {
       alive = false;
     };
-  }, []);
+  }, [page]);
+
+  const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
+  const from = total === 0 ? 0 : page * PAGE_SIZE + 1;
+  const to = page * PAGE_SIZE + rows.length;
 
   return (
     <div className="mx-auto flex max-w-[1200px] flex-col gap-6 px-6 py-8">
@@ -50,8 +64,8 @@ export default function DocumentsPage() {
           indexed
         </p>
         <p className="mt-1 font-mono text-[11px] text-ink-2">
-          показано {rows.length} документов · список отфильтрован по вашему уровню
-          доступа (RLS)
+          показано {from}–{to} из {total} документов · список отфильтрован по
+          вашему уровню доступа (RLS)
         </p>
       </section>
 
@@ -108,10 +122,10 @@ export default function DocumentsPage() {
                         <span className="text-ink-1">llm_valid_rate: 0.94</span>
                         <button
                           type="button"
-                          onClick={() => openSource(row.id)}
+                          onClick={() => openSource(row)}
                           className="ml-auto rounded-sm border border-line px-2 py-1 font-mono text-[10px] text-ink-1 transition-colors hover:border-electrolyte hover:text-electrolyte"
                         >
-                          открыть источник
+                          скачать источник
                         </button>
                         <button
                           type="button"
@@ -128,6 +142,13 @@ export default function DocumentsPage() {
           </tbody>
         </table>
       </div>
+
+      <Pager
+        page={page}
+        totalPages={totalPages}
+        loading={loading}
+        onChange={setPage}
+      />
 
       {toast && (
         <div className="fixed bottom-6 left-6 z-50 rounded-sm border border-anode/50 bg-bg-2 px-4 py-2 text-[12px] text-anode shadow-lg">
@@ -154,6 +175,65 @@ function Pipeline({ status }: { status: string }) {
           />
         );
       })}
+    </div>
+  );
+}
+
+function Pager({
+  page,
+  totalPages,
+  loading,
+  onChange,
+}: {
+  page: number;
+  totalPages: number;
+  loading: boolean;
+  onChange: (page: number) => void;
+}) {
+  const canPrev = page > 0 && !loading;
+  const canNext = page < totalPages - 1 && !loading;
+  const buttonClass =
+    "rounded-sm border border-line px-2 py-1 font-mono text-[10px] text-ink-1 transition-colors enabled:hover:border-electrolyte enabled:hover:text-electrolyte disabled:cursor-not-allowed disabled:opacity-40";
+
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <span className="font-mono text-[11px] text-ink-2">
+        {loading ? "загрузка…" : `стр. ${page + 1} из ${totalPages}`}
+      </span>
+      <div className="flex items-center gap-1.5">
+        <button
+          type="button"
+          className={buttonClass}
+          disabled={!canPrev}
+          onClick={() => onChange(0)}
+        >
+          « первая
+        </button>
+        <button
+          type="button"
+          className={buttonClass}
+          disabled={!canPrev}
+          onClick={() => onChange(page - 1)}
+        >
+          ‹ назад
+        </button>
+        <button
+          type="button"
+          className={buttonClass}
+          disabled={!canNext}
+          onClick={() => onChange(page + 1)}
+        >
+          вперёд ›
+        </button>
+        <button
+          type="button"
+          className={buttonClass}
+          disabled={!canNext}
+          onClick={() => onChange(totalPages - 1)}
+        >
+          последняя »
+        </button>
+      </div>
     </div>
   );
 }
