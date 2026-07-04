@@ -4,6 +4,7 @@ import { Fragment, useEffect, useState } from "react";
 import {
   getDocuments,
   openDocumentSource,
+  reindexDocument,
   type DocumentRow,
 } from "@/shared/api/browse";
 
@@ -26,12 +27,19 @@ export default function DocumentsPage() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
+  const flash = (message: string) => {
+    setToast(message);
+    setTimeout(() => setToast(null), 3000);
+  };
+
   const openSource = async (row: DocumentRow) => {
     const ok = await openDocumentSource(row.id, row.title);
-    if (!ok) {
-      setToast("Исходный файл недоступен в хранилище");
-      setTimeout(() => setToast(null), 3000);
-    }
+    if (!ok) flash("Исходный файл недоступен в хранилище");
+  };
+
+  const reindex = async (row: DocumentRow) => {
+    const ok = await reindexDocument(row.id);
+    flash(ok ? "Переиндексация запущена" : "Переиндексация недоступна");
   };
 
   useEffect(() => {
@@ -88,8 +96,17 @@ export default function DocumentsPage() {
             {rows.map((row, index) => (
               <Fragment key={row.id}>
                 <tr
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={expanded === row.id}
                   onClick={() => setExpanded(expanded === row.id ? null : row.id)}
-                  className={`cursor-pointer border-b border-line/60 hover:bg-bg-1 ${index % 2 ? "bg-bg-1/40" : ""}`}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      setExpanded(expanded === row.id ? null : row.id);
+                    }
+                  }}
+                  className={`cursor-pointer border-b border-line/60 hover:bg-bg-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-focus ${index % 2 ? "bg-bg-1/40" : ""}`}
                 >
                   <td className="px-3 py-2 text-ink-0">{row.title}</td>
                   <td className="px-3 py-2 font-mono text-[11px] text-ink-1">{row.docType}</td>
@@ -130,6 +147,7 @@ export default function DocumentsPage() {
                         </button>
                         <button
                           type="button"
+                          onClick={() => reindex(row)}
                           className="rounded-sm border border-line px-2 py-1 font-mono text-[10px] text-ink-1 transition-colors hover:border-electrolyte hover:text-electrolyte"
                         >
                           reindex

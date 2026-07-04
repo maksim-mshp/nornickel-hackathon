@@ -271,6 +271,18 @@ function filenameFromDisposition(header: string | null): string {
   return plain ? plain[1].trim() : "";
 }
 
+export async function reindexDocument(id: string): Promise<boolean> {
+  try {
+    const response = await fetch(
+      `/v1/documents/${encodeURIComponent(id)}/reindex`,
+      { method: "POST", headers: { ...authHeaders() } },
+    );
+    return response.ok;
+  } catch {
+    return false;
+  }
+}
+
 export async function openDocumentSource(
   id: string,
   fallbackName = "",
