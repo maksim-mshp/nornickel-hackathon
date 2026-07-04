@@ -1,5 +1,10 @@
 import { normalizeAnswer, normalizePack } from "@/shared/api/ask-client";
-import type { AnswerDoc, EvidencePack, NumericValue } from "@/shared/api/types";
+import type {
+  AnswerDoc,
+  Consensus,
+  EvidencePack,
+  NumericValue,
+} from "@/shared/api/types";
 import { authHeaders } from "@/shared/lib/role";
 
 export type ExpertProfile = {
@@ -504,6 +509,7 @@ type EntityCardApi = {
   type?: string;
   synonyms?: string[] | null;
   counters?: Record<string, number> | null;
+  consensus?: unknown[] | null;
   experts?: Partial<ExpertProfile>[] | null;
   timeline?: { year?: number; facts?: number }[] | null;
 };
@@ -561,6 +567,7 @@ export type EntityCardLive = {
   nameEn: string;
   synonyms: { value: string; pending: boolean }[];
   counters: { documents: number; facts: number; experiments: number; experts: number };
+  consensus: Consensus[];
   relations: { group: string; items: { slug: string; name: string; weight: number }[] }[];
   experts: ExpertProfile[];
   timeline: { year: number; facts: number }[];
@@ -587,6 +594,9 @@ export async function getEntityCard(slug: string): Promise<EntityCardLive | null
       experiments: counters.experiments ?? 0,
       experts: counters.experts ?? 0,
     },
+    consensus: Array.isArray(data.consensus)
+      ? (data.consensus as Consensus[])
+      : [],
     relations,
     experts: (data.experts ?? []).map((item) => ({
       id: item.id ?? "",

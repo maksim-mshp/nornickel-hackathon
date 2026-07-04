@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { notFound, useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { getEntityCard, type EntityCardLive } from "@/shared/api/browse";
 import { getEntity, type EntityCard } from "@/shared/api/mock/entity-scenario";
@@ -19,9 +19,10 @@ export default function EntityPage() {
 
   useEffect(() => {
     let alive = true;
+    setCard(undefined);
     getEntityCard(slug).then((live) => {
       if (!alive) return;
-      setCard(live ?? getEntity(slug));
+      setCard(live ?? getEntity(slug) ?? null);
     });
     return () => {
       alive = false;
@@ -38,18 +39,7 @@ export default function EntityPage() {
     );
   }
 
-  if (!card) {
-    return (
-      <div className="mx-auto max-w-3xl px-6 py-16 text-center">
-        <p className="font-mono text-[11px] uppercase tracking-[0.2em] text-ink-2">
-          сущность не найдена
-        </p>
-        <p className="mt-3 text-[13px] text-ink-1">
-          Паспорт этой сущности появится после индексации корпуса
-        </p>
-      </div>
-    );
-  }
+  if (card === null) notFound();
 
   const consensus = "consensus" in card ? card.consensus : [];
 
@@ -119,8 +109,11 @@ export default function EntityPage() {
           </h2>
           {consensus.length > 0 ? (
             <div className="flex flex-col gap-3">
-              {consensus.map((item) => (
-                <ConsensusSpectrum key={item.parameter.slug} consensus={item} />
+              {consensus.map((item, index) => (
+                <ConsensusSpectrum
+                  key={`${item.parameter.slug}-${index}`}
+                  consensus={item}
+                />
               ))}
             </div>
           ) : (
@@ -186,11 +179,11 @@ export default function EntityPage() {
             Хронология фактов
           </h2>
           <div className="flex items-end gap-2 rounded-sm border border-line bg-bg-1 p-4">
-            {card.timeline.map((point) => {
+            {(() => {
               const max = Math.max(...card.timeline.map((p) => p.facts), 1);
-              return (
+              return card.timeline.map((point, index) => (
                 <div
-                  key={point.year}
+                  key={`${point.year}-${index}`}
                   className="flex flex-1 flex-col items-center gap-1"
                   title={`${point.year}: ${point.facts} фактов`}
                 >
@@ -205,8 +198,8 @@ export default function EntityPage() {
                     {point.year}
                   </span>
                 </div>
-              );
-            })}
+              ));
+            })()}
           </div>
         </section>
       )}
