@@ -39,6 +39,27 @@ paths:
             text/event-stream:
               schema: { type: string }
         "401": { $ref: "#/components/responses/Unauthorized" }
+  /v1/query/parse:
+    post:
+      tags: [ask]
+      summary: Детерминированный разбор строки (numcore + rule-контур) без синтеза — QueryPlan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [question]
+              properties:
+                question: { type: string }
+                lang: { type: string }
+      responses:
+        "200":
+          description: QueryPlan (intent, entities, paramConstraints, geography)
+          content:
+            application/json:
+              schema: { type: object }
+        "401": { $ref: "#/components/responses/Unauthorized" }
   /v1/search:
     post:
       tags: [browse]

@@ -168,6 +168,7 @@ func (server *Server) ReadinessChecks() []func(context.Context) error {
 
 func (server *Server) RegisterHTTP(router chi.Router) {
 	router.Post("/v1/ask", server.secure(auth.OpAsk, server.askHandler))
+	router.Post("/v1/query/parse", server.secure(auth.OpAsk, server.queryParseHandler))
 	router.Post("/v1/search", server.secure(auth.OpSearch, server.searchHandler))
 	router.Get("/v1/entities", server.secure(auth.OpBrowse, server.entitiesHandler))
 	router.Get("/v1/entities/{id}", server.secure(auth.OpBrowse, server.entityHandler))

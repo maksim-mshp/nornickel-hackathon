@@ -19,7 +19,8 @@ import (
 const _ = grpc.SupportPackageIsVersion9
 
 const (
-	AnswerService_Ask_FullMethodName = "/kmap.v1.AnswerService/Ask"
+	AnswerService_Ask_FullMethodName        = "/kmap.v1.AnswerService/Ask"
+	AnswerService_ParseQuery_FullMethodName = "/kmap.v1.AnswerService/ParseQuery"
 )
 
 // AnswerServiceClient is the client API for AnswerService service.
@@ -27,6 +28,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type AnswerServiceClient interface {
 	Ask(ctx context.Context, in *AskRequest, opts ...grpc.CallOption) (grpc.ServerStreamingClient[AskResponse], error)
+	ParseQuery(ctx context.Context, in *ParseQueryRequest, opts ...grpc.CallOption) (*QueryPlan, error)
 }
 
 type answerServiceClient struct {
@@ -56,11 +58,22 @@ func (c *answerServiceClient) Ask(ctx context.Context, in *AskRequest, opts ...g
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type AnswerService_AskClient = grpc.ServerStreamingClient[AskResponse]
 
+func (c *answerServiceClient) ParseQuery(ctx context.Context, in *ParseQueryRequest, opts ...grpc.CallOption) (*QueryPlan, error) {
+	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
+	out := new(QueryPlan)
+	err := c.cc.Invoke(ctx, AnswerService_ParseQuery_FullMethodName, in, out, cOpts...)
+	if err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // AnswerServiceServer is the server API for AnswerService service.
 // All implementations must embed UnimplementedAnswerServiceServer
 // for forward compatibility.
 type AnswerServiceServer interface {
 	Ask(*AskRequest, grpc.ServerStreamingServer[AskResponse]) error
+	ParseQuery(context.Context, *ParseQueryRequest) (*QueryPlan, error)
 	mustEmbedUnimplementedAnswerServiceServer()
 }
 
@@ -73,6 +86,9 @@ type UnimplementedAnswerServiceServer struct{}
 
 func (UnimplementedAnswerServiceServer) Ask(*AskRequest, grpc.ServerStreamingServer[AskResponse]) error {
 	return status.Error(codes.Unimplemented, "method Ask not implemented")
+}
+func (UnimplementedAnswerServiceServer) ParseQuery(context.Context, *ParseQueryRequest) (*QueryPlan, error) {
+	return nil, status.Error(codes.Unimplemented, "method ParseQuery not implemented")
 }
 func (UnimplementedAnswerServiceServer) mustEmbedUnimplementedAnswerServiceServer() {}
 func (UnimplementedAnswerServiceServer) testEmbeddedByValue()                       {}
@@ -106,13 +122,36 @@ func _AnswerService_Ask_Handler(srv interface{}, stream grpc.ServerStream) error
 // This type alias is provided for backwards compatibility with existing code that references the prior non-generic stream type by name.
 type AnswerService_AskServer = grpc.ServerStreamingServer[AskResponse]
 
+func _AnswerService_ParseQuery_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+	in := new(ParseQueryRequest)
+	if err := dec(in); err != nil {
+		return nil, err
+	}
+	if interceptor == nil {
+		return srv.(AnswerServiceServer).ParseQuery(ctx, in)
+	}
+	info := &grpc.UnaryServerInfo{
+		Server:     srv,
+		FullMethod: AnswerService_ParseQuery_FullMethodName,
+	}
+	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
+		return srv.(AnswerServiceServer).ParseQuery(ctx, req.(*ParseQueryRequest))
+	}
+	return interceptor(ctx, in, info, handler)
+}
+
 // AnswerService_ServiceDesc is the grpc.ServiceDesc for AnswerService service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
 var AnswerService_ServiceDesc = grpc.ServiceDesc{
 	ServiceName: "kmap.v1.AnswerService",
 	HandlerType: (*AnswerServiceServer)(nil),
-	Methods:     []grpc.MethodDesc{},
+	Methods: []grpc.MethodDesc{
+		{
+			MethodName: "ParseQuery",
+			Handler:    _AnswerService_ParseQuery_Handler,
+		},
+	},
 	Streams: []grpc.StreamDesc{
 		{
 			StreamName:    "Ask",

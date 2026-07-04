@@ -1,6 +1,8 @@
 package grpc
 
 import (
+	"context"
+
 	kmapv1 "github.com/maksim-mshp/nornickel-hackathon/contracts/gen/go/kmap/v1"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/answer/app"
 	"google.golang.org/grpc"
@@ -21,4 +23,8 @@ func (server *Server) RegisterGRPC(registrar grpc.ServiceRegistrar) {
 
 func (server *Server) Ask(req *kmapv1.AskRequest, stream kmapv1.AnswerService_AskServer) error {
 	return server.service.Ask(stream.Context(), req, stream.Send)
+}
+
+func (server *Server) ParseQuery(_ context.Context, req *kmapv1.ParseQueryRequest) (*kmapv1.QueryPlan, error) {
+	return server.service.ParseQuery(req.GetQuestion())
 }

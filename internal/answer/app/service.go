@@ -83,6 +83,17 @@ func NewService(search SearchClient, options ...Option) *Service {
 	return service
 }
 
+func (service *Service) ParseQuery(question string) (*kmapv1.QueryPlan, error) {
+	if question == "" {
+		return nil, status.Error(codes.InvalidArgument, "question is required")
+	}
+	plan, err := buildPlan(question, nil)
+	if err != nil {
+		return nil, status.Errorf(codes.Internal, "build plan: %v", err)
+	}
+	return plan, nil
+}
+
 func (service *Service) Ask(ctx context.Context, req *kmapv1.AskRequest, emit Emit) error {
 	question := req.GetQuestion()
 	if question == "" {

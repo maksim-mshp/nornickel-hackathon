@@ -1,5 +1,5 @@
 import { normalizeAnswer, normalizePack } from "@/shared/api/ask-client";
-import type { AnswerDoc, EvidencePack } from "@/shared/api/types";
+import type { AnswerDoc, EvidencePack, NumericValue } from "@/shared/api/types";
 import { authHeaders } from "@/shared/lib/role";
 
 export type ExpertProfile = {
@@ -625,6 +625,51 @@ export async function getSavedAnswer(id: string): Promise<SavedAnswer | null> {
     answer: normalizeAnswer(data.answer),
     pack: normalizePack((data.pack ?? {}) as Record<string, unknown>),
   };
+}
+
+export type ParsedConstraint = {
+  parameter: { slug: string; name: string };
+  value: NumericValue;
+};
+
+export async function parseQueryConstraints(
+  question: string,
+): Promise<ParsedConstraint[]> {
+  try {
+    const response = await fetch("/v1/query/parse", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        ...authHeaders(),
+      },
+      body: JSON.stringify({ question }),
+    });
+    if (!response.ok) return [];
+    const data = (await response.json()) as { paramConstraints?: unknown };
+    const list = Array.isArray(data.paramConstraints) ? data.paramConstraints : [];
+    return list.map((raw) => {
+      const item = raw as {
+        parameter?: { slug?: string; name?: string };
+        value?: { operator?: string; unit?: string; vmin?: number; vmax?: number };
+      };
+      const value = item.value ?? {};
+      return {
+        parameter: {
+          slug: item.parameter?.slug ?? "",
+          name: item.parameter?.name ?? "",
+        },
+        value: {
+          operator: (value.operator as NumericValue["operator"]) ?? "eq",
+          unit: value.unit ?? "",
+          vmin: typeof value.vmin === "number" ? value.vmin : undefined,
+          vmax: typeof value.vmax === "number" ? value.vmax : undefined,
+        },
+      };
+    });
+  } catch {
+    return [];
+  }
 }
 
 export async function getEntities(query = ""): Promise<EntitySummaryLive[]> {

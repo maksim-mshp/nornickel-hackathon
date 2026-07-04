@@ -90,6 +90,66 @@ func (x *AskRequest) GetLang() string {
 	return ""
 }
 
+type ParseQueryRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Question      string                 `protobuf:"bytes,1,opt,name=question,proto3" json:"question,omitempty"`
+	Principal     *Principal             `protobuf:"bytes,2,opt,name=principal,proto3" json:"principal,omitempty"`
+	Lang          string                 `protobuf:"bytes,3,opt,name=lang,proto3" json:"lang,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *ParseQueryRequest) Reset() {
+	*x = ParseQueryRequest{}
+	mi := &file_kmap_v1_answer_proto_msgTypes[1]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *ParseQueryRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*ParseQueryRequest) ProtoMessage() {}
+
+func (x *ParseQueryRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_kmap_v1_answer_proto_msgTypes[1]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use ParseQueryRequest.ProtoReflect.Descriptor instead.
+func (*ParseQueryRequest) Descriptor() ([]byte, []int) {
+	return file_kmap_v1_answer_proto_rawDescGZIP(), []int{1}
+}
+
+func (x *ParseQueryRequest) GetQuestion() string {
+	if x != nil {
+		return x.Question
+	}
+	return ""
+}
+
+func (x *ParseQueryRequest) GetPrincipal() *Principal {
+	if x != nil {
+		return x.Principal
+	}
+	return nil
+}
+
+func (x *ParseQueryRequest) GetLang() string {
+	if x != nil {
+		return x.Lang
+	}
+	return ""
+}
+
 type AskResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Type          string                 `protobuf:"bytes,1,opt,name=type,proto3" json:"type,omitempty"`
@@ -104,7 +164,7 @@ type AskResponse struct {
 
 func (x *AskResponse) Reset() {
 	*x = AskResponse{}
-	mi := &file_kmap_v1_answer_proto_msgTypes[1]
+	mi := &file_kmap_v1_answer_proto_msgTypes[2]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -116,7 +176,7 @@ func (x *AskResponse) String() string {
 func (*AskResponse) ProtoMessage() {}
 
 func (x *AskResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_kmap_v1_answer_proto_msgTypes[1]
+	mi := &file_kmap_v1_answer_proto_msgTypes[2]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -129,7 +189,7 @@ func (x *AskResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AskResponse.ProtoReflect.Descriptor instead.
 func (*AskResponse) Descriptor() ([]byte, []int) {
-	return file_kmap_v1_answer_proto_rawDescGZIP(), []int{1}
+	return file_kmap_v1_answer_proto_rawDescGZIP(), []int{2}
 }
 
 func (x *AskResponse) GetType() string {
@@ -187,7 +247,7 @@ type AnswerDoc struct {
 
 func (x *AnswerDoc) Reset() {
 	*x = AnswerDoc{}
-	mi := &file_kmap_v1_answer_proto_msgTypes[2]
+	mi := &file_kmap_v1_answer_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -199,7 +259,7 @@ func (x *AnswerDoc) String() string {
 func (*AnswerDoc) ProtoMessage() {}
 
 func (x *AnswerDoc) ProtoReflect() protoreflect.Message {
-	mi := &file_kmap_v1_answer_proto_msgTypes[2]
+	mi := &file_kmap_v1_answer_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -212,7 +272,7 @@ func (x *AnswerDoc) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AnswerDoc.ProtoReflect.Descriptor instead.
 func (*AnswerDoc) Descriptor() ([]byte, []int) {
-	return file_kmap_v1_answer_proto_rawDescGZIP(), []int{2}
+	return file_kmap_v1_answer_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *AnswerDoc) GetId() string {
@@ -261,7 +321,7 @@ type GuardReport struct {
 
 func (x *GuardReport) Reset() {
 	*x = GuardReport{}
-	mi := &file_kmap_v1_answer_proto_msgTypes[3]
+	mi := &file_kmap_v1_answer_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -273,7 +333,7 @@ func (x *GuardReport) String() string {
 func (*GuardReport) ProtoMessage() {}
 
 func (x *GuardReport) ProtoReflect() protoreflect.Message {
-	mi := &file_kmap_v1_answer_proto_msgTypes[3]
+	mi := &file_kmap_v1_answer_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -286,7 +346,7 @@ func (x *GuardReport) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GuardReport.ProtoReflect.Descriptor instead.
 func (*GuardReport) Descriptor() ([]byte, []int) {
-	return file_kmap_v1_answer_proto_rawDescGZIP(), []int{3}
+	return file_kmap_v1_answer_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *GuardReport) GetNumbersChecked() uint32 {
@@ -320,7 +380,11 @@ const file_kmap_v1_answer_proto_rawDesc = "" +
 	"\bquestion\x18\x01 \x01(\tR\bquestion\x121\n" +
 	"\afilters\x18\x02 \x01(\v2\x17.google.protobuf.StructR\afilters\x120\n" +
 	"\tprincipal\x18\x03 \x01(\v2\x12.kmap.v1.PrincipalR\tprincipal\x12\x12\n" +
-	"\x04lang\x18\x04 \x01(\tR\x04lang\"\xf1\x01\n" +
+	"\x04lang\x18\x04 \x01(\tR\x04lang\"u\n" +
+	"\x11ParseQueryRequest\x12\x1a\n" +
+	"\bquestion\x18\x01 \x01(\tR\bquestion\x120\n" +
+	"\tprincipal\x18\x02 \x01(\v2\x12.kmap.v1.PrincipalR\tprincipal\x12\x12\n" +
+	"\x04lang\x18\x03 \x01(\tR\x04lang\"\xf1\x01\n" +
 	"\vAskResponse\x12\x12\n" +
 	"\x04type\x18\x01 \x01(\tR\x04type\x12&\n" +
 	"\x04plan\x18\x02 \x01(\v2\x12.kmap.v1.QueryPlanR\x04plan\x121\n" +
@@ -341,9 +405,11 @@ const file_kmap_v1_answer_proto_rawDesc = "" +
 	"\n" +
 	"violations\x18\x02 \x01(\rR\n" +
 	"violations\x12\x1a\n" +
-	"\bdegraded\x18\x03 \x01(\bR\bdegraded2C\n" +
+	"\bdegraded\x18\x03 \x01(\bR\bdegraded2\x81\x01\n" +
 	"\rAnswerService\x122\n" +
-	"\x03Ask\x12\x13.kmap.v1.AskRequest\x1a\x14.kmap.v1.AskResponse0\x01BLZJgithub.com/maksim-mshp/nornickel-hackathon/contracts/gen/go/kmap/v1;kmapv1b\x06proto3"
+	"\x03Ask\x12\x13.kmap.v1.AskRequest\x1a\x14.kmap.v1.AskResponse0\x01\x12<\n" +
+	"\n" +
+	"ParseQuery\x12\x1a.kmap.v1.ParseQueryRequest\x1a\x12.kmap.v1.QueryPlanBLZJgithub.com/maksim-mshp/nornickel-hackathon/contracts/gen/go/kmap/v1;kmapv1b\x06proto3"
 
 var (
 	file_kmap_v1_answer_proto_rawDescOnce sync.Once
@@ -357,33 +423,37 @@ func file_kmap_v1_answer_proto_rawDescGZIP() []byte {
 	return file_kmap_v1_answer_proto_rawDescData
 }
 
-var file_kmap_v1_answer_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_kmap_v1_answer_proto_msgTypes = make([]protoimpl.MessageInfo, 5)
 var file_kmap_v1_answer_proto_goTypes = []any{
-	(*AskRequest)(nil),      // 0: kmap.v1.AskRequest
-	(*AskResponse)(nil),     // 1: kmap.v1.AskResponse
-	(*AnswerDoc)(nil),       // 2: kmap.v1.AnswerDoc
-	(*GuardReport)(nil),     // 3: kmap.v1.GuardReport
-	(*structpb.Struct)(nil), // 4: google.protobuf.Struct
-	(*Principal)(nil),       // 5: kmap.v1.Principal
-	(*QueryPlan)(nil),       // 6: kmap.v1.QueryPlan
-	(*EvidencePack)(nil),    // 7: kmap.v1.EvidencePack
+	(*AskRequest)(nil),        // 0: kmap.v1.AskRequest
+	(*ParseQueryRequest)(nil), // 1: kmap.v1.ParseQueryRequest
+	(*AskResponse)(nil),       // 2: kmap.v1.AskResponse
+	(*AnswerDoc)(nil),         // 3: kmap.v1.AnswerDoc
+	(*GuardReport)(nil),       // 4: kmap.v1.GuardReport
+	(*structpb.Struct)(nil),   // 5: google.protobuf.Struct
+	(*Principal)(nil),         // 6: kmap.v1.Principal
+	(*QueryPlan)(nil),         // 7: kmap.v1.QueryPlan
+	(*EvidencePack)(nil),      // 8: kmap.v1.EvidencePack
 }
 var file_kmap_v1_answer_proto_depIdxs = []int32{
-	4, // 0: kmap.v1.AskRequest.filters:type_name -> google.protobuf.Struct
-	5, // 1: kmap.v1.AskRequest.principal:type_name -> kmap.v1.Principal
-	6, // 2: kmap.v1.AskResponse.plan:type_name -> kmap.v1.QueryPlan
-	7, // 3: kmap.v1.AskResponse.evidence:type_name -> kmap.v1.EvidencePack
-	2, // 4: kmap.v1.AskResponse.answer:type_name -> kmap.v1.AnswerDoc
-	4, // 5: kmap.v1.AskResponse.problem:type_name -> google.protobuf.Struct
-	4, // 6: kmap.v1.AnswerDoc.payload:type_name -> google.protobuf.Struct
-	3, // 7: kmap.v1.AnswerDoc.guard:type_name -> kmap.v1.GuardReport
-	0, // 8: kmap.v1.AnswerService.Ask:input_type -> kmap.v1.AskRequest
-	1, // 9: kmap.v1.AnswerService.Ask:output_type -> kmap.v1.AskResponse
-	9, // [9:10] is the sub-list for method output_type
-	8, // [8:9] is the sub-list for method input_type
-	8, // [8:8] is the sub-list for extension type_name
-	8, // [8:8] is the sub-list for extension extendee
-	0, // [0:8] is the sub-list for field type_name
+	5,  // 0: kmap.v1.AskRequest.filters:type_name -> google.protobuf.Struct
+	6,  // 1: kmap.v1.AskRequest.principal:type_name -> kmap.v1.Principal
+	6,  // 2: kmap.v1.ParseQueryRequest.principal:type_name -> kmap.v1.Principal
+	7,  // 3: kmap.v1.AskResponse.plan:type_name -> kmap.v1.QueryPlan
+	8,  // 4: kmap.v1.AskResponse.evidence:type_name -> kmap.v1.EvidencePack
+	3,  // 5: kmap.v1.AskResponse.answer:type_name -> kmap.v1.AnswerDoc
+	5,  // 6: kmap.v1.AskResponse.problem:type_name -> google.protobuf.Struct
+	5,  // 7: kmap.v1.AnswerDoc.payload:type_name -> google.protobuf.Struct
+	4,  // 8: kmap.v1.AnswerDoc.guard:type_name -> kmap.v1.GuardReport
+	0,  // 9: kmap.v1.AnswerService.Ask:input_type -> kmap.v1.AskRequest
+	1,  // 10: kmap.v1.AnswerService.ParseQuery:input_type -> kmap.v1.ParseQueryRequest
+	2,  // 11: kmap.v1.AnswerService.Ask:output_type -> kmap.v1.AskResponse
+	7,  // 12: kmap.v1.AnswerService.ParseQuery:output_type -> kmap.v1.QueryPlan
+	11, // [11:13] is the sub-list for method output_type
+	9,  // [9:11] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_kmap_v1_answer_proto_init() }
@@ -398,7 +468,7 @@ func file_kmap_v1_answer_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_kmap_v1_answer_proto_rawDesc), len(file_kmap_v1_answer_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   5,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

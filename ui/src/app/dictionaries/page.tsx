@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { getEntities, type EntitySummaryLive } from "@/shared/api/browse";
+import { FactValue } from "@/entities/fact/fact-value";
+import {
+  getEntities,
+  parseQueryConstraints,
+  type EntitySummaryLive,
+  type ParsedConstraint,
+} from "@/shared/api/browse";
 
 type UnitRow = { code: string; names: string; dimension: string; si: string; factor: string };
 type SynonymRow = { canonical: string; aliases: { value: string; lang: string; status: string }[] };
@@ -37,40 +43,11 @@ const SYNONYMS: SynonymRow[] = [
   },
 ];
 
-type Parsed = { operator: string; vmin?: number; vmax?: number; unit: string } | null;
-
-function parseNumcore(input: string): Parsed {
-  const text = input.replace(/ /g, " ").trim();
-  const num = "(-?\\d+(?:[.,]\\d+)?)";
-  const unit = "([а-яё°%/·²³\\w.]+(?:/[а-яё°%\\w²³.]+)?)?";
-  const norm = (value: string) => parseFloat(value.replace(",", "."));
-
-  let match = text.match(new RegExp(`${num}\\s*[–—-]\\s*${num}\\s*${unit}`, "iu"));
-  if (match) return { operator: "range", vmin: norm(match[1]), vmax: norm(match[2]), unit: (match[3] ?? "").trim() };
-
-  match = text.match(new RegExp(`(≤|не более|до|<)\\s*${num}\\s*${unit}`, "iu"));
-  if (match) return { operator: "lte", vmax: norm(match[2]), unit: (match[3] ?? "").trim() };
-
-  match = text.match(new RegExp(`(≥|не менее|от|свыше|выше|>)\\s*${num}\\s*${unit}`, "iu"));
-  if (match) return { operator: "gte", vmin: norm(match[2]), unit: (match[3] ?? "").trim() };
-
-  match = text.match(new RegExp(`${num}\\s*±\\s*${num}\\s*${unit}`, "iu"));
-  if (match) {
-    const center = norm(match[1]);
-    const delta = norm(match[2]);
-    return { operator: "range", vmin: center - delta, vmax: center + delta, unit: (match[3] ?? "").trim() };
-  }
-
-  match = text.match(new RegExp(`${num}\\s*${unit}`, "iu"));
-  if (match) return { operator: "eq", vmin: norm(match[1]), vmax: norm(match[1]), unit: (match[2] ?? "").trim() };
-
-  return null;
-}
-
 export default function DictionariesPage() {
-  const [test, setTest] = useState("0,8–1,0 м/с");
+  const [test, setTest] = useState("скорость потока 0,8–1,0 м/с");
   const [entities, setEntities] = useState<EntitySummaryLive[]>([]);
-  const parsed = parseNumcore(test);
+  const [constraints, setConstraints] = useState<ParsedConstraint[]>([]);
+  const [parsing, setParsing] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -81,6 +58,28 @@ export default function DictionariesPage() {
       alive = false;
     };
   }, []);
+
+  useEffect(() => {
+    let alive = true;
+    const query = test.trim();
+    if (!query) {
+      setConstraints([]);
+      setParsing(false);
+      return;
+    }
+    setParsing(true);
+    const timer = setTimeout(() => {
+      void parseQueryConstraints(query).then((items) => {
+        if (!alive) return;
+        setConstraints(items);
+        setParsing(false);
+      });
+    }, 400);
+    return () => {
+      alive = false;
+      clearTimeout(timer);
+    };
+  }, [test]);
 
   return (
     <div className="mx-auto flex max-w-[1200px] flex-col gap-6 px-6 py-8">
@@ -176,40 +175,38 @@ export default function DictionariesPage() {
 
       <section className="rise-in rounded-sm border border-line bg-bg-1 p-4" style={{ animationDelay: "120ms" }}>
         <h2 className="mb-3 font-mono text-[10px] uppercase tracking-[0.2em] text-ink-2">
-          Тест numcore · распарсить пример
+          Тест numcore · распарсить пример (детерминированный разбор на сервере)
         </h2>
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex flex-wrap items-start gap-3">
           <input
             name="numcore-test"
             aria-label="Тест numcore: распарсить пример"
             value={test}
             onChange={(event) => setTest(event.target.value)}
-            placeholder="0,8–1,0 м/с · ≤1000 мг/дм³ · 65±2 °C · ≥95 %"
+            placeholder="скорость потока 0,8–1,0 м/с · сухой остаток ≤1000 мг/дм³ · температура 65 °C"
             className="h-10 min-w-[280px] flex-1 rounded-sm border border-line bg-bg-0 px-3 font-mono text-[13px] text-ink-0 focus:border-electrolyte focus:outline-none"
           />
-          <div className="font-mono text-[12px]">
-            {parsed ? (
-              <div className="flex flex-wrap items-center gap-2">
-                <Chip label="operator" value={parsed.operator} />
-                {parsed.vmin !== undefined && <Chip label="vmin" value={String(parsed.vmin)} />}
-                {parsed.vmax !== undefined && <Chip label="vmax" value={String(parsed.vmax)} />}
-                <Chip label="unit" value={parsed.unit || "—"} />
+          <div className="min-h-10 font-mono text-[12px]">
+            {parsing ? (
+              <span className="text-ink-2">разбор…</span>
+            ) : constraints.length > 0 ? (
+              <div className="flex flex-col gap-1.5">
+                {constraints.map((constraint, index) => (
+                  <div
+                    key={`${constraint.parameter.slug}-${index}`}
+                    className="flex flex-wrap items-center gap-2"
+                  >
+                    <span className="text-ink-1">{constraint.parameter.name}</span>
+                    <FactValue value={constraint.value} className="text-[12px]" />
+                  </div>
+                ))}
               </div>
             ) : (
-              <span className="text-melt">число не распознано</span>
+              <span className="text-melt">ограничение не распознано</span>
             )}
           </div>
         </div>
       </section>
     </div>
-  );
-}
-
-function Chip({ label, value }: { label: string; value: string }) {
-  return (
-    <span className="flex items-center gap-1 rounded-sm border border-electrolyte/40 bg-bg-2 px-1.5 py-0.5">
-      <span className="text-[9px] uppercase text-ink-2">{label}</span>
-      <span className="font-bold text-electrolyte">{value}</span>
-    </span>
   );
 }

@@ -19,6 +19,34 @@ type askBody struct {
 	Filters  json.RawMessage `json:"filters"`
 }
 
+func (server *Server) queryParseHandler(w stdhttp.ResponseWriter, r *stdhttp.Request) {
+	body, err := readBody(w, r)
+	if err != nil {
+		writeProblem(w, r, stdhttp.StatusBadRequest, "invalid_request", "Invalid request", err.Error())
+		return
+	}
+	var request askBody
+	if err := json.Unmarshal(body, &request); err != nil {
+		writeProblem(w, r, stdhttp.StatusBadRequest, "invalid_request", "Invalid request", err.Error())
+		return
+	}
+	if strings.TrimSpace(request.Question) == "" {
+		writeProblem(w, r, stdhttp.StatusBadRequest, "invalid_request", "Invalid request", "question is required")
+		return
+	}
+
+	plan, err := server.answer.ParseQuery(r.Context(), &kmapv1.ParseQueryRequest{
+		Question:  request.Question,
+		Lang:      request.Lang,
+		Principal: principalFromContext(r),
+	})
+	if err != nil {
+		writeGRPCProblem(w, r, err)
+		return
+	}
+	writeDataJSON(w, stdhttp.StatusOK, mapPlan(plan))
+}
+
 func (server *Server) askHandler(w stdhttp.ResponseWriter, r *stdhttp.Request) {
 	body, err := readBody(w, r)
 	if err != nil {
