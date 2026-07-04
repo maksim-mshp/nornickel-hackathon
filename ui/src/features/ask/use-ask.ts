@@ -70,6 +70,8 @@ export function useAsk() {
                 return { ...prev, phase: "done", answer: event.answer };
               case "error":
                 return { ...prev, phase: "error", error: event.message };
+              default:
+                return prev;
             }
           });
         }

@@ -106,24 +106,31 @@ export function EgoGraph({
   const nodes = [center, ...inner, ...outer];
   const byId = new Map(nodes.map((node) => [node.id, node]));
 
-  const contradictedDocs = new Set(
-    pack.contradictions.flatMap((contradiction) => {
+  const contradictionEdges: GraphEdge[] = pack.contradictions.flatMap(
+    (contradiction) => {
       const a = pack.facts.find((fact) => fact.ref === contradiction.aFactRef);
       const b = pack.facts.find((fact) => fact.ref === contradiction.bFactRef);
-      return a && b
-        ? [`${a.provenance.documentId}→${b.provenance.documentId}`]
-        : [];
-    }),
+      if (!a || !b) return [];
+      const from = a.provenance.documentId;
+      const to = b.provenance.documentId;
+      if (from === to || !byId.has(from) || !byId.has(to)) return [];
+      return [{ from, to, contradicts: true }];
+    },
   );
 
   const edges: GraphEdge[] = [
     ...inner.map((node) => ({ from: "center", to: node.id })),
     ...outer.map((node) => ({ from: "center", to: node.id })),
-    ...[...contradictedDocs].map((key) => {
-      const [from, to] = key.split("→");
-      return { from, to, contradicts: true };
-    }),
+    ...contradictionEdges,
   ];
+
+  if (inner.length + outer.length === 0) {
+    return (
+      <p className="rounded-sm border border-line bg-bg-1 p-4 text-[12px] text-ink-2">
+        Недостаточно связей для ego-графа по этому запросу.
+      </p>
+    );
+  }
 
   return (
     <div>
@@ -133,13 +140,13 @@ export function EgoGraph({
         role="img"
         aria-label="Ego-граф сущностей запроса"
       >
-        {edges.map((edge) => {
+        {edges.map((edge, index) => {
           const from = byId.get(edge.from);
           const to = byId.get(edge.to);
           if (!from || !to) return null;
           return (
             <line
-              key={`${edge.from}-${edge.to}`}
+              key={`edge-${index}-${edge.from}-${edge.to}`}
               x1={from.x}
               y1={from.y}
               x2={to.x}
@@ -150,8 +157,8 @@ export function EgoGraph({
             />
           );
         })}
-        {nodes.map((node) => (
-          <g key={node.id}>
+        {nodes.map((node, index) => (
+          <g key={`node-${index}-${node.id}`}>
             <circle
               cx={node.x}
               cy={node.y}

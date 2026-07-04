@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useAsk } from "@/features/ask/use-ask";
 import type { Fact } from "@/shared/api/types";
 import { PRESETS } from "@/shared/config/presets";
@@ -11,33 +11,50 @@ import { Inspector } from "./inspector";
 import { QueryPassport } from "./query-passport";
 
 export function Workspace() {
-  const { state, ask } = useAsk();
+  const { state, ask, reset } = useAsk();
   const [input, setInput] = useState("");
   const [selectedFact, setSelectedFact] = useState<Fact | null>(null);
   const lastAsked = useRef("");
 
-  const runQuestion = useRef((question: string, force = false) => {
-    const trimmed = question.trim();
-    if (!trimmed || (!force && trimmed === lastAsked.current)) return;
-    lastAsked.current = trimmed;
-    setInput(trimmed);
-    setSelectedFact(null);
-    window.history.replaceState(null, "", `/?q=${encodeURIComponent(trimmed)}`);
-    ask(trimmed);
-  });
+  const runQuestion = useCallback(
+    (question: string, force = false) => {
+      const trimmed = question.trim();
+      if (!trimmed || (!force && trimmed === lastAsked.current)) return;
+      lastAsked.current = trimmed;
+      setInput(trimmed);
+      setSelectedFact(null);
+      window.history.replaceState(
+        null,
+        "",
+        `/?q=${encodeURIComponent(trimmed)}`,
+      );
+      ask(trimmed);
+    },
+    [ask],
+  );
 
   useEffect(() => {
     const q = new URLSearchParams(window.location.search).get("q");
-    if (q) runQuestion.current(q);
+    if (q) runQuestion(q);
     const onAskEvent = (event: Event) => {
-      runQuestion.current((event as CustomEvent<string>).detail ?? "");
+      runQuestion((event as CustomEvent<string>).detail ?? "");
     };
     window.addEventListener("kmap:ask", onAskEvent);
     return () => window.removeEventListener("kmap:ask", onAskEvent);
-  }, []);
+  }, [runQuestion]);
 
-  const submit = (question: string) => runQuestion.current(question, true);
-  const busy = state.phase === "planning" || state.phase === "retrieving";
+  const submit = (question: string) => runQuestion(question, true);
+  const newQuery = () => {
+    lastAsked.current = "";
+    setInput("");
+    setSelectedFact(null);
+    window.history.replaceState(null, "", "/");
+    reset();
+  };
+  const busy =
+    state.phase === "planning" ||
+    state.phase === "retrieving" ||
+    state.phase === "streaming";
 
   if (state.phase === "idle") {
     return (
@@ -57,6 +74,7 @@ export function Workspace() {
         input={input}
         onInput={setInput}
         onSubmit={() => submit(input)}
+        onReset={newQuery}
         busy={busy}
       />
       <div className="flex flex-col gap-6 lg:flex-row">
@@ -79,11 +97,13 @@ function SearchForm({
   input,
   onInput,
   onSubmit,
+  onReset,
   busy,
 }: {
   input: string;
   onInput: (value: string) => void;
   onSubmit: () => void;
+  onReset: () => void;
   busy: boolean;
 }) {
   return (
@@ -94,6 +114,14 @@ function SearchForm({
       }}
       className="flex gap-2"
     >
+      <button
+        type="button"
+        onClick={onReset}
+        title="Новый запрос"
+        className="h-12 shrink-0 rounded-sm border border-line px-3 font-mono text-[12px] text-ink-2 transition-colors hover:border-electrolyte hover:text-electrolyte"
+      >
+        ← новый
+      </button>
       <div className="flex h-12 flex-1 items-center gap-3 rounded-sm border border-line-strong bg-bg-1 px-4">
         <IconSearch className="text-ink-2" />
         <input
