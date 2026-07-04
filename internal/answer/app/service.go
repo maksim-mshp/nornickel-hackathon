@@ -8,6 +8,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+	"unicode"
 
 	kmapv1 "github.com/maksim-mshp/nornickel-hackathon/contracts/gen/go/kmap/v1"
 	"google.golang.org/grpc"
@@ -143,10 +144,10 @@ func (service *Service) planAndTerms(ctx context.Context, question string, filte
 	if err != nil {
 		return nil, nil, err
 	}
-	return plan, ruleTerms(plan, question), nil
+	return plan, ruleTerms(plan), nil
 }
 
-func ruleTerms(plan *kmapv1.QueryPlan, question string) []string {
+func ruleTerms(plan *kmapv1.QueryPlan) []string {
 	var terms []string
 	fields := plan.GetEntities().GetFields()
 	for _, group := range []string{"materials", "processes", "properties"} {
@@ -160,9 +161,6 @@ func ruleTerms(plan *kmapv1.QueryPlan, question string) []string {
 			}
 		}
 	}
-	if len(terms) == 0 {
-		return []string{question}
-	}
 	return terms
 }
 
@@ -170,7 +168,7 @@ func (service *Service) augmentFacts(ctx context.Context, pack *kmapv1.EvidenceP
 	if service.retriever == nil || len(pack.GetFacts()) >= minFactsForAnswer {
 		return pack
 	}
-	facts, err := service.retriever.FactsByText(ctx, ftsTermsQuery(terms), question, ftsFactLimit)
+	facts, err := service.retriever.FactsByText(ctx, ftsTermsQuery(terms, question), question, ftsFactLimit)
 	if err != nil || len(facts) == 0 {
 		return pack
 	}
@@ -240,16 +238,29 @@ var ftsStopTerms = map[string]bool{
 	"литературный": true, "литературного": true,
 }
 
-func ftsTermsQuery(terms []string) string {
-	cleaned := make([]string, 0, len(terms))
-	for _, term := range terms {
-		term = strings.TrimSpace(term)
-		if term == "" || ftsStopTerms[strings.ToLower(term)] {
-			continue
+func ftsTermsQuery(terms []string, question string) string {
+	seen := map[string]bool{}
+	out := make([]string, 0, len(terms)+8)
+	add := func(value string) {
+		value = strings.TrimSpace(value)
+		lower := strings.ToLower(value)
+		if value == "" || ftsStopTerms[lower] || seen[lower] {
+			return
 		}
-		cleaned = append(cleaned, term)
+		seen[lower] = true
+		out = append(out, value)
 	}
-	return strings.Join(cleaned, " OR ")
+	for _, term := range terms {
+		add(term)
+	}
+	for _, word := range strings.FieldsFunc(question, func(r rune) bool {
+		return !unicode.IsLetter(r) && !unicode.IsDigit(r)
+	}) {
+		if len([]rune(word)) >= 3 {
+			add(word)
+		}
+	}
+	return strings.Join(out, " OR ")
 }
 
 func (service *Service) runSynthesis(ctx context.Context, question string, pack *kmapv1.EvidencePack) (Synthesis, error) {
