@@ -304,6 +304,7 @@ func extractConstraints(question string) []*kmapv1.ParamConstraint {
 }
 
 func parseConstraint(segment string, rule constraintRule) *kmapv1.ParamConstraint {
+	segment = normalizeUnitDigits(segment)
 	numbers := numericLiterals(segment)
 	if len(numbers) == 0 {
 		return nil
@@ -442,4 +443,19 @@ func containsAny(text string, needles ...string) bool {
 		}
 	}
 	return false
+}
+
+var unitDigitReplacer = strings.NewReplacer(
+	"дм3", "дм³", "дм2", "дм²",
+	"см3", "см³", "см2", "см²",
+	"мм3", "мм³", "мм2", "мм²",
+	"dm3", "dm³", "dm2", "dm²",
+	"cm3", "cm³", "cm2", "cm²",
+	"mm3", "mm³", "mm2", "mm²",
+	"м3", "м³", "м2", "м²",
+	"m3", "m³", "m2", "m²",
+)
+
+func normalizeUnitDigits(text string) string {
+	return unitDigitReplacer.Replace(text)
 }
