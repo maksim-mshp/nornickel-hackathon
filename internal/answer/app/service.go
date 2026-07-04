@@ -176,7 +176,21 @@ func (service *Service) augmentFacts(ctx context.Context, pack *kmapv1.EvidenceP
 	}
 	pack.Facts = facts
 	pack.Contradictions = nil
+	if stats, err := structpb.NewStruct(map[string]any{"sources": float64(factSources(facts))}); err == nil {
+		pack.Stats = stats
+	}
 	return pack
+}
+
+func factSources(facts []*kmapv1.Fact) int {
+	titles := map[string]bool{}
+	for _, fact := range facts {
+		title := fact.GetPayload().GetFields()["provenance"].GetStructValue().GetFields()["title"].GetStringValue()
+		if title != "" {
+			titles[title] = true
+		}
+	}
+	return len(titles)
 }
 
 func ftsTermsQuery(terms []string) string {
