@@ -35,6 +35,8 @@ export type DocumentRow = {
   status: string;
   facts: number;
   year: number;
+  version: number;
+  ncSuspectRate: number;
 };
 
 async function getJSON<T>(path: string, fallback: T): Promise<T> {
@@ -161,13 +163,13 @@ const EXPERIMENTS: ExperimentRow[] = [
 ];
 
 const DOCUMENTS: DocumentRow[] = [
-  { id: "doc_017", title: "Отчёт: оптимизация циркуляции католита", docType: "report", lang: "ru", geography: "foreign", accessLevel: "internal", status: "indexed", facts: 2, year: 2023 },
-  { id: "doc_042", title: "Протокол опытной серии ЭН-7", docType: "protocol", lang: "ru", geography: "ru", accessLevel: "internal", status: "indexed", facts: 1, year: 2021 },
-  { id: "doc_058", title: "Отчёт: режимы диафрагменных ячеек", docType: "report", lang: "ru", geography: "ru", accessLevel: "internal", status: "indexed", facts: 2, year: 2023 },
-  { id: "doc_101", title: "Nickel electrowinning practice review", docType: "article", lang: "en", geography: "foreign", accessLevel: "internal", status: "indexed", facts: 1, year: 2022 },
-  { id: "doc_201", title: "Обзор технологий обессоливания оборотных вод", docType: "article", lang: "en", geography: "foreign", accessLevel: "internal", status: "indexed", facts: 2, year: 2022 },
-  { id: "doc_215", title: "Ионообменная очистка сточных вод обогатительной фабрики", docType: "report", lang: "ru", geography: "ru", accessLevel: "internal", status: "indexed", facts: 1, year: 2023 },
-  { id: "doc_310", title: "Heap leaching of nickel laterites", docType: "article", lang: "en", geography: "foreign", accessLevel: "internal", status: "indexed", facts: 1, year: 2019 },
+  { id: "doc_017", title: "Отчёт: оптимизация циркуляции católита", docType: "report", lang: "ru", geography: "foreign", accessLevel: "internal", status: "indexed", facts: 2, year: 2023, version: 1, ncSuspectRate: 0 },
+  { id: "doc_042", title: "Протокол опытной серии ЭН-7", docType: "protocol", lang: "ru", geography: "ru", accessLevel: "internal", status: "indexed", facts: 1, year: 2021, version: 1, ncSuspectRate: 0 },
+  { id: "doc_058", title: "Отчёт: режимы диафрагменных ячеек", docType: "report", lang: "ru", geography: "ru", accessLevel: "internal", status: "indexed", facts: 2, year: 2023, version: 1, ncSuspectRate: 0 },
+  { id: "doc_101", title: "Nickel electrowinning practice review", docType: "article", lang: "en", geography: "foreign", accessLevel: "internal", status: "indexed", facts: 1, year: 2022, version: 1, ncSuspectRate: 0 },
+  { id: "doc_201", title: "Обзор технологий обессоливания оборотных вод", docType: "article", lang: "en", geography: "foreign", accessLevel: "internal", status: "indexed", facts: 2, year: 2022, version: 1, ncSuspectRate: 0 },
+  { id: "doc_215", title: "Ионообменная очистка сточных вод обогатительной фабрики", docType: "report", lang: "ru", geography: "ru", accessLevel: "internal", status: "indexed", facts: 1, year: 2023, version: 1, ncSuspectRate: 0 },
+  { id: "doc_310", title: "Heap leaching of nickel laterites", docType: "article", lang: "en", geography: "foreign", accessLevel: "internal", status: "indexed", facts: 1, year: 2019, version: 1, ncSuspectRate: 0 },
 ];
 
 export async function getExperts(

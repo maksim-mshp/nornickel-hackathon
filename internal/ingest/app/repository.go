@@ -16,13 +16,15 @@ type Repository interface {
 }
 
 type DocumentSummary struct {
-	ID          uuid.UUID
-	Title       string
-	DocType     string
-	Lang        string
-	Geography   string
-	AccessLevel string
-	Status      string
-	Facts       uint32
-	Year        int32
+	ID            uuid.UUID
+	Title         string
+	DocType       string
+	Lang          string
+	Geography     string
+	AccessLevel   string
+	Status        string
+	Facts         uint32
+	Year          int32
+	Version       int32
+	NcSuspectRate float64
 }

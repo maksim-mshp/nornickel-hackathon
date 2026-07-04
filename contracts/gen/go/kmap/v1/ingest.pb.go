@@ -469,6 +469,8 @@ type DocumentSummary struct {
 	Status        string                 `protobuf:"bytes,7,opt,name=status,proto3" json:"status,omitempty"`
 	Facts         uint32                 `protobuf:"varint,8,opt,name=facts,proto3" json:"facts,omitempty"`
 	Year          int32                  `protobuf:"varint,9,opt,name=year,proto3" json:"year,omitempty"`
+	Version       int32                  `protobuf:"varint,10,opt,name=version,proto3" json:"version,omitempty"`
+	NcSuspectRate float64                `protobuf:"fixed64,11,opt,name=nc_suspect_rate,json=ncSuspectRate,proto3" json:"nc_suspect_rate,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -566,6 +568,20 @@ func (x *DocumentSummary) GetYear() int32 {
 	return 0
 }
 
+func (x *DocumentSummary) GetVersion() int32 {
+	if x != nil {
+		return x.Version
+	}
+	return 0
+}
+
+func (x *DocumentSummary) GetNcSuspectRate() float64 {
+	if x != nil {
+		return x.NcSuspectRate
+	}
+	return 0
+}
+
 var File_kmap_v1_ingest_proto protoreflect.FileDescriptor
 
 const file_kmap_v1_ingest_proto_rawDesc = "" +
@@ -601,7 +617,7 @@ const file_kmap_v1_ingest_proto_rawDesc = "" +
 	"\tprincipal\x18\x02 \x01(\v2\x12.kmap.v1.PrincipalR\tprincipal\"r\n" +
 	"\x15ListDocumentsResponse\x12.\n" +
 	"\x05items\x18\x01 \x03(\v2\x18.kmap.v1.DocumentSummaryR\x05items\x12)\n" +
-	"\x04page\x18\x02 \x01(\v2\x15.kmap.v1.PageResponseR\x04page\"\xe9\x01\n" +
+	"\x04page\x18\x02 \x01(\v2\x15.kmap.v1.PageResponseR\x04page\"\xab\x02\n" +
 	"\x0fDocumentSummary\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05title\x18\x02 \x01(\tR\x05title\x12\x19\n" +
@@ -611,7 +627,10 @@ const file_kmap_v1_ingest_proto_rawDesc = "" +
 	"\faccess_level\x18\x06 \x01(\tR\vaccessLevel\x12\x16\n" +
 	"\x06status\x18\a \x01(\tR\x06status\x12\x14\n" +
 	"\x05facts\x18\b \x01(\rR\x05facts\x12\x12\n" +
-	"\x04year\x18\t \x01(\x05R\x04year2\xfc\x01\n" +
+	"\x04year\x18\t \x01(\x05R\x04year\x12\x18\n" +
+	"\aversion\x18\n" +
+	" \x01(\x05R\aversion\x12&\n" +
+	"\x0fnc_suspect_rate\x18\v \x01(\x01R\rncSuspectRate2\xfc\x01\n" +
 	"\rIngestService\x12W\n" +
 	"\x10RegisterDocument\x12 .kmap.v1.RegisterDocumentRequest\x1a!.kmap.v1.RegisterDocumentResponse\x12B\n" +
 	"\tGetStatus\x12\x19.kmap.v1.GetStatusRequest\x1a\x1a.kmap.v1.GetStatusResponse\x12N\n" +

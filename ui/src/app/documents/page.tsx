@@ -117,9 +117,10 @@ export default function DocumentsPage() {
                           паспорт · {row.id}
                         </span>
                         <span className="text-ink-1">год: {row.year}</span>
-                        <span className="text-ink-1">версия: 1</span>
-                        <span className="text-ink-1">nc_suspect_rate: 0.02</span>
-                        <span className="text-ink-1">llm_valid_rate: 0.94</span>
+                        <span className="text-ink-1">версия: {row.version}</span>
+                        <span className="text-ink-1">
+                          nc_suspect_rate: {row.ncSuspectRate.toFixed(2)}
+                        </span>
                         <button
                           type="button"
                           onClick={() => openSource(row)}

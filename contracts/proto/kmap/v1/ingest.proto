@@ -67,4 +67,6 @@ message DocumentSummary {
   string status = 7;
   uint32 facts = 8;
   int32 year = 9;
+  int32 version = 10;
+  double nc_suspect_rate = 11;
 }

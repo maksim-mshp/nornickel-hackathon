@@ -71,15 +71,17 @@ type experimentRow struct {
 }
 
 type documentRow struct {
-	ID          string `json:"id"`
-	Title       string `json:"title"`
-	DocType     string `json:"docType"`
-	Lang        string `json:"lang"`
-	Geography   string `json:"geography"`
-	AccessLevel string `json:"accessLevel"`
-	Status      string `json:"status"`
-	Facts       uint32 `json:"facts"`
-	Year        int32  `json:"year"`
+	ID            string  `json:"id"`
+	Title         string  `json:"title"`
+	DocType       string  `json:"docType"`
+	Lang          string  `json:"lang"`
+	Geography     string  `json:"geography"`
+	AccessLevel   string  `json:"accessLevel"`
+	Status        string  `json:"status"`
+	Facts         uint32  `json:"facts"`
+	Year          int32   `json:"year"`
+	Version       int32   `json:"version"`
+	NcSuspectRate float64 `json:"ncSuspectRate"`
 }
 
 type coverageCell struct {
@@ -296,15 +298,17 @@ func mapExperiment(item *kmapv1.ExperimentSummary) experimentRow {
 
 func mapDocument(item *kmapv1.DocumentSummary) documentRow {
 	return documentRow{
-		ID:          item.GetId(),
-		Title:       item.GetTitle(),
-		DocType:     item.GetDocType(),
-		Lang:        item.GetLang(),
-		Geography:   item.GetGeography(),
-		AccessLevel: item.GetAccessLevel(),
-		Status:      item.GetStatus(),
-		Facts:       item.GetFacts(),
-		Year:        item.GetYear(),
+		ID:            item.GetId(),
+		Title:         item.GetTitle(),
+		DocType:       item.GetDocType(),
+		Lang:          item.GetLang(),
+		Geography:     item.GetGeography(),
+		AccessLevel:   item.GetAccessLevel(),
+		Status:        item.GetStatus(),
+		Facts:         item.GetFacts(),
+		Year:          item.GetYear(),
+		Version:       item.GetVersion(),
+		NcSuspectRate: item.GetNcSuspectRate(),
 	}
 }
 
