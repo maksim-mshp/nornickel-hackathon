@@ -23,7 +23,7 @@ import { authHeaders } from "@/shared/lib/role";
 const ASK_ENDPOINT = "/v1/ask";
 const MAX_CONNECT_RETRIES = 2;
 const RETRY_BASE_MS = 400;
-const IDLE_TIMEOUT_MS = 45_000;
+const IDLE_TIMEOUT_MS = 65_000;
 
 async function connectAsk(question: string, signal?: AbortSignal): Promise<Response | null> {
   for (let attempt = 0; ; attempt++) {

@@ -10,4 +10,4 @@ cache:
 budget:
   first_token_ms: 1500
   total_ms: 5000
-  synthesis_ms: 35000
+  synthesis_ms: 55000
