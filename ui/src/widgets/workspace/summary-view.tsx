@@ -1,7 +1,19 @@
 "use client";
 
-import { Fragment } from "react";
+import { Fragment, type ReactNode } from "react";
 import type { AnswerDoc } from "@/shared/api/types";
+
+function renderInline(text: string, keyPrefix: string): ReactNode[] {
+  return text.split(/\*\*([^*]+)\*\*/g).map((segment, index) =>
+    index % 2 === 1 ? (
+      <strong key={`b-${keyPrefix}-${index}`} className="font-semibold text-ink-0">
+        {segment}
+      </strong>
+    ) : (
+      <Fragment key={`t-${keyPrefix}-${index}`}>{segment}</Fragment>
+    ),
+  );
+}
 
 export function SummaryText({
   text,
@@ -29,7 +41,7 @@ export function SummaryText({
             {part}
           </button>
         ) : (
-          <Fragment key={`text-${index}`}>{part}</Fragment>
+          <Fragment key={`text-${index}`}>{renderInline(part, String(index))}</Fragment>
         ),
       )}
       {streaming && (
