@@ -86,7 +86,7 @@ Python-сервисы: Python 3.13 (uv), gRPC-сервер (`grpcio`), ruff+mypy
 
 ## 11. kmap-ui (Next.js + TypeScript)
 
-Полная спецификация — **[17-frontend.md](17-frontend.md)**: дизайн-система «Полярная ночь/Электролит» (токены, типографика Unbounded/Golos Text/JetBrains Mono, motion, фирменные компоненты — штамп-провенанс, guard-пломба, консенсус-спектр), стек (Next.js 15 App Router, Tailwind v4, shadcn/Radix, TanStack Query+Table, Cytoscape.js, SSE-клиент с реконнектом) и девять экранов: Research Workspace (`/`), паспорт сущности, каталог экспериментов, карта покрытия, эксперты, реестр документов, очередь ревью, словари, сохранённый ответ. i18n RU/EN, темы night/protocol, a11y AA.
+Полная спецификация — **[17-frontend.md](17-frontend.md)**: дизайн-система «Полярная ночь/Электролит» (токены, типографика Unbounded/Golos Text/JetBrains Mono, motion, фирменные компоненты — штамп-провенанс, guard-пломба, консенсус-спектр), стек (Next.js 15 App Router, Tailwind v4, shadcn/Radix, TanStack Query+Table, Cytoscape.js, SSE-клиент с реконнектом) и девять экранов: Research Workspace (`/`), паспорт сущности, каталог экспериментов, карта покрытия, эксперты, реестр документов, очередь ревью, словари, сохранённый ответ. Интерфейс — только RU (переключатель языка удалён; мультиязычность RU/EN — на уровне корпуса и поиска, не UI), темы night/protocol.
 
 ## 12. kmap-eval (Python) — качество
 

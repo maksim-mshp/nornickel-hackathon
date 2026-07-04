@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { useEffect, useState } from "react";
 import {
   DEFAULT_ROLE,
@@ -11,7 +11,6 @@ import {
   useRole,
   type DemoRole,
 } from "@/shared/lib/role";
-import { setLocale, type Locale } from "@/shared/lib/locale";
 import { applyTheme, readTheme, toggleTheme } from "@/shared/lib/theme";
 import { CommandPalette } from "@/widgets/command-palette/command-palette";
 import {
@@ -133,28 +132,10 @@ function Header() {
         </kbd>
       </button>
       <div className="ml-auto flex items-center gap-3">
-        <LanguageSwitcher />
         <ThemeToggle />
         <RoleSwitcher />
       </div>
     </header>
-  );
-}
-
-function LanguageSwitcher() {
-  const locale = useLocale();
-  const t = useTranslations("header");
-  return (
-    <select
-      name="locale"
-      value={locale}
-      onChange={(event) => setLocale(event.target.value as Locale)}
-      aria-label={t("language")}
-      className="rounded-sm border border-line bg-bg-0 px-2 py-1 font-mono text-[11px] uppercase text-ink-1"
-    >
-      <option value="ru">RU</option>
-      <option value="en">EN</option>
-    </select>
   );
 }
 
