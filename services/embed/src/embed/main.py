@@ -10,6 +10,7 @@ from embed.config import Config, load
 from embed.embedder import (
     CachingEmbedder,
     DeterministicEmbedder,
+    LocalEmbedder,
     LocalReranker,
     RemoteEmbedder,
     RemoteReranker,
@@ -26,7 +27,10 @@ def _bind(addr: str) -> str:
 
 
 def _build_backend(cfg: Config):
-    if cfg.backend == "remote" and cfg.api_key and cfg.remote_endpoint:
+    if cfg.backend in ("local", "torch"):
+        logger.info("embed backend: local %s (cpu, %d threads)", cfg.local_model, cfg.local_threads)
+        inner = LocalEmbedder(cfg.local_model, cfg.local_max_length, cfg.local_batch, cfg.local_threads)
+    elif cfg.backend == "remote" and cfg.api_key and cfg.remote_endpoint:
         logger.info("embed backend: remote (%s)", cfg.remote_model)
         inner = RemoteEmbedder(cfg.remote_endpoint, cfg.api_key, cfg.remote_model, cfg.remote_max_retries)
     else:
@@ -39,7 +43,7 @@ def _build_backend(cfg: Config):
 
 
 def _build_reranker(cfg: Config):
-    if cfg.backend == "remote" and cfg.api_key and cfg.remote_endpoint:
+    if cfg.api_key and cfg.remote_endpoint:
         logger.info("rerank backend: remote (%s)", cfg.reranker_model)
         return RemoteReranker(cfg.remote_endpoint, cfg.api_key, cfg.reranker_model, cfg.remote_max_retries)
     logger.info("rerank backend: local token-overlap")

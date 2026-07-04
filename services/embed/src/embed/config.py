@@ -15,6 +15,10 @@ class Config:
     reranker_model: str
     api_key: str
     remote_max_retries: int
+    local_model: str
+    local_max_length: int
+    local_batch: int
+    local_threads: int
     cache_size: int
 
 
@@ -47,6 +51,7 @@ def load() -> Config:
 
     embed = merged.get("embed", {})
     remote = embed.get("remote", {})
+    local = embed.get("local", {})
     return Config(
         grpc_addr=merged.get("grpc", {}).get("addr", ":9097"),
         health_addr=merged.get("health", {}).get("addr", ":8097"),
@@ -56,5 +61,9 @@ def load() -> Config:
         reranker_model=remote.get("reranker_model", "bge-reranker-v2-m3"),
         api_key=remote.get("api_key", ""),
         remote_max_retries=int(remote.get("max_retries", 6)),
+        local_model=local.get("model", "BAAI/bge-m3"),
+        local_max_length=int(local.get("max_length", 1024)),
+        local_batch=int(local.get("batch_size", 16)),
+        local_threads=int(local.get("threads", 4)),
         cache_size=int(embed.get("cache_size", 4096)),
     )

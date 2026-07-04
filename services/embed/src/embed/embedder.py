@@ -67,6 +67,33 @@ class RemoteEmbedder:
         return [item.embedding for item in response.data]
 
 
+class LocalEmbedder:
+    def __init__(self, model_name: str, max_length: int = 1024, batch_size: int = 16, threads: int = 4) -> None:
+        import torch
+        from transformers import AutoModel, AutoTokenizer
+
+        torch.set_num_threads(max(1, threads))
+        self._torch = torch
+        self._tokenizer = AutoTokenizer.from_pretrained(model_name)
+        self._model = AutoModel.from_pretrained(model_name)
+        self._model.eval()
+        self._max_length = max_length
+        self._batch = max(1, batch_size)
+
+    def embed(self, texts: list[str]) -> list[list[float]]:
+        result: list[list[float]] = []
+        with self._torch.inference_mode():
+            for start in range(0, len(texts), self._batch):
+                window = texts[start : start + self._batch]
+                batch = self._tokenizer(
+                    window, padding=True, truncation=True, max_length=self._max_length, return_tensors="pt"
+                )
+                hidden = self._model(**batch).last_hidden_state[:, 0]
+                normalized = self._torch.nn.functional.normalize(hidden, p=2, dim=1)
+                result.extend(row.tolist() for row in normalized)
+        return result
+
+
 class RemoteReranker:
     def __init__(self, endpoint: str, api_key: str, model: str, max_retries: int = 6) -> None:
         self._endpoint = endpoint.rstrip("/") + "/rerank"

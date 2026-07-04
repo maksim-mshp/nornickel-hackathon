@@ -8,6 +8,7 @@ dependencies = [
     "protobuf>=5.26",
     "pyyaml>=6.0",
     "openai>=1.40",
+    "transformers>=4.45",
 ]
 
 [project.optional-dependencies]
