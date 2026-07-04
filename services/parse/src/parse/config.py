@@ -19,6 +19,7 @@ class Config:
     nats_url: str
     s3: S3Config
     ocr: str
+    workers: int
 
 
 def _deep_merge(base: dict, overlay: dict) -> dict:
@@ -59,4 +60,5 @@ def load() -> Config:
             docir_bucket=buckets.get("docir", "kmap-docir"),
         ),
         ocr=merged.get("parse", {}).get("ocr", "off"),
+        workers=int(merged.get("parse", {}).get("workers", 0)),
     )

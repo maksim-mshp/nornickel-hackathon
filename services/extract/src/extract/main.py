@@ -1,9 +1,11 @@
 import asyncio
 import base64
+import concurrent.futures
 import hashlib
 import io
 import json
 import logging
+import os
 import re
 import signal
 import uuid
@@ -11,6 +13,9 @@ from datetime import datetime, timezone
 
 import nats
 from minio import Minio
+from minio.error import S3Error
+from nats.errors import TimeoutError as NatsTimeoutError
+from nats.js.api import AckPolicy, ConsumerConfig, DeliverPolicy
 
 from extract.config import Config, load
 from extract.numcore import Fact, extract_facts
@@ -20,8 +25,12 @@ logger = logging.getLogger("extract")
 
 PARSED = "kmap.doc.v1.parsed"
 EXTRACTED = "kmap.doc.v1.extracted"
+DURABLE = "kmap-extract-parsed"
 EXTRACTOR_VERSION = "numcore-py-1.1"
 MAX_DELIVER = 5
+ACK_WAIT_SECONDS = 900
+FETCH_TIMEOUT_SECONDS = 5
+TERMINAL_S3_CODES = {"NoSuchKey", "NoSuchBucket"}
 CHUNK_TARGET_CHARS = 4000
 CHUNK_OVERLAP_CHARS = 500
 CHUNK_MIN_CHARS = 400
@@ -85,6 +94,22 @@ def _parse_uri(uri: str) -> tuple[str, str]:
     rest = uri.removeprefix("s3://")
     bucket, _, key = rest.partition("/")
     return bucket, key
+
+
+def _worker_count(cfg: Config) -> int:
+    if cfg.workers > 0:
+        return cfg.workers
+    return os.cpu_count() or 4
+
+
+def _object_exists(store: Minio, bucket: str, key: str) -> bool:
+    try:
+        store.stat_object(bucket, key)
+        return True
+    except S3Error as error:
+        if error.code in TERMINAL_S3_CODES:
+            return False
+        raise
 
 
 def _condition_hash(conditions: dict[str, str]) -> str:
@@ -156,17 +181,32 @@ def _envelope(event_type: str, subject: str, data: dict) -> tuple[str, bytes]:
 async def run() -> None:
     cfg = load()
     store = _minio(cfg)
+    workers = _worker_count(cfg)
+    pool = concurrent.futures.ProcessPoolExecutor(max_workers=workers)
+    loop = asyncio.get_running_loop()
 
     connection = await nats.connect(cfg.nats_url, name="kmap-extract")
     js = connection.jetstream()
+    for stream, subjects in (("KMAP_DOCS", ["kmap.doc.v1.>"]), ("KMAP_DLQ", ["kmap.dlq.>"])):
+        try:
+            await js.add_stream(name=stream, subjects=subjects)
+        except Exception:
+            pass
+
     try:
-        await js.add_stream(name="KMAP_DOCS", subjects=["kmap.doc.v1.>"])
+        await js.delete_consumer("KMAP_DOCS", DURABLE)
     except Exception:
         pass
-    try:
-        await js.add_stream(name="KMAP_DLQ", subjects=["kmap.dlq.>"])
-    except Exception:
-        pass
+    psub = await js.pull_subscribe(
+        PARSED,
+        durable=DURABLE,
+        config=ConsumerConfig(
+            ack_wait=ACK_WAIT_SECONDS,
+            max_deliver=MAX_DELIVER,
+            ack_policy=AckPolicy.EXPLICIT,
+            deliver_policy=DeliverPolicy.ALL,
+        ),
+    )
 
     async def handle(msg) -> None:
         try:
@@ -175,6 +215,11 @@ async def run() -> None:
             document_id = data.get("document_id")
             docir_uri = data.get("docir_uri")
             if not document_id or not docir_uri:
+                await msg.ack()
+                return
+
+            bundle_key = f"{document_id}/bundle.json"
+            if _object_exists(store, cfg.s3.bundles_bucket, bundle_key):
                 await msg.ack()
                 return
 
@@ -188,9 +233,8 @@ async def run() -> None:
             docir = json.loads(raw)
             text = docir.get("full_text", "")
 
-            facts = extract_facts(text)
+            facts = await loop.run_in_executor(pool, extract_facts, text)
             bundle = _bundle(document_id, text, facts)
-            bundle_key = f"{document_id}/bundle.json"
             payload = json.dumps(bundle).encode("utf-8")
             store.put_object(cfg.s3.bundles_bucket, bundle_key, io.BytesIO(payload), length=len(payload))
             bundle_uri = f"s3://{cfg.s3.bundles_bucket}/{bundle_key}"
@@ -209,17 +253,34 @@ async def run() -> None:
             else:
                 await msg.nak()
 
-    await js.subscribe(PARSED, durable="kmap-extract-parsed", cb=handle, manual_ack=True)
-    logger.info("extract worker subscribed to %s", PARSED)
-
     stop = asyncio.Event()
-    loop = asyncio.get_running_loop()
     for sig in (signal.SIGINT, signal.SIGTERM):
         try:
             loop.add_signal_handler(sig, stop.set)
         except NotImplementedError:
             pass
+
+    async def worker() -> None:
+        while not stop.is_set():
+            try:
+                msgs = await psub.fetch(1, timeout=FETCH_TIMEOUT_SECONDS)
+            except (NatsTimeoutError, asyncio.TimeoutError):
+                continue
+            except Exception as error:
+                logger.warning("fetch failed: %s", error)
+                await asyncio.sleep(1)
+                continue
+            for msg in msgs:
+                await handle(msg)
+
+    tasks = [asyncio.create_task(worker()) for _ in range(workers)]
+    logger.info("extract worker pool started: %d workers", workers)
+
     await stop.wait()
+    for task in tasks:
+        task.cancel()
+    await asyncio.gather(*tasks, return_exceptions=True)
+    pool.shutdown(wait=False, cancel_futures=True)
     await connection.drain()
 
 

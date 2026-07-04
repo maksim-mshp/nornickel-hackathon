@@ -18,6 +18,7 @@ class S3Config:
 class Config:
     nats_url: str
     s3: S3Config
+    workers: int
 
 
 def _deep_merge(base: dict, overlay: dict) -> dict:
@@ -57,4 +58,5 @@ def load() -> Config:
             use_ssl=bool(s3.get("use_ssl", False)),
             bundles_bucket=buckets.get("bundles", "kmap-bundles"),
         ),
+        workers=int(merged.get("extract", {}).get("workers", 0)),
     )

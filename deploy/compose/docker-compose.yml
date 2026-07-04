@@ -323,8 +323,8 @@ services:
     volumes:
       - ../../configs:/configs:ro
     command: ["--config", "/configs", "--env", "demo"]
-    mem_limit: 2g
-    cpus: 2.0
+    mem_limit: 4g
+    cpus: 8.0
     restart: unless-stopped
 
   extract:
@@ -339,8 +339,8 @@ services:
     volumes:
       - ../../configs:/configs:ro
     command: ["--config", "/configs", "--env", "demo"]
-    mem_limit: 2g
-    cpus: 2.0
+    mem_limit: 3g
+    cpus: 8.0
     restart: unless-stopped
 
   ui:

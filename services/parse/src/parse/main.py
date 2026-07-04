@@ -1,7 +1,9 @@
 import asyncio
+import concurrent.futures
 import io
 import json
 import logging
+import os
 import signal
 import uuid
 from datetime import datetime, timezone
@@ -9,6 +11,8 @@ from datetime import datetime, timezone
 import nats
 from minio import Minio
 from minio.error import S3Error
+from nats.errors import TimeoutError as NatsTimeoutError
+from nats.js.api import AckPolicy, ConsumerConfig, DeliverPolicy
 
 from parse.config import Config, load
 from parse.docir import build_docir, extract_text
@@ -19,10 +23,14 @@ logger = logging.getLogger("parse")
 REGISTERED = "kmap.doc.v1.registered"
 PARSED = "kmap.doc.v1.parsed"
 PARSE_FAILED = "kmap.doc.v1.parse-failed"
+DURABLE = "kmap-parse"
 TERMINAL_S3_CODES = {"NoSuchKey", "NoSuchBucket"}
 RETRY_DELAY_SECONDS = 10
 MAX_DOCUMENT_BYTES = 200 * 1024 * 1024
 MAX_PAGES = 2000
+ACK_WAIT_SECONDS = 900
+MAX_DELIVER = 5
+FETCH_TIMEOUT_SECONDS = 5
 
 
 def _minio(cfg: Config) -> Minio:
@@ -38,6 +46,22 @@ def _parse_uri(uri: str) -> tuple[str, str]:
     rest = uri.removeprefix("s3://")
     bucket, _, key = rest.partition("/")
     return bucket, key
+
+
+def _worker_count(cfg: Config) -> int:
+    if cfg.workers > 0:
+        return cfg.workers
+    return os.cpu_count() or 4
+
+
+def _object_exists(store: Minio, bucket: str, key: str) -> bool:
+    try:
+        store.stat_object(bucket, key)
+        return True
+    except S3Error as error:
+        if error.code in TERMINAL_S3_CODES:
+            return False
+        raise
 
 
 def _envelope(event_type: str, subject: str, data: dict) -> tuple[str, bytes]:
@@ -58,6 +82,9 @@ def _envelope(event_type: str, subject: str, data: dict) -> tuple[str, bytes]:
 async def run() -> None:
     cfg = load()
     store = _minio(cfg)
+    workers = _worker_count(cfg)
+    pool = concurrent.futures.ProcessPoolExecutor(max_workers=workers)
+    loop = asyncio.get_running_loop()
 
     connection = await nats.connect(cfg.nats_url, name="kmap-parse")
     js = connection.jetstream()
@@ -65,6 +92,21 @@ async def run() -> None:
         await js.add_stream(name="KMAP_DOCS", subjects=["kmap.doc.v1.>"])
     except Exception:
         pass
+
+    try:
+        await js.delete_consumer("KMAP_DOCS", DURABLE)
+    except Exception:
+        pass
+    psub = await js.pull_subscribe(
+        REGISTERED,
+        durable=DURABLE,
+        config=ConsumerConfig(
+            ack_wait=ACK_WAIT_SECONDS,
+            max_deliver=MAX_DELIVER,
+            ack_policy=AckPolicy.EXPLICIT,
+            deliver_policy=DeliverPolicy.ALL,
+        ),
+    )
 
     async def fail_terminal(msg, document_id: str, reason: str) -> None:
         attempt = msg.metadata.num_delivered if msg.metadata else 1
@@ -84,6 +126,11 @@ async def run() -> None:
             document_id = data.get("document_id")
             blob_uri = data.get("blob_uri")
             if not document_id or not blob_uri:
+                await msg.ack()
+                return
+
+            docir_key = f"{document_id}/docir.json"
+            if _object_exists(store, cfg.s3.docir_bucket, docir_key):
                 await msg.ack()
                 return
 
@@ -108,7 +155,7 @@ async def run() -> None:
                 return
 
             try:
-                text, source_format, pages = extract_text(raw)
+                text, source_format, pages = await loop.run_in_executor(pool, extract_text, raw)
             except Exception as error:
                 await fail_terminal(msg, document_id, f"unparseable document: {error}")
                 return
@@ -117,7 +164,6 @@ async def run() -> None:
                 await fail_terminal(msg, document_id, f"too many pages: {pages} > {MAX_PAGES}")
                 return
             docir = build_docir(document_id, text, source_format, pages)
-            docir_key = f"{document_id}/docir.json"
             payload = json.dumps(docir).encode("utf-8")
             store.put_object(cfg.s3.docir_bucket, docir_key, io.BytesIO(payload), length=len(payload))
             docir_uri = f"s3://{cfg.s3.docir_bucket}/{docir_key}"
@@ -141,17 +187,34 @@ async def run() -> None:
             logger.exception("parse failed: %s", error)
             await msg.nak(delay=RETRY_DELAY_SECONDS)
 
-    await js.subscribe(REGISTERED, durable="kmap-parse", cb=handle, manual_ack=True)
-    logger.info("parse worker subscribed to %s", REGISTERED)
-
     stop = asyncio.Event()
-    loop = asyncio.get_running_loop()
     for sig in (signal.SIGINT, signal.SIGTERM):
         try:
             loop.add_signal_handler(sig, stop.set)
         except NotImplementedError:
             pass
+
+    async def worker() -> None:
+        while not stop.is_set():
+            try:
+                msgs = await psub.fetch(1, timeout=FETCH_TIMEOUT_SECONDS)
+            except (NatsTimeoutError, asyncio.TimeoutError):
+                continue
+            except Exception as error:
+                logger.warning("fetch failed: %s", error)
+                await asyncio.sleep(1)
+                continue
+            for msg in msgs:
+                await handle(msg)
+
+    tasks = [asyncio.create_task(worker()) for _ in range(workers)]
+    logger.info("parse worker pool started: %d workers", workers)
+
     await stop.wait()
+    for task in tasks:
+        task.cancel()
+    await asyncio.gather(*tasks, return_exceptions=True)
+    pool.shutdown(wait=False, cancel_futures=True)
     await connection.drain()
 
 
