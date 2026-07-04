@@ -7,7 +7,13 @@ import grpc
 from grpc_reflection.v1alpha import reflection
 
 from embed.config import Config, load
-from embed.embedder import CachingEmbedder, DeterministicEmbedder, RemoteEmbedder
+from embed.embedder import (
+    CachingEmbedder,
+    DeterministicEmbedder,
+    LocalReranker,
+    RemoteEmbedder,
+    RemoteReranker,
+)
 from embed.server import EmbedServicer
 from kmap.v1 import embed_pb2, embed_pb2_grpc
 
@@ -32,6 +38,14 @@ def _build_backend(cfg: Config):
     return CachingEmbedder(inner, cfg.cache_size)
 
 
+def _build_reranker(cfg: Config):
+    if cfg.backend == "remote" and cfg.api_key and cfg.remote_endpoint:
+        logger.info("rerank backend: remote (%s)", cfg.reranker_model)
+        return RemoteReranker(cfg.remote_endpoint, cfg.api_key, cfg.reranker_model)
+    logger.info("rerank backend: local token-overlap")
+    return LocalReranker()
+
+
 def _start_health(addr: str) -> None:
     host, _, port = _bind(addr).partition(":")
 
@@ -52,9 +66,10 @@ def _start_health(addr: str) -> None:
 def main() -> None:
     cfg = load()
     backend = _build_backend(cfg)
+    reranker = _build_reranker(cfg)
 
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=8))
-    embed_pb2_grpc.add_EmbedServiceServicer_to_server(EmbedServicer(backend), server)
+    embed_pb2_grpc.add_EmbedServiceServicer_to_server(EmbedServicer(backend, reranker), server)
     reflection.enable_server_reflection(
         (embed_pb2.DESCRIPTOR.services_by_name["EmbedService"].full_name, reflection.SERVICE_NAME),
         server,

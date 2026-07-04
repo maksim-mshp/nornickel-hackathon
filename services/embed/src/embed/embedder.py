@@ -55,12 +55,28 @@ class DeterministicEmbedder:
 
 class RemoteEmbedder:
     def __init__(self, endpoint: str, api_key: str, model: str) -> None:
-        self._endpoint = endpoint.rstrip("/") + "/embeddings"
-        self._api_key = api_key
+        from openai import OpenAI
+
+        self._client = OpenAI(base_url=endpoint, api_key=api_key)
         self._model = model
 
     def embed(self, texts: list[str]) -> list[list[float]]:
-        payload = json.dumps({"model": self._model, "input": texts}).encode("utf-8")
+        response = self._client.embeddings.create(model=self._model, input=texts)
+        return [item.embedding for item in response.data]
+
+
+class RemoteReranker:
+    def __init__(self, endpoint: str, api_key: str, model: str) -> None:
+        self._endpoint = endpoint.rstrip("/") + "/rerank"
+        self._api_key = api_key
+        self._model = model
+
+    def rerank(self, query: str, passages: list[str]) -> list[tuple[int, float]]:
+        if not passages:
+            return []
+        payload = json.dumps(
+            {"model": self._model, "query": query, "documents": passages, "top_n": len(passages)}
+        ).encode("utf-8")
         request = urllib.request.Request(
             self._endpoint,
             data=payload,
@@ -69,7 +85,14 @@ class RemoteEmbedder:
         )
         with urllib.request.urlopen(request, timeout=30) as response:
             body = json.loads(response.read())
-        return [item["embedding"] for item in body["data"]]
+        scored = [(int(item["index"]), float(item["relevance_score"])) for item in body["results"]]
+        scored.sort(key=lambda item: item[1], reverse=True)
+        return scored
+
+
+class LocalReranker:
+    def rerank(self, query: str, passages: list[str]) -> list[tuple[int, float]]:
+        return rerank(query, passages)
 
 
 def rerank(query: str, passages: list[str]) -> list[tuple[int, float]]:
