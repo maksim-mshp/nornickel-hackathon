@@ -162,6 +162,8 @@ func (repository *Repository) GetStatus(ctx context.Context, documentID uuid.UUI
 	return doc, stages, nil
 }
 
+const seedDocumentIDPrefix = "a1000000-%"
+
 func (repository *Repository) ListDocuments(ctx context.Context, offset uint32, limit uint32) ([]app.DocumentSummary, uint32, error) {
 	if limit == 0 {
 		limit = 50
@@ -171,19 +173,20 @@ SELECT d.id, d.title, d.doc_type::text, coalesce(d.lang, ''), d.geography::text,
        d.access_level::text, d.status::text, count(f.id)::int, coalesce(d.year, 0)
 FROM core.documents d
 LEFT JOIN kg.numeric_facts f ON f.document_id = d.id
+WHERE d.id::text NOT LIKE $3
 GROUP BY d.id, d.title, d.doc_type, d.lang, d.geography, d.access_level, d.status, d.year, d.created_at
-ORDER BY d.created_at DESC, d.id DESC
+ORDER BY (d.status = 'indexed') DESC, d.created_at DESC, d.id DESC
 LIMIT $1 OFFSET $2`
-	const countQuery = `SELECT count(*) FROM core.documents`
+	const countQuery = `SELECT count(*) FROM core.documents WHERE id::text NOT LIKE $1`
 	var (
 		result []app.DocumentSummary
 		total  uint32
 	)
 	err := platformpg.WithRLS(ctx, repository.pool, rlsPrincipal(ctx), func(ctx context.Context, tx pgx.Tx) error {
-		if scanErr := tx.QueryRow(ctx, countQuery).Scan(&total); scanErr != nil {
+		if scanErr := tx.QueryRow(ctx, countQuery, seedDocumentIDPrefix).Scan(&total); scanErr != nil {
 			return fmt.Errorf("count documents: %w", scanErr)
 		}
-		rows, queryErr := tx.Query(ctx, listQuery, int(limit), int(offset))
+		rows, queryErr := tx.Query(ctx, listQuery, int(limit), int(offset), seedDocumentIDPrefix)
 		if queryErr != nil {
 			return fmt.Errorf("query documents: %w", queryErr)
 		}
