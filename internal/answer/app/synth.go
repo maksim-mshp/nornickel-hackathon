@@ -162,9 +162,15 @@ func deriveConfidence(pack *kmapv1.EvidencePack) float64 {
 	return confidence
 }
 
+const summaryFactLimit = 12
+
 func factViews(pack *kmapv1.EvidencePack) []factView {
-	views := make([]factView, 0, len(pack.GetFacts()))
-	for _, item := range pack.GetFacts() {
+	facts := pack.GetFacts()
+	if len(facts) > summaryFactLimit {
+		facts = facts[:summaryFactLimit]
+	}
+	views := make([]factView, 0, len(facts))
+	for _, item := range facts {
 		fields := item.GetPayload().GetFields()
 		subject := fields["subject"].GetStructValue().GetFields()
 		parameter := fields["parameter"].GetStructValue().GetFields()
