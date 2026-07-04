@@ -46,7 +46,7 @@ export function AnswerFeed({
   onAsk: (question: string) => void;
 }) {
   const [tab, setTab] = useState<TabKey>("summary");
-  const [shared, setShared] = useState(false);
+  const [share, setShare] = useState<"idle" | "ok" | "fail">("idle");
   const { plan, pack, answer, summaryText, phase, error, question } = state;
 
   useEffect(() => {
@@ -208,12 +208,17 @@ export function AnswerFeed({
               onClick={() => pack && exportCsv(pack)}
             />
             <FooterAction
-              label={shared ? "ссылка скопирована ✓" : "поделиться"}
+              label={
+                share === "ok"
+                  ? "ссылка скопирована ✓"
+                  : share === "fail"
+                    ? "не удалось скопировать"
+                    : "поделиться"
+              }
               onClick={async () => {
-                if (await copyShareLink(question)) {
-                  setShared(true);
-                  setTimeout(() => setShared(false), 2500);
-                }
+                const ok = await copyShareLink(question);
+                setShare(ok ? "ok" : "fail");
+                setTimeout(() => setShare("idle"), 2500);
               }}
             />
           </div>

@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { getExperiments, type ExperimentRow } from "@/shared/api/browse";
+import { toCsv } from "@/shared/lib/csv";
+import { downloadFile } from "@/shared/lib/download";
 import { pluralCount } from "@/shared/lib/plural";
 import { useRole } from "@/shared/lib/role";
 
@@ -30,7 +32,11 @@ export default function ExperimentsPage() {
     () => (process ? rows.filter((row) => row.process === process) : rows),
     [rows, process],
   );
-  const selectedRows = rows.filter((row) => selected.has(row.id));
+  const selectedRows = visible.filter((row) => selected.has(row.id));
+
+  useEffect(() => {
+    if (compare && selectedRows.length < 2) setCompare(false);
+  }, [compare, selectedRows.length]);
 
   const toggle = (id: string) => {
     setSelected((prev) => {
@@ -43,16 +49,15 @@ export default function ExperimentsPage() {
 
   const exportCsv = () => {
     const header = ["code", "material", "process", "result", "source", "confidence"];
-    const lines = rows.map((row) =>
-      [row.code, row.material, row.process, row.result, row.source, row.confidence].join(";"),
-    );
-    const blob = new Blob([[header.join(";"), ...lines].join("\n")], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "experiments.csv";
-    link.click();
-    URL.revokeObjectURL(url);
+    const body = visible.map((row) => [
+      row.code,
+      row.material,
+      row.process,
+      row.result,
+      row.source,
+      row.confidence,
+    ]);
+    downloadFile("experiments.csv", toCsv([header, ...body]), "text/csv");
   };
 
   return (
@@ -92,14 +97,14 @@ export default function ExperimentsPage() {
             <button
               type="button"
               onClick={() => setCompare((value) => !value)}
-              disabled={selected.size < 2}
+              disabled={selectedRows.length < 2}
               className={`h-9 rounded-sm border px-3 font-mono text-[11px] transition-colors disabled:opacity-40 ${
                 compare
                   ? "border-electrolyte text-electrolyte"
                   : "border-line text-ink-1 hover:border-line-strong"
               }`}
             >
-              сравнить ({selected.size})
+              сравнить ({selectedRows.length})
             </button>
             <button
               type="button"
@@ -241,7 +246,7 @@ function CompareRow({ label, values }: { label: string; values: string[] }) {
       <td className="px-3 py-2 font-mono text-[11px] text-ink-2">{label}</td>
       {values.map((value, index) => (
         <td
-          key={index}
+          key={`${label}-${index}`}
           className={`px-3 py-2 ${distinct ? "text-melt" : "text-ink-0"}`}
         >
           {value}
