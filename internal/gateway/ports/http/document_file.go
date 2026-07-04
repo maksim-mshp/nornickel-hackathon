@@ -3,9 +3,12 @@ package http
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"mime"
 	stdhttp "net/http"
+	"path/filepath"
+	"strings"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5"
@@ -13,6 +16,21 @@ import (
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/blob"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/platform/pg"
 )
+
+var sourceMIME = map[string]string{
+	".pdf":  "application/pdf",
+	".docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+	".doc":  "application/msword",
+	".xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+	".xls":  "application/vnd.ms-excel",
+	".pptx": "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+	".ppt":  "application/vnd.ms-powerpoint",
+	".csv":  "text/csv; charset=utf-8",
+	".txt":  "text/plain; charset=utf-8",
+	".rtf":  "application/rtf",
+	".htm":  "text/html; charset=utf-8",
+	".html": "text/html; charset=utf-8",
+}
 
 const documentFileSQL = `select d.title, coalesce(dv.blob_uri, '')
 from core.documents d
@@ -82,15 +100,85 @@ func (server *Server) documentFileHandler(w stdhttp.ResponseWriter, r *stdhttp.R
 	}
 	head = head[:n]
 
-	filename := title
-	if filename == "" {
-		filename = documentID
-	}
-	w.Header().Set("Content-Type", stdhttp.DetectContentType(head))
-	w.Header().Set("Content-Disposition", mime.FormatMediaType("inline", map[string]string{"filename": filename}))
+	filename := sourceFilename(title, key)
+	w.Header().Set("Content-Type", contentTypeFor(filename, head))
+	w.Header().Set("Content-Disposition", contentDisposition(filename))
+	w.Header().Set("Access-Control-Expose-Headers", "Content-Disposition")
 	w.WriteHeader(stdhttp.StatusOK)
 	if _, err := w.Write(head); err != nil {
 		return
 	}
 	_, _ = io.Copy(w, object)
+}
+
+func sourceFilename(title string, blobKey string) string {
+	name := strings.TrimSpace(title)
+	if name == "" {
+		name = "document"
+	}
+	if filepath.Ext(name) == "" {
+		if ext := filepath.Ext(blobKey); ext != "" {
+			name += ext
+		}
+	}
+	return name
+}
+
+func contentTypeFor(filename string, head []byte) string {
+	ext := strings.ToLower(filepath.Ext(filename))
+	if mediaType, ok := sourceMIME[ext]; ok {
+		return mediaType
+	}
+	if mediaType := mime.TypeByExtension(ext); mediaType != "" {
+		return mediaType
+	}
+	return stdhttp.DetectContentType(head)
+}
+
+func contentDisposition(filename string) string {
+	return fmt.Sprintf("attachment; filename=%q; filename*=UTF-8''%s", asciiFilename(filename), rfc5987Escape(filename))
+}
+
+func asciiFilename(name string) string {
+	var builder strings.Builder
+	for _, symbol := range name {
+		if symbol < 0x20 || symbol > 0x7e || symbol == '"' || symbol == '\\' {
+			builder.WriteByte('_')
+			continue
+		}
+		builder.WriteRune(symbol)
+	}
+	fallback := strings.TrimSpace(builder.String())
+	if fallback == "" {
+		return "document"
+	}
+	return fallback
+}
+
+func rfc5987Escape(name string) string {
+	const upperhex = "0123456789ABCDEF"
+	var builder strings.Builder
+	for index := 0; index < len(name); index++ {
+		char := name[index]
+		if isAttrChar(char) {
+			builder.WriteByte(char)
+			continue
+		}
+		builder.WriteByte('%')
+		builder.WriteByte(upperhex[char>>4])
+		builder.WriteByte(upperhex[char&0x0f])
+	}
+	return builder.String()
+}
+
+func isAttrChar(char byte) bool {
+	switch {
+	case char >= 'A' && char <= 'Z', char >= 'a' && char <= 'z', char >= '0' && char <= '9':
+		return true
+	}
+	switch char {
+	case '!', '#', '$', '&', '+', '-', '.', '^', '_', '`', '|', '~':
+		return true
+	}
+	return false
 }
