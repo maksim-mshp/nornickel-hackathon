@@ -31,7 +31,7 @@ logger = logging.getLogger("extract")
 PARSED = "kmap.doc.v1.parsed"
 EXTRACTED = "kmap.doc.v1.extracted"
 DURABLE = "kmap-extract-parsed"
-EXTRACTOR_VERSION = "numcore-py-1.1"
+EXTRACTOR_VERSION = "numcore-py-1.2"
 LLM_TASK = "extract_entities"
 LLM_TIMEOUT_SECONDS = 120
 EMBED_TIMEOUT_SECONDS = 60
@@ -46,14 +46,18 @@ ENTITY_ETYPES = (
     "material",
     "process",
     "equipment",
-    "property",
-    "parameter",
-    "method",
     "technology",
-    "organization",
+    "experiment",
+    "property",
     "person",
+    "lab",
+    "org",
     "geography",
 )
+_VALID_ETYPES = frozenset(ENTITY_ETYPES) | {"topic", "publication", "climate", "facility", "economic_indicator"}
+_ETYPE_ALIASES = {"method": "technology", "organization": "org", "laboratory": "lab"}
+_SUBJECT_ETYPES = ("experiment", "technology", "process", "equipment", "material")
+_CURRENCY = re.compile(r"[$€₽£¥]")
 MAX_LLM_ENTITIES = 40
 SYSTEM_PROMPT = (
     "Ты — экстрактор сущностей из научно-технических текстов горно-металлургической отрасли (R&D). "
@@ -148,6 +152,42 @@ def _slugify(value: str) -> str:
     return slug[:80]
 
 
+def _valid_entity_name(name: str) -> bool:
+    name = name.strip()
+    if len(name) < 2 or len(name) > 120:
+        return False
+    if name[0] in "0123456789+-.$€₽£¥%":
+        return False
+    if _CURRENCY.search(name):
+        return False
+    letters = sum(1 for char in name if char.isalpha())
+    return letters >= 2 and letters * 2 >= len(name)
+
+
+def _subject_candidates(text_lower: str, llm_entities: list[dict]) -> list[dict]:
+    candidates: list[dict] = []
+    for entity in llm_entities:
+        if entity["etype"] not in _SUBJECT_ETYPES:
+            continue
+        names = [entity["name"]]
+        if entity.get("name_en"):
+            names.append(entity["name_en"])
+        keys = [name.strip().lower() for name in names if len(name.strip()) >= 4]
+        if not keys:
+            continue
+        candidates.append(
+            {
+                "name": entity["name"],
+                "slug": entity["slug"],
+                "keys": keys,
+                "priority": _SUBJECT_ETYPES.index(entity["etype"]),
+                "count": sum(text_lower.count(key) for key in keys),
+            }
+        )
+    candidates.sort(key=lambda candidate: (candidate["priority"], -max(len(key) for key in candidate["keys"])))
+    return candidates
+
+
 def _entity_messages(text: str, limit: int) -> list[dict]:
     excerpt = text[:limit]
     etypes = ", ".join(ENTITY_ETYPES)
@@ -188,10 +228,13 @@ async def _llm_entities(stub, text: str, limit: int) -> list[dict]:
         if not isinstance(item, dict) or len(entities) >= MAX_LLM_ENTITIES:
             continue
         name = str(item.get("name", "")).strip()
-        if not name:
+        if not _valid_entity_name(name):
             continue
         etype = str(item.get("etype", "")).strip().lower()
-        if etype not in ENTITY_ETYPES:
+        etype = _ETYPE_ALIASES.get(etype, etype)
+        if etype == "parameter":
+            continue
+        if etype not in _VALID_ETYPES:
             etype = "topic"
         name_en = str(item.get("name_en", "")).strip()
         base = _slugify(name_en or name)
@@ -205,11 +248,19 @@ async def _llm_entities(stub, text: str, limit: int) -> list[dict]:
     return entities
 
 
-def _bundle(document_id: str, chunks: list[dict], facts: list[Fact], llm_entities: list[dict]) -> dict:
+def _bundle(document_id: str, text: str, chunks: list[dict], facts: list[Fact], llm_entities: list[dict]) -> dict:
     short = document_id.replace("-", "")[:8]
-    subject_slug = f"topic:doc-{short}"
-    entities = [{"slug": subject_slug, "etype": "topic", "name": f"Документ {short}"}]
-    seen: set[str] = {subject_slug}
+    publication_name = f"Документ {short}"
+    publication_slug = f"publication:doc-{short}"
+    candidates = _subject_candidates(text.lower(), llm_entities)
+    dominant = max(candidates, key=lambda candidate: candidate["count"], default=None)
+    if dominant is not None and dominant["count"] > 0:
+        fallback_name, fallback_slug = dominant["name"], dominant["slug"]
+    else:
+        fallback_name, fallback_slug = publication_name, publication_slug
+
+    entities = [{"slug": publication_slug, "etype": "publication", "name": publication_name}]
+    seen: set[str] = {publication_slug}
     for entity in llm_entities:
         if entity["slug"] not in seen:
             seen.add(entity["slug"])
@@ -220,32 +271,43 @@ def _bundle(document_id: str, chunks: list[dict], facts: list[Fact], llm_entitie
         seen.add(fact.parameter_slug)
         entities.append({"slug": fact.parameter_slug, "etype": "parameter", "name": fact.parameter_name})
 
-    numeric_facts = [
-        {
-            "subject_slug": subject_slug,
-            "parameter_slug": fact.parameter_slug,
-            "operator": fact.operator,
-            "value_raw": fact.value_raw,
-            "vmin": fact.vmin,
-            "vmax": fact.vmax,
-            "unit_orig": fact.unit_orig,
-            "unit_code": fact.unit_code,
-            "vmin_si": fact.vmin_si,
-            "vmax_si": fact.vmax_si,
-            "conditions": fact.conditions,
-            "condition_hash": _condition_hash(fact.conditions),
-            "quote": fact.quote,
-            "char_from": fact.char_from,
-            "char_to": fact.char_to,
-            "page": 1,
-            "geography": "unknown",
-            "extraction_method": "deterministic",
-            "extractor_version": EXTRACTOR_VERSION,
-            "confidence": fact.confidence,
-            "flags": fact.flags,
-        }
-        for fact in facts
-    ]
+    numeric_facts = []
+    for fact in facts:
+        quote_lower = fact.quote.lower()
+        subject_name, subject_slug = fallback_name, fallback_slug
+        bound = False
+        for candidate in candidates:
+            if any(key in quote_lower for key in candidate["keys"]):
+                subject_name, subject_slug = candidate["name"], candidate["slug"]
+                bound = True
+                break
+        numeric_facts.append(
+            {
+                "subject": subject_name,
+                "subject_slug": subject_slug,
+                "parameter": fact.parameter_name,
+                "parameter_slug": fact.parameter_slug,
+                "operator": fact.operator,
+                "value_raw": fact.value_raw,
+                "vmin": fact.vmin,
+                "vmax": fact.vmax,
+                "unit_orig": fact.unit_orig,
+                "unit_code": fact.unit_code,
+                "vmin_si": fact.vmin_si,
+                "vmax_si": fact.vmax_si,
+                "conditions": fact.conditions,
+                "condition_hash": _condition_hash(fact.conditions),
+                "quote": fact.quote,
+                "char_from": fact.char_from,
+                "char_to": fact.char_to,
+                "page": 1,
+                "geography": "unknown",
+                "extraction_method": "hybrid" if bound else "deterministic",
+                "extractor_version": EXTRACTOR_VERSION,
+                "confidence": fact.confidence,
+                "flags": fact.flags,
+            }
+        )
     return {
         "document_id": document_id,
         "extractor_version": EXTRACTOR_VERSION,
@@ -357,7 +419,7 @@ async def run() -> None:
                 except Exception as error:
                     logger.warning("llm extraction failed for %s: %s", document_id, error)
 
-            bundle = _bundle(document_id, chunks, facts, llm_entities)
+            bundle = _bundle(document_id, text, chunks, facts, llm_entities)
             payload = json.dumps(bundle).encode("utf-8")
             store.put_object(cfg.s3.bundles_bucket, bundle_key, io.BytesIO(payload), length=len(payload))
             bundle_uri = f"s3://{cfg.s3.bundles_bucket}/{bundle_key}"
