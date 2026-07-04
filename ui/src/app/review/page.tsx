@@ -58,34 +58,56 @@ export default function ReviewPage() {
   }, []);
 
   const resolveEntity = useCallback(
-    (id: string, action: string, status: "accept" | "reject") => {
+    async (id: string, action: string, status: "accept" | "reject") => {
+      const ok = await updateEntityStatus(id, status);
+      if (!ok) {
+        notify("Не удалось сохранить решение — повторите");
+        return;
+      }
       setEntities((prev) => prev.filter((item) => item.id !== id));
       notify(`Сущность ${action} · audit_log`);
-      void updateEntityStatus(id, status);
     },
     [notify],
   );
 
   const resolveOrphan = useCallback(
-    (id: string, action: string, status: string) => {
+    async (id: string, action: string, status: string) => {
+      const ok = await updateFactStatus(id, status);
+      if (!ok) {
+        notify("Не удалось сохранить решение — повторите");
+        return;
+      }
       setOrphans((prev) => prev.filter((item) => item.id !== id));
       notify(`Число ${action} · fact_history`);
-      void updateFactStatus(id, status);
     },
     [notify],
   );
 
   const resolveContradiction = useCallback(
-    (id: string, action: string, decision: "confirmed" | "rejected") => {
+    async (id: string, action: string, decision: "confirmed" | "rejected") => {
+      const ok = await decideContradiction(id, decision);
+      if (!ok) {
+        notify("Не удалось сохранить решение — повторите");
+        return;
+      }
       setContradictions((prev) => prev.filter((item) => item.id !== id));
       notify(`Противоречие ${action}`);
-      void decideContradiction(id, decision);
     },
     [notify],
   );
 
   useEffect(() => {
     const handler = (event: KeyboardEvent) => {
+      if (event.metaKey || event.ctrlKey || event.altKey) return;
+      const target = event.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable)
+      ) {
+        return;
+      }
       if (event.key !== "a" && event.key !== "r") return;
       const approve = event.key === "a";
       if (tab === "entities" && entities[0]) {
