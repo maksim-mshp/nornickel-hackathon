@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { getExperiments, type ExperimentRow } from "@/shared/api/browse";
+import { pluralCount } from "@/shared/lib/plural";
 
 export default function ExperimentsPage() {
   const [rows, setRows] = useState<ExperimentRow[]>([]);
@@ -81,7 +82,8 @@ export default function ExperimentsPage() {
               Каталог экспериментов
             </h1>
             <p className="mt-1 text-[13px] text-ink-1">
-              {visible.length} серий · условия и результаты со ссылкой на источник
+              {pluralCount(visible.length, "серия", "серии", "серий")} · условия
+              и результаты со ссылкой на источник
             </p>
           </div>
           <div className="flex items-center gap-2">

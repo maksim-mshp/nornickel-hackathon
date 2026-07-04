@@ -7,6 +7,7 @@ import {
   reindexDocument,
   type DocumentRow,
 } from "@/shared/api/browse";
+import { pluralCount } from "@/shared/lib/plural";
 
 const STAGES = ["registered", "parsed", "extracted", "indexed"] as const;
 
@@ -72,8 +73,9 @@ export default function DocumentsPage() {
           indexed
         </p>
         <p className="mt-1 font-mono text-[11px] text-ink-2">
-          показано {from}–{to} из {total} документов · список отфильтрован по
-          вашему уровню доступа (RLS)
+          показано {from}–{to} из{" "}
+          {pluralCount(total, "документа", "документов", "документов")} · список
+          отфильтрован по вашему уровню доступа (RLS)
         </p>
       </section>
 

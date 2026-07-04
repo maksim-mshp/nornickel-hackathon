@@ -4,6 +4,7 @@ import { useState } from "react";
 import { copyShareLink, exportCsv, exportMarkdown } from "@/features/ask/export";
 import type { AskState } from "@/features/ask/use-ask";
 import type { Fact } from "@/shared/api/types";
+import { pluralCount } from "@/shared/lib/plural";
 import { ConsensusSpectrum } from "@/widgets/consensus-spectrum/consensus-spectrum";
 import { ContradictionCard } from "./contradiction-card";
 import { EvidenceTable } from "./evidence-table";
@@ -55,7 +56,9 @@ export function AnswerFeed({
           className="rise-in flex items-center gap-4 font-mono text-[10px] text-ink-2"
           style={{ animationDelay: "40ms" }}
         >
-          <span>{pack.stats.sources} источников</span>
+          <span>
+            {pluralCount(pack.stats.sources, "источник", "источника", "источников")}
+          </span>
           <span>РФ {pack.stats.ruSources}</span>
           <span>заруб. {pack.stats.foreignSources}</span>
           <span>
