@@ -2,11 +2,8 @@ package pg
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"strings"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5"
@@ -165,84 +162,45 @@ func (repository *Repository) GetStatus(ctx context.Context, documentID uuid.UUI
 	return doc, stages, nil
 }
 
-func (repository *Repository) ListDocuments(ctx context.Context, cursor string, limit uint32) ([]app.DocumentSummary, string, error) {
+func (repository *Repository) ListDocuments(ctx context.Context, offset uint32, limit uint32) ([]app.DocumentSummary, uint32, error) {
 	if limit == 0 {
 		limit = 50
 	}
-	var cursorTime, cursorID any
-	if cursor != "" {
-		parsedTime, parsedID, decodeErr := decodeDocumentCursor(cursor)
-		if decodeErr != nil {
-			return nil, "", fmt.Errorf("decode cursor: %w", decodeErr)
-		}
-		cursorTime, cursorID = parsedTime, parsedID
-	}
-	const query = `
+	const listQuery = `
 SELECT d.id, d.title, d.doc_type::text, coalesce(d.lang, ''), d.geography::text,
-       d.access_level::text, d.status::text, count(f.id)::int, coalesce(d.year, 0), d.created_at
+       d.access_level::text, d.status::text, count(f.id)::int, coalesce(d.year, 0)
 FROM core.documents d
 LEFT JOIN kg.numeric_facts f ON f.document_id = d.id
-WHERE $2::timestamptz IS NULL OR (d.created_at, d.id) < ($2::timestamptz, $3::uuid)
 GROUP BY d.id, d.title, d.doc_type, d.lang, d.geography, d.access_level, d.status, d.year, d.created_at
 ORDER BY d.created_at DESC, d.id DESC
-LIMIT $1`
+LIMIT $1 OFFSET $2`
+	const countQuery = `SELECT count(*) FROM core.documents`
 	var (
 		result []app.DocumentSummary
-		times  []time.Time
+		total  uint32
 	)
 	err := platformpg.WithRLS(ctx, repository.pool, rlsPrincipal(ctx), func(ctx context.Context, tx pgx.Tx) error {
-		rows, queryErr := tx.Query(ctx, query, int(limit)+1, cursorTime, cursorID)
+		if scanErr := tx.QueryRow(ctx, countQuery).Scan(&total); scanErr != nil {
+			return fmt.Errorf("count documents: %w", scanErr)
+		}
+		rows, queryErr := tx.Query(ctx, listQuery, int(limit), int(offset))
 		if queryErr != nil {
 			return fmt.Errorf("query documents: %w", queryErr)
 		}
 		defer rows.Close()
 		for rows.Next() {
 			var item app.DocumentSummary
-			var createdAt time.Time
-			if scanErr := rows.Scan(&item.ID, &item.Title, &item.DocType, &item.Lang, &item.Geography, &item.AccessLevel, &item.Status, &item.Facts, &item.Year, &createdAt); scanErr != nil {
+			if scanErr := rows.Scan(&item.ID, &item.Title, &item.DocType, &item.Lang, &item.Geography, &item.AccessLevel, &item.Status, &item.Facts, &item.Year); scanErr != nil {
 				return fmt.Errorf("scan document: %w", scanErr)
 			}
 			result = append(result, item)
-			times = append(times, createdAt)
 		}
 		return rows.Err()
 	})
 	if err != nil {
-		return nil, "", err
+		return nil, 0, err
 	}
-	next := ""
-	if len(result) > int(limit) {
-		result = result[:limit]
-		times = times[:limit]
-		last := len(result) - 1
-		next = encodeDocumentCursor(times[last], result[last].ID)
-	}
-	return result, next, nil
-}
-
-func encodeDocumentCursor(createdAt time.Time, id uuid.UUID) string {
-	raw := createdAt.UTC().Format(time.RFC3339Nano) + "|" + id.String()
-	return base64.RawURLEncoding.EncodeToString([]byte(raw))
-}
-
-func decodeDocumentCursor(cursor string) (time.Time, uuid.UUID, error) {
-	decoded, err := base64.RawURLEncoding.DecodeString(cursor)
-	if err != nil {
-		return time.Time{}, uuid.Nil, err
-	}
-	parts := strings.SplitN(string(decoded), "|", 2)
-	if len(parts) != 2 {
-		return time.Time{}, uuid.Nil, fmt.Errorf("malformed cursor")
-	}
-	parsedTime, err := time.Parse(time.RFC3339Nano, parts[0])
-	if err != nil {
-		return time.Time{}, uuid.Nil, err
-	}
-	parsedID, err := uuid.Parse(parts[1])
-	if err != nil {
-		return time.Time{}, uuid.Nil, err
-	}
-	return parsedTime, parsedID, nil
+	return result, total, nil
 }
 
 func nullableString(value string) any {

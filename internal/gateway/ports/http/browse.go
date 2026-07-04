@@ -22,6 +22,7 @@ func pathParam(r *stdhttp.Request, key string) string {
 type itemsResponse[T any] struct {
 	Items      []T    `json:"items"`
 	NextCursor string `json:"next_cursor,omitempty"`
+	Total      uint32 `json:"total,omitempty"`
 }
 
 type entitySummaryDTO struct {
@@ -249,7 +250,7 @@ func (server *Server) documentsHandler(w stdhttp.ResponseWriter, r *stdhttp.Requ
 	for _, item := range resp.GetItems() {
 		items = append(items, mapDocument(item))
 	}
-	writeDataJSON(w, stdhttp.StatusOK, itemsResponse[documentRow]{Items: items, NextCursor: resp.GetPage().GetNextCursor()})
+	writeDataJSON(w, stdhttp.StatusOK, itemsResponse[documentRow]{Items: items, Total: resp.GetPage().GetTotal()})
 }
 
 func mapEntitySummary(item *kmapv1.EntitySummary) entitySummaryDTO {
@@ -533,6 +534,7 @@ func pageRequest(r *stdhttp.Request) *kmapv1.PageRequest {
 	return &kmapv1.PageRequest{
 		Cursor: r.URL.Query().Get("cursor"),
 		Limit:  boundedUint(r.URL.Query().Get("limit"), 0, math.MaxUint32, 50),
+		Offset: boundedUint(r.URL.Query().Get("offset"), 0, math.MaxUint32, 0),
 	}
 }
 

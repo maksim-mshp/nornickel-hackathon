@@ -15,10 +15,12 @@ message Principal {
 message PageRequest {
   string cursor = 1;
   uint32 limit = 2;
+  uint32 offset = 3;
 }
 
 message PageResponse {
   string next_cursor = 1;
+  uint32 total = 2;
 }
 
 message DocumentRef {

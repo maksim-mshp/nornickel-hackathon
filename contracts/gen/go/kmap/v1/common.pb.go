@@ -86,6 +86,7 @@ type PageRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Cursor        string                 `protobuf:"bytes,1,opt,name=cursor,proto3" json:"cursor,omitempty"`
 	Limit         uint32                 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`
+	Offset        uint32                 `protobuf:"varint,3,opt,name=offset,proto3" json:"offset,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -134,9 +135,17 @@ func (x *PageRequest) GetLimit() uint32 {
 	return 0
 }
 
+func (x *PageRequest) GetOffset() uint32 {
+	if x != nil {
+		return x.Offset
+	}
+	return 0
+}
+
 type PageResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	NextCursor    string                 `protobuf:"bytes,1,opt,name=next_cursor,json=nextCursor,proto3" json:"next_cursor,omitempty"`
+	Total         uint32                 `protobuf:"varint,2,opt,name=total,proto3" json:"total,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -176,6 +185,13 @@ func (x *PageResponse) GetNextCursor() string {
 		return x.NextCursor
 	}
 	return ""
+}
+
+func (x *PageResponse) GetTotal() uint32 {
+	if x != nil {
+		return x.Total
+	}
+	return 0
 }
 
 type DocumentRef struct {
@@ -995,13 +1011,15 @@ const file_kmap_v1_common_proto_rawDesc = "" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x14\n" +
 	"\x05roles\x18\x02 \x03(\tR\x05roles\x12\x1d\n" +
 	"\n" +
-	"doc_access\x18\x03 \x01(\tR\tdocAccess\";\n" +
+	"doc_access\x18\x03 \x01(\tR\tdocAccess\"S\n" +
 	"\vPageRequest\x12\x16\n" +
 	"\x06cursor\x18\x01 \x01(\tR\x06cursor\x12\x14\n" +
-	"\x05limit\x18\x02 \x01(\rR\x05limit\"/\n" +
+	"\x05limit\x18\x02 \x01(\rR\x05limit\x12\x16\n" +
+	"\x06offset\x18\x03 \x01(\rR\x06offset\"E\n" +
 	"\fPageResponse\x12\x1f\n" +
 	"\vnext_cursor\x18\x01 \x01(\tR\n" +
-	"nextCursor\"H\n" +
+	"nextCursor\x12\x14\n" +
+	"\x05total\x18\x02 \x01(\rR\x05total\"H\n" +
 	"\vDocumentRef\x12\x1f\n" +
 	"\vdocument_id\x18\x01 \x01(\tR\n" +
 	"documentId\x12\x18\n" +
