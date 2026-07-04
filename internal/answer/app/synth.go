@@ -15,6 +15,7 @@ type factView struct {
 	ref           string
 	subjectSlug   string
 	subjectName   string
+	sourceTitle   string
 	parameterName string
 	valueText     string
 	geography     string
@@ -33,7 +34,7 @@ func synthesize(pack *kmapv1.EvidencePack) (summary string, methods []methodView
 	}
 
 	var paragraphs []string
-	paragraphs = append(paragraphs, valuesParagraph(views))
+	paragraphs = append(paragraphs, sourcesDigest(views))
 	if consensus := consensusParagraph(pack); consensus != "" {
 		paragraphs = append(paragraphs, consensus)
 	}
@@ -50,25 +51,88 @@ func synthesize(pack *kmapv1.EvidencePack) (summary string, methods []methodView
 	return summary, methods, confidence
 }
 
-func valuesParagraph(views []factView) string {
+var paramDisplay = map[string]string{
+	"ratio":               "доля",
+	"content":             "содержание",
+	"size":                "размер",
+	"duration":            "длительность",
+	"concentration":       "концентрация",
+	"molar concentration": "молярная концентрация",
+	"pressure":            "давление",
+	"throughput":          "производительность",
+	"flow rate":           "расход",
+	"volumetric flow":     "объёмный расход",
+	"mass flow":           "массовый расход",
+	"energy intensity":    "энергозатраты",
+	"current density":     "плотность тока",
+	"rotation speed":      "скорость вращения",
+	"velocity":            "скорость",
+	"length":              "длина",
+	"temperature":         "температура",
+	"acidity":             "pH",
+	"cost":                "стоимость",
+	"mass fraction":       "массовая доля",
+}
+
+func paramLabel(name string) string {
+	if label, ok := paramDisplay[strings.ToLower(name)]; ok {
+		return label
+	}
+	return name
+}
+
+var docExtensions = []string{".docx", ".pptx", ".xlsx", ".pdf", ".xls", ".doc", ".txt"}
+
+func shortTitle(title string) string {
+	title = strings.TrimSpace(title)
+	for _, ext := range docExtensions {
+		title = strings.TrimSuffix(title, ext)
+	}
+	runes := []rune(strings.TrimSpace(title))
+	if len(runes) > 70 {
+		return string(runes[:70]) + "…"
+	}
+	return string(runes)
+}
+
+func sourcesDigest(views []factView) string {
 	groups := map[string][]factView{}
 	var order []string
 	for _, view := range views {
-		if _, ok := groups[view.parameterName]; !ok {
-			order = append(order, view.parameterName)
+		key := view.sourceTitle
+		if key == "" {
+			key = view.subjectName
 		}
-		groups[view.parameterName] = append(groups[view.parameterName], view)
+		if key == "" {
+			continue
+		}
+		if _, ok := groups[key]; !ok {
+			order = append(order, key)
+		}
+		groups[key] = append(groups[key], view)
+	}
+	if len(order) == 0 {
+		return "По запросу найдены числовые факты в источниках."
 	}
 
 	var clauses []string
-	for _, parameter := range order {
+	for _, source := range order {
 		var items []string
-		for _, view := range groups[parameter] {
-			items = append(items, view.valueText+" ["+view.ref+"]")
+		seen := map[string]bool{}
+		for _, view := range groups[source] {
+			item := paramLabel(view.parameterName) + " " + view.valueText + " [" + view.ref + "]"
+			if seen[item] {
+				continue
+			}
+			seen[item] = true
+			items = append(items, item)
+			if len(items) >= 6 {
+				break
+			}
 		}
-		clauses = append(clauses, "«"+parameter+"»: "+strings.Join(items, ", "))
+		clauses = append(clauses, "«"+shortTitle(source)+"» — "+strings.Join(items, ", "))
 	}
-	return "По данным источников — " + strings.Join(clauses, "; ") + "."
+	return "По данным источников: " + strings.Join(clauses, "; ") + "."
 }
 
 func consensusParagraph(pack *kmapv1.EvidencePack) string {
@@ -174,10 +238,12 @@ func factViews(pack *kmapv1.EvidencePack) []factView {
 		fields := item.GetPayload().GetFields()
 		subject := fields["subject"].GetStructValue().GetFields()
 		parameter := fields["parameter"].GetStructValue().GetFields()
+		provenance := fields["provenance"].GetStructValue().GetFields()
 		views = append(views, factView{
 			ref:           fields["ref"].GetStringValue(),
 			subjectSlug:   subject["slug"].GetStringValue(),
 			subjectName:   subject["name"].GetStringValue(),
+			sourceTitle:   provenance["title"].GetStringValue(),
 			parameterName: parameter["name"].GetStringValue(),
 			valueText:     formatValue(fields["value"].GetStructValue()),
 			geography:     fields["geography"].GetStringValue(),

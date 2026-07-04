@@ -13,7 +13,7 @@ type guardResult struct {
 func runGuard(summary string, pack *kmapv1.EvidencePack) guardResult {
 	allowed := allowedNumbers(pack)
 	result := guardResult{}
-	for _, value := range numericLiterals(stripCitations(summary)) {
+	for _, value := range numericLiterals(stripQuotedNames(stripCitations(summary))) {
 		if isYear(value) {
 			continue
 		}

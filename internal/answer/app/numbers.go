@@ -7,8 +7,9 @@ import (
 )
 
 var (
-	citationPattern = regexp.MustCompile(`\[[A-Za-z]\d+\]`)
-	numberPattern   = regexp.MustCompile(`[0-9]+(?:[.,][0-9]+)?`)
+	citationPattern   = regexp.MustCompile(`\[[A-Za-z]\d+\]`)
+	numberPattern     = regexp.MustCompile(`[0-9]+(?:[.,][0-9]+)?`)
+	quotedNamePattern = regexp.MustCompile(`«[^»]*»`)
 )
 
 func numericLiterals(text string) []float64 {
@@ -27,6 +28,10 @@ func numericLiterals(text string) []float64 {
 
 func stripCitations(text string) string {
 	return citationPattern.ReplaceAllString(text, "")
+}
+
+func stripQuotedNames(text string) string {
+	return quotedNamePattern.ReplaceAllString(text, " ")
 }
 
 func isYear(value float64) bool {

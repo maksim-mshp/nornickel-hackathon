@@ -68,8 +68,12 @@ func synthesisPayload(question string, pack *kmapv1.EvidencePack, views []factVi
 	builder.WriteString(question)
 	builder.WriteString("\n\nФакты:\n")
 	for _, view := range views {
-		fmt.Fprintf(&builder, "[%s] %s — %s (%s, %s)\n",
-			view.ref, view.parameterName, view.valueText, view.subjectName, applicabilityLabel(view.geography))
+		source := view.sourceTitle
+		if source == "" {
+			source = view.subjectName
+		}
+		fmt.Fprintf(&builder, "[%s] %s — %s (источник: %s, %s)\n",
+			view.ref, paramLabel(view.parameterName), view.valueText, shortTitle(source), applicabilityLabel(view.geography))
 	}
 	if consensus := consensusParagraph(pack); consensus != "" {
 		builder.WriteString("\n" + consensus + "\n")
