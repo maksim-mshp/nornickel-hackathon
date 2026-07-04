@@ -1,12 +1,15 @@
 package app
 
 import (
+	"regexp"
 	"strings"
 	"unicode"
 
 	kmapv1 "github.com/maksim-mshp/nornickel-hackathon/contracts/gen/go/kmap/v1"
 	"google.golang.org/protobuf/types/known/structpb"
 )
+
+var decimalSeparator = regexp.MustCompile(`([0-9])[.,]([0-9])`)
 
 type ref struct {
 	slug string
@@ -365,11 +368,12 @@ func detectUnit(segment string) string {
 }
 
 func splitClauses(text string) []string {
+	protected := decimalSeparator.ReplaceAllString(text, "$1\x00$2")
 	replacer := strings.NewReplacer(",", "|", ";", "|", ".", "|", " а ", "|", " и ", "|")
-	parts := strings.Split(replacer.Replace(text), "|")
+	parts := strings.Split(replacer.Replace(protected), "|")
 	segments := make([]string, 0, len(parts))
 	for _, part := range parts {
-		trimmed := strings.TrimSpace(part)
+		trimmed := strings.TrimSpace(strings.ReplaceAll(part, "\x00", "."))
 		if trimmed != "" {
 			segments = append(segments, trimmed)
 		}
