@@ -22,8 +22,15 @@ type Runtime struct {
 	S3          S3                `koanf:"s3"`
 	LLM         LLM               `koanf:"llm"`
 	Cache       Cache             `koanf:"cache"`
+	Budget      Budget            `koanf:"budget"`
 	Auth        Auth              `koanf:"auth"`
 	Bootstrap   Bootstrap         `koanf:"bootstrap"`
+}
+
+type Budget struct {
+	FirstTokenMS int `koanf:"first_token_ms"`
+	TotalMS      int `koanf:"total_ms"`
+	SynthesisMS  int `koanf:"synthesis_ms"`
 }
 
 type Bootstrap struct {

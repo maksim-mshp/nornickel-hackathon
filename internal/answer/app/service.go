@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"time"
 
 	kmapv1 "github.com/maksim-mshp/nornickel-hackathon/contracts/gen/go/kmap/v1"
 	"google.golang.org/grpc"
@@ -16,6 +17,8 @@ import (
 )
 
 const deltaWordsPerChunk = 8
+
+const defaultSynthesisTimeout = 18 * time.Second
 
 type SearchClient interface {
 	Search(ctx context.Context, in *kmapv1.SearchRequest, opts ...grpc.CallOption) (*kmapv1.SearchResponse, error)
@@ -56,9 +59,10 @@ func extractiveSynthesis(pack *kmapv1.EvidencePack) Synthesis {
 }
 
 type Service struct {
-	search SearchClient
-	cache  Cache
-	synth  Synthesizer
+	search       SearchClient
+	cache        Cache
+	synth        Synthesizer
+	synthTimeout time.Duration
 }
 
 type Option func(*Service)
@@ -75,8 +79,16 @@ func WithSynthesizer(synth Synthesizer) Option {
 	}
 }
 
+func WithSynthesisTimeout(timeout time.Duration) Option {
+	return func(service *Service) {
+		if timeout > 0 {
+			service.synthTimeout = timeout
+		}
+	}
+}
+
 func NewService(search SearchClient, options ...Option) *Service {
-	service := &Service{search: search, synth: extractiveSynthesizer{}}
+	service := &Service{search: search, synth: extractiveSynthesizer{}, synthTimeout: defaultSynthesisTimeout}
 	for _, option := range options {
 		option(service)
 	}
@@ -92,6 +104,15 @@ func (service *Service) ParseQuery(question string) (*kmapv1.QueryPlan, error) {
 		return nil, status.Errorf(codes.Internal, "build plan: %v", err)
 	}
 	return plan, nil
+}
+
+func (service *Service) runSynthesis(ctx context.Context, question string, pack *kmapv1.EvidencePack) (Synthesis, error) {
+	if service.synthTimeout <= 0 {
+		return service.synth.Synthesize(ctx, question, pack)
+	}
+	synthCtx, cancel := context.WithTimeout(ctx, service.synthTimeout)
+	defer cancel()
+	return service.synth.Synthesize(synthCtx, question, pack)
 }
 
 func (service *Service) Ask(ctx context.Context, req *kmapv1.AskRequest, emit Emit) error {
@@ -125,7 +146,7 @@ func (service *Service) Ask(ctx context.Context, req *kmapv1.AskRequest, emit Em
 		return err
 	}
 
-	result, err := service.synth.Synthesize(ctx, question, pack)
+	result, err := service.runSynthesis(ctx, question, pack)
 	degraded := false
 	if err != nil {
 		result = extractiveSynthesis(pack)

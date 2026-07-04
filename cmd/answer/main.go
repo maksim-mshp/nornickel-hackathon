@@ -59,6 +59,9 @@ func build(cfg config.Bundle, logger *slog.Logger) (*runtime.Assembly, error) {
 
 	closers := []io.Closer{conn, pool}
 	options := []answerapp.Option{answerapp.WithCache(cache)}
+	if ms := cfg.Runtime.Budget.SynthesisMS; ms > 0 {
+		options = append(options, answerapp.WithSynthesisTimeout(time.Duration(ms)*time.Millisecond))
+	}
 	if llmTarget := cfg.Runtime.GRPCClients["llm"]; llmTarget != "" {
 		llmConn, llmErr := grpc.NewClient(llmTarget,
 			grpc.WithTransportCredentials(insecure.NewCredentials()),
