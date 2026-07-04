@@ -168,7 +168,7 @@ func (service *Service) buildCommand(ctx context.Context, bundle domain.Bundle, 
 		}
 		entityType := defaultString(item.Type, item.EType)
 		if _, err := resolveRef(entityName, entityType); err != nil {
-			return CommitCommand{}, err
+			continue
 		}
 	}
 
@@ -186,15 +186,15 @@ func (service *Service) buildCommand(ctx context.Context, bundle domain.Bundle, 
 	var facts []domain.NumericFact
 	for _, candidate := range numericCandidates(bundle) {
 		if err := domain.ValidateOperator(candidate.Operator); err != nil {
-			return CommitCommand{}, err
+			continue
 		}
 		subjectID, err := resolveRef(defaultString(candidate.Subject, candidate.SubjectSlug), "process")
 		if err != nil {
-			return CommitCommand{}, err
+			continue
 		}
 		parameterID, err := resolveRef(defaultString(candidate.Parameter, candidate.ParameterSlug), "parameter")
 		if err != nil {
-			return CommitCommand{}, err
+			continue
 		}
 		factID, err := uuid.NewV7()
 		if err != nil {
