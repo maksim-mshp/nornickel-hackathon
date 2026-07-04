@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { copyShareLink, exportCsv, exportMarkdown } from "@/features/ask/export";
-import type { AskState } from "@/features/ask/use-ask";
+import type { AskPhase, AskState } from "@/features/ask/use-ask";
 import type { Fact, QueryPlan } from "@/shared/api/types";
 import { pluralCount } from "@/shared/lib/plural";
 import { ConsensusSpectrum } from "@/widgets/consensus-spectrum/consensus-spectrum";
@@ -121,8 +121,10 @@ export function AnswerFeed({
                 streaming={phase === "streaming"}
                 onRefClick={selectRef}
               />
+            ) : phase === "error" ? (
+              <EmptyTab text="Синтез не завершён — факты доступны во вкладке Evidence" />
             ) : (
-              <FeedSkeleton lines={4} />
+              <AnswerLoader phase={phase} />
             )}
             {answer && <MethodsList answer={answer} onRefClick={selectRef} />}
             {answer && pack && pack.consensus.length > 0 && (
@@ -249,15 +251,55 @@ function FooterAction({
 function PlanSkeleton() {
   return (
     <div className="rounded-sm border border-line bg-bg-1 px-4 py-3">
-      <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2">
+        <span className="h-2 w-2 animate-pulse rounded-full bg-electrolyte" />
         <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-ink-2">
-          разбор запроса…
+          разбор запроса
         </span>
-        <span className="h-3 w-32 animate-pulse rounded-sm bg-bg-2" />
       </div>
-      <div className="mt-2 flex gap-1.5">
-        <span className="h-6 w-24 animate-pulse rounded-sm bg-bg-2" />
-        <span className="h-6 w-32 animate-pulse rounded-sm bg-bg-2" />
+      <div className="electro-track mt-2.5">
+        <div className="electro-bar" />
+      </div>
+    </div>
+  );
+}
+
+function AnswerLoader({ phase }: { phase: AskPhase }) {
+  const caption =
+    phase === "planning"
+      ? "Разбор запроса"
+      : phase === "retrieving"
+        ? "Поиск фактов и evidence"
+        : "Синтез ответа";
+  const hint =
+    phase === "streaming"
+      ? "модель формирует ответ — это может занять до 35 секунд"
+      : "подождите…";
+  return (
+    <div
+      className="rise-in flex flex-col gap-3"
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+    >
+      <div className="flex items-center gap-2">
+        <span className="h-2 w-2 animate-pulse rounded-full bg-electrolyte" />
+        <span className="font-mono text-[10px] uppercase tracking-[0.2em] text-electrolyte">
+          {caption}
+        </span>
+        <span className="font-mono text-[10px] text-ink-2">{hint}</span>
+      </div>
+      <div className="electro-track">
+        <div className="electro-bar" />
+      </div>
+      <div className="mt-1 flex flex-col gap-2">
+        {[94, 88, 76, 82].map((width, index) => (
+          <span
+            key={index}
+            className="h-3.5 rounded-sm bg-bg-1"
+            style={{ width: `${width}%` }}
+          />
+        ))}
       </div>
     </div>
   );
