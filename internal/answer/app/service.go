@@ -29,7 +29,7 @@ type Planner interface {
 }
 
 type FactRetriever interface {
-	FactsByText(ctx context.Context, queryText string, limit int) ([]*kmapv1.Fact, error)
+	FactsByText(ctx context.Context, termsQuery string, question string, limit int) ([]*kmapv1.Fact, error)
 }
 
 type CachedAnswer struct {
@@ -170,8 +170,7 @@ func (service *Service) augmentFacts(ctx context.Context, pack *kmapv1.EvidenceP
 	if service.retriever == nil || len(pack.GetFacts()) >= minFactsForAnswer {
 		return pack
 	}
-	query := ftsQuery(terms, question)
-	facts, err := service.retriever.FactsByText(ctx, query, ftsFactLimit)
+	facts, err := service.retriever.FactsByText(ctx, ftsTermsQuery(terms), question, ftsFactLimit)
 	if err != nil || len(facts) == 0 {
 		return pack
 	}
@@ -180,16 +179,13 @@ func (service *Service) augmentFacts(ctx context.Context, pack *kmapv1.EvidenceP
 	return pack
 }
 
-func ftsQuery(terms []string, question string) string {
+func ftsTermsQuery(terms []string) string {
 	cleaned := make([]string, 0, len(terms))
 	for _, term := range terms {
 		term = strings.TrimSpace(term)
 		if term != "" {
 			cleaned = append(cleaned, term)
 		}
-	}
-	if len(cleaned) == 0 {
-		return strings.TrimSpace(question)
 	}
 	return strings.Join(cleaned, " OR ")
 }
