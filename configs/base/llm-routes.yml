@@ -28,7 +28,7 @@ llm:
       max_tokens: 3000
       temperature: 0.1
       json: true
-      timeout_s: 20
+      timeout_s: 35
     extract_entities:
       model: gpt-oss-20b/latest
       escalate_model: gpt-oss-120b/latest

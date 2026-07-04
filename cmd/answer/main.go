@@ -56,9 +56,10 @@ func build(cfg config.Bundle, logger *slog.Logger) (*runtime.Assembly, error) {
 	}
 
 	cache := answerpg.NewCache(pool.Pool, time.Duration(cfg.Runtime.Cache.TTLHours)*time.Hour)
+	retriever := answerpg.NewRetriever(pool.Pool)
 
 	closers := []io.Closer{conn, pool}
-	options := []answerapp.Option{answerapp.WithCache(cache)}
+	options := []answerapp.Option{answerapp.WithCache(cache), answerapp.WithRetriever(retriever)}
 	if ms := cfg.Runtime.Budget.SynthesisMS; ms > 0 {
 		options = append(options, answerapp.WithSynthesisTimeout(time.Duration(ms)*time.Millisecond))
 	}
@@ -72,7 +73,11 @@ func build(cfg config.Bundle, logger *slog.Logger) (*runtime.Assembly, error) {
 			_ = pool.Close()
 			return nil, fmt.Errorf("create llm grpc client: %w", llmErr)
 		}
-		options = append(options, answerapp.WithSynthesizer(answerapp.NewLLMSynthesizer(kmapv1.NewLLMServiceClient(llmConn))))
+		llmClient := kmapv1.NewLLMServiceClient(llmConn)
+		options = append(options,
+			answerapp.WithSynthesizer(answerapp.NewLLMSynthesizer(llmClient)),
+			answerapp.WithPlanner(answerapp.NewLLMPlanner(llmClient, retriever, 0)),
+		)
 		closers = append(closers, llmConn)
 	}
 	server := answergrpc.NewServer(kmapv1.NewSearchServiceClient(conn), options...)

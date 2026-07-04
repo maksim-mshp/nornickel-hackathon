@@ -24,6 +24,14 @@ type SearchClient interface {
 	Search(ctx context.Context, in *kmapv1.SearchRequest, opts ...grpc.CallOption) (*kmapv1.SearchResponse, error)
 }
 
+type Planner interface {
+	Plan(ctx context.Context, question string, filters *structpb.Struct) (*kmapv1.QueryPlan, []string, bool)
+}
+
+type FactRetriever interface {
+	FactsByText(ctx context.Context, queryText string, limit int) ([]*kmapv1.Fact, error)
+}
+
 type CachedAnswer struct {
 	Plan     *kmapv1.QueryPlan
 	Evidence *kmapv1.EvidencePack
@@ -62,6 +70,8 @@ type Service struct {
 	search       SearchClient
 	cache        Cache
 	synth        Synthesizer
+	planner      Planner
+	retriever    FactRetriever
 	synthTimeout time.Duration
 }
 
@@ -76,6 +86,18 @@ func WithCache(cache Cache) Option {
 func WithSynthesizer(synth Synthesizer) Option {
 	return func(service *Service) {
 		service.synth = synth
+	}
+}
+
+func WithPlanner(planner Planner) Option {
+	return func(service *Service) {
+		service.planner = planner
+	}
+}
+
+func WithRetriever(retriever FactRetriever) Option {
+	return func(service *Service) {
+		service.retriever = retriever
 	}
 }
 
@@ -106,6 +128,61 @@ func (service *Service) ParseQuery(question string) (*kmapv1.QueryPlan, error) {
 	return plan, nil
 }
 
+const (
+	minFactsForAnswer = 3
+	ftsFactLimit      = 24
+)
+
+func (service *Service) planAndTerms(ctx context.Context, question string, filters *structpb.Struct) (*kmapv1.QueryPlan, []string, error) {
+	if service.planner != nil {
+		if plan, terms, ok := service.planner.Plan(ctx, question, filters); ok {
+			return plan, terms, nil
+		}
+	}
+	plan, err := buildPlan(question, filters)
+	if err != nil {
+		return nil, nil, err
+	}
+	return plan, ruleTerms(plan, question), nil
+}
+
+func ruleTerms(plan *kmapv1.QueryPlan, question string) []string {
+	var terms []string
+	fields := plan.GetEntities().GetFields()
+	for _, group := range []string{"materials", "processes", "properties"} {
+		list := fields[group].GetListValue()
+		if list == nil {
+			continue
+		}
+		for _, item := range list.GetValues() {
+			if name := item.GetStructValue().GetFields()["name"].GetStringValue(); name != "" {
+				terms = append(terms, name)
+			}
+		}
+	}
+	if len(terms) == 0 {
+		return []string{question}
+	}
+	return terms
+}
+
+func (service *Service) augmentFacts(ctx context.Context, pack *kmapv1.EvidencePack, terms []string, question string) *kmapv1.EvidencePack {
+	if service.retriever == nil || len(pack.GetFacts()) >= minFactsForAnswer {
+		return pack
+	}
+	query := strings.TrimSpace(strings.Join(terms, " "))
+	if query == "" {
+		query = question
+	}
+	facts, err := service.retriever.FactsByText(ctx, query, ftsFactLimit)
+	if err != nil || len(facts) == 0 {
+		return pack
+	}
+	pack.Facts = facts
+	pack.Contradictions = nil
+	return pack
+}
+
 func (service *Service) runSynthesis(ctx context.Context, question string, pack *kmapv1.EvidencePack) (Synthesis, error) {
 	if service.synthTimeout <= 0 {
 		return service.synth.Synthesize(ctx, question, pack)
@@ -121,7 +198,7 @@ func (service *Service) Ask(ctx context.Context, req *kmapv1.AskRequest, emit Em
 		return status.Error(codes.InvalidArgument, "question is required")
 	}
 
-	plan, err := buildPlan(question, req.GetFilters())
+	plan, terms, err := service.planAndTerms(ctx, question, req.GetFilters())
 	if err != nil {
 		return status.Errorf(codes.Internal, "build plan: %v", err)
 	}
@@ -142,6 +219,10 @@ func (service *Service) Ask(ctx context.Context, req *kmapv1.AskRequest, emit Em
 		return status.Errorf(codes.Internal, "search: %v", err)
 	}
 	pack := searchResp.GetEvidence()
+	if pack == nil {
+		pack = &kmapv1.EvidencePack{}
+	}
+	pack = service.augmentFacts(ctx, pack, terms, question)
 	if err := emit(&kmapv1.AskResponse{Type: "evidence", Evidence: pack}); err != nil {
 		return err
 	}
