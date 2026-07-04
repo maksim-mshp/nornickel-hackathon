@@ -50,19 +50,21 @@ type AuthOIDC struct {
 }
 
 type LLM struct {
-	DefaultProvider string                 `koanf:"default_provider"`
-	LogPrompts      bool                   `koanf:"log_prompts"`
-	Allowlist       []string               `koanf:"allowlist"`
-	Providers       map[string]LLMProvider `koanf:"providers"`
-	Tasks           map[string]LLMTask     `koanf:"tasks"`
-	Concurrency     LLMConcurrency         `koanf:"concurrency"`
+	DefaultProvider   string                 `koanf:"default_provider"`
+	FallbackProviders []string               `koanf:"fallback_providers"`
+	LogPrompts        bool                   `koanf:"log_prompts"`
+	Allowlist         []string               `koanf:"allowlist"`
+	Providers         map[string]LLMProvider `koanf:"providers"`
+	Tasks             map[string]LLMTask     `koanf:"tasks"`
+	Concurrency       LLMConcurrency         `koanf:"concurrency"`
 }
 
 type LLMProvider struct {
-	BaseURL    string `koanf:"base_url"`
-	APIKey     string `koanf:"api_key"`
-	AuthScheme string `koanf:"auth_scheme"`
-	FolderID   string `koanf:"folder_id"`
+	BaseURL    string            `koanf:"base_url"`
+	APIKey     string            `koanf:"api_key"`
+	AuthScheme string            `koanf:"auth_scheme"`
+	FolderID   string            `koanf:"folder_id"`
+	Models     map[string]string `koanf:"models"`
 }
 
 type LLMTask struct {

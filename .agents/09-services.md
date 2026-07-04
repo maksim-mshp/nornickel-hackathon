@@ -41,7 +41,7 @@ Python-сервисы: Python 3.13 (uv), gRPC-сервер (`grpcio`), ruff+mypy
 
 ## 5. kmap-embed (Python) — эмбеддинги и rerank
 
-- gRPC: `Embed(texts[], mode=dense|dense+sparse)` → f32[1024] (+sparse map), батчинг 64, микробатч-агрегатор 20 мс; `Rerank(query, passages[])` → scores.
+- gRPC: `Embed(texts[], mode=dense|dense+sparse)` → f32[1024] (+sparse map), батчинг 64, микробатч-агрегатор 20 мс; `Rerank(query, passages[])` → scores. В remote-режиме эмбеддинги идут через официальный `openai` SDK (Python, зависимость `openai>=1.40`); rerank — `bge-reranker-v2-m3` через DO `/v1/rerank` прямым HTTP (rerank вне OpenAI-спеки, у SDK нет метода); офлайн-фолбэк rerank — локальный token-overlap (Jaccard).
 - Модели: BAAI/bge-m3, BAAI/bge-reranker-v2-m3; device auto (CUDA→CPU); прогрев при старте (readyz после загрузки весов); `embed.backend: remote | torch | onnx-int8` в YAML: **remote — дефолт** (bge-m3/reranker через DO Gradient, $0.02/$0.01 за 1M, проверено 02.07; сервис — тонкий gRPC-фасад ~256 МБ RAM); torch/onnx-int8 — локальные офлайн-режимы (onnx-int8 — для слабых машин).
 - LRU-кэш эмбеддингов запросов (по sha256 текста).
 - **Масштабирование:** вертикально (GPU) или репликами (CPU); p95 embed-запроса ≤80 мс (GPU) / ≤400 мс (CPU, батч 1×512 ток.).
@@ -57,7 +57,7 @@ Python-сервисы: Python 3.13 (uv), gRPC-сервер (`grpcio`), ruff+mypy
 ## 7. kmap-llm (Go) — LLM-шлюз
 
 - gRPC: `Complete(task, payload, schema_ref, stream)` → валидированный JSON/стрим токенов.
-- Роутинг задач → upstream+модель (`configs/*/llm-routes.yml`, `default_provider: yandex`; ключи — `configs/secrets.yml`): OpenAI-совместимые endpoint'ы (Yandex AI Studio `ai.api.cloud.yandex.net` / vLLM on-prem). Failover-цепочки, circuit breaker (gobreaker), ретраи с джиттером (только идемпотентные), таймауты по задаче.
+- Роутинг задач → upstream+модель (`configs/*/llm-routes.yml`, `default_provider: yandex`; ключи — `configs/secrets.yml`): OpenAI-совместимые endpoint'ы (Yandex AI Studio `ai.api.cloud.yandex.net` / vLLM on-prem). Failover-цепочки провайдеров через `fallback_providers` (по умолчанию `[do_gradient]`: Yandex → DigitalOcean тем же `openai-go`, с переводом слагов моделей — [15-resources.md](15-resources.md) §1.3), circuit breaker (gobreaker), ретраи с джиттером (только идемпотентные), таймауты по задаче.
 - JSON Schema-валидация ответа + до 2 repair-попыток (с фидбеком ошибок схемы); structured outputs / guided decoding, если upstream поддерживает (vLLM — поддерживает).
 - Бюджеты: токен-квоты per-task/per-day, конкуренция per-upstream (semaphore), очередь batch-задач (judge) с приоритетом ниже интерактивных.
 - Кэш: PG-таблица `ops.llm_cache` (ключ sha256(model+prompt+schema), TTL по задаче) — судья/извлечение переиспользуются при реплеях (экономия ресурсов — критерий жюри).

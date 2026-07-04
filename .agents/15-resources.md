@@ -37,6 +37,20 @@
 - ❗ Первый ключ (02.07, 6 моделей) **отозван** (401) — везде используется только ключ v2 из `configs/secrets.yml`.
 - ❗ В `/v1/models` виден полный каталог DO, включая **проприетарные `openai-gpt-5*`, `anthropic-claude-*` — их использовать НЕЛЬЗЯ** (правила хакатона запрещают OpenAI/Anthropic). В `llm-routes.yml` — жёсткий allowlist только open-weight моделей.
 
+### 1.3. Порядок upstream'ов LLM (fallback Yandex → DigitalOcean)
+
+`configs/base/llm-routes.yml`: `default_provider: yandex`, `fallback_providers: [do_gradient]`. kmap-llm сначала обращается к Yandex AI Studio; при ошибке провайдера (например, `PermissionDenied`, недоступность) тот же запрос идёт в DigitalOcean Gradient — тем же клиентом `openai-go` (Responses API, проверено: DO его поддерживает). Провайдер без `base_url`/`api_key` в цепочке пропускается, поэтому стек работает и когда ключ Yandex не выдан и остаётся только DO. Канонические слаги (allowlist/tasks — яндексовые) переводятся в имена моделей DO через `providers.do_gradient.models`:
+
+| Канонический слаг (Yandex) | Модель DigitalOcean |
+|---|---|
+| `gpt-oss-20b/latest` | `openai-gpt-oss-20b` |
+| `gpt-oss-120b/latest` | `openai-gpt-oss-120b` |
+| `deepseek-v4-flash/latest` | `deepseek-4-flash` |
+| `qwen3.6-35b-a3b/latest` | `alibaba-qwen3-32b` |
+| `qwen3-235b-a22b-fp8/latest` | `qwen3.5-397b-a17b` |
+
+Ключ DO для LLM-фолбэка — `llm.providers.do_gradient.api_key` в `configs/secrets.yml` (тот же ключ, что и для эмбеддингов/rerank).
+
 ## 2. Запросить у владельца (по мере необходимости)
 
 | # | Ресурс | Зачем | Когда нужен |
@@ -62,7 +76,7 @@
 
 ## 4. Технические константы (чтобы не переспрашивать)
 
-- LLM-модели по умолчанию (Yandex AI Studio, только open-source): `gpt-oss-20b/latest` (extraction, parse_query, bind_numbers), `deepseek-v4-flash/latest` (synthesis), `gpt-oss-120b/latest` (judge, эскалации), `qwen3.6-35b-a3b/latest` (aliases); маршрутизация — `configs/base/llm-routes.yml`. Полная матрица — [06-extraction.md](06-extraction.md) §2.1.
+- LLM-модели по умолчанию (Yandex AI Studio, только open-source): `gpt-oss-20b/latest` (extraction, parse_query, bind_numbers), `deepseek-v4-flash/latest` (synthesis), `gpt-oss-120b/latest` (judge, эскалации), `qwen3.6-35b-a3b/latest` (aliases); маршрутизация — `configs/base/llm-routes.yml`. Полная матрица — [06-extraction.md](06-extraction.md) §2.1. Фолбэк-провайдер при недоступности Yandex — DigitalOcean (§1.3).
 - Эмбеддинги/rerank: bge-m3 (1024d) + bge-reranker-v2-m3, **режим по умолчанию — remote через DO** (`embed.backend: remote`, проверено); локальный режим (torch/onnx-int8) — офлайн-фолбэк.
 - Секреты (ключи API) — только в `configs/secrets.yml` (в .gitignore); `.env` в проекте не используется.
 - Стор: PostgreSQL 18 + pgvector 0.8; шина: NATS JetStream ≥2.12; объектное: MinIO.

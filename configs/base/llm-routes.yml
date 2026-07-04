@@ -1,10 +1,21 @@
 llm:
   default_provider: yandex
+  fallback_providers:
+    - do_gradient
   log_prompts: false
   providers:
     yandex:
       base_url: https://ai.api.cloud.yandex.net/v1
       auth_scheme: api-key
+    do_gradient:
+      base_url: https://inference.do-ai.run/v1
+      auth_scheme: bearer
+      models:
+        gpt-oss-20b/latest: openai-gpt-oss-20b
+        gpt-oss-120b/latest: openai-gpt-oss-120b
+        deepseek-v4-flash/latest: deepseek-4-flash
+        qwen3.6-35b-a3b/latest: alibaba-qwen3-32b
+        qwen3-235b-a22b-fp8/latest: qwen3.5-397b-a17b
   allowlist:
     - gpt-oss-20b/latest
     - gpt-oss-120b/latest
