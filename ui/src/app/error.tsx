@@ -1,15 +1,21 @@
 "use client";
 
 import Link from "next/link";
+import { useEffect } from "react";
 
 export default function Error({
+  error,
   reset,
 }: {
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  useEffect(() => {
+    console.error(error);
+  }, [error]);
+
   return (
-    <div className="flex min-h-[calc(100vh-56px)] flex-col items-center justify-center gap-6 px-6 text-center">
+    <div className="min-h-content flex flex-col items-center justify-center gap-6 px-6 text-center">
       <span className="font-display text-6xl font-extrabold tracking-tight text-anode">
         !
       </span>

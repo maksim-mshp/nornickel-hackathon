@@ -83,13 +83,21 @@ const ROLE_PRIORITY: { claim: string; role: DemoRole }[] = [
   { claim: "partner", role: "partner" },
 ];
 
+function decodeBase64Url(segment: string): string {
+  let base64 = segment.replace(/-/g, "+").replace(/_/g, "/");
+  while (base64.length % 4) base64 += "=";
+  const binary = atob(base64);
+  const bytes = Uint8Array.from(binary, (char) => char.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+
 function decodeRoles(token: string): string[] {
   const parts = token.split(".");
   if (parts.length < 2) return [];
   try {
-    const payload = JSON.parse(
-      atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")),
-    ) as { realm_access?: { roles?: string[] } };
+    const payload = JSON.parse(decodeBase64Url(parts[1])) as {
+      realm_access?: { roles?: string[] };
+    };
     return payload.realm_access?.roles ?? [];
   } catch {
     return [];

@@ -73,7 +73,12 @@ export function CommandPalette() {
   }, []);
 
   useEffect(() => {
-    if (open) inputRef.current?.focus();
+    if (open) {
+      inputRef.current?.focus();
+    } else {
+      setQuery("");
+      setCursor(0);
+    }
   }, [open]);
 
   const commands = useMemo<Command[]>(
@@ -89,8 +94,8 @@ export function CommandPalette() {
       ...ROLE_ROUTES[role].map((href) => ({
         id: `nav${href}`,
         group: "Разделы",
-        label: NAV_LABELS[href],
-        keywords: `${NAV_LABELS[href]} ${href}`.toLowerCase(),
+        label: NAV_LABELS[href] ?? href,
+        keywords: `${NAV_LABELS[href] ?? href} ${href}`.toLowerCase(),
         run: () => router.push(href),
       })),
       {
@@ -114,7 +119,7 @@ export function CommandPalette() {
       )
     : commands;
 
-  const askEntry = trimmed.length > 3;
+  const askEntry = trimmed.length > 0;
   const total = filtered.length + (askEntry ? 1 : 0);
   const active = Math.min(cursor, Math.max(total - 1, 0));
 

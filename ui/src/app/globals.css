@@ -182,6 +182,10 @@ body {
   animation: edge-pulse 2s ease-in-out infinite;
 }
 
+.min-h-content {
+  min-height: calc(100dvh - 56px);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .rise-in,
   .seal-snap,

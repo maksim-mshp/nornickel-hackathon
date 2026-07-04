@@ -175,7 +175,7 @@ function ExpertCard({ expert, index }: { expert: ExpertProfile; index: number })
         href={`/?q=${encodeURIComponent(`Кто работал над темой ${expert.topics[0] ?? expert.name}?`)}`}
         className="w-fit font-mono text-[11px] text-electrolyte transition-colors hover:underline"
       >
-        показать в графе →
+        спросить об эксперте →
       </Link>
     </article>
   );
