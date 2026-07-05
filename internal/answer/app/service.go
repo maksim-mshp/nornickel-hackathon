@@ -209,24 +209,19 @@ func factStats(facts []*kmapv1.Fact) map[string]any {
 
 const chunkTextLimit = 10
 
+const chunkCandidateLimit = 30
+
 func (service *Service) augmentChunks(ctx context.Context, pack *kmapv1.EvidencePack, terms []string, question string) *kmapv1.EvidencePack {
 	if service.chunkRetriever == nil {
 		return pack
 	}
-	var chunks []*kmapv1.Chunk
-	if vector := service.embedQuery(ctx, question); len(vector) > 0 {
-		if semantic, err := service.chunkRetriever.VectorChunks(ctx, vector, chunkTextLimit); err == nil {
-			chunks = semantic
-		}
+	var vector, lexical []*kmapv1.Chunk
+	if embedding := service.embedQuery(ctx, question); len(embedding) > 0 {
+		vector, _ = service.chunkRetriever.VectorChunks(ctx, embedding, chunkCandidateLimit)
 	}
-	if len(chunks) == 0 {
-		if len(pack.GetChunks()) > 0 {
-			return pack
-		}
-		if lexical, err := service.chunkRetriever.ChunksByText(ctx, ftsTermsQuery(terms, question), question, chunkTextLimit); err == nil {
-			chunks = lexical
-		}
-	}
+	lexical, _ = service.chunkRetriever.ChunksByText(ctx, ftsTermsQuery(terms, question), question, chunkCandidateLimit)
+
+	chunks := rrfMergeChunks([][]*kmapv1.Chunk{vector, lexical}, chunkTextLimit)
 	if len(chunks) == 0 {
 		return pack
 	}
@@ -235,6 +230,54 @@ func (service *Service) augmentChunks(ctx context.Context, pack *kmapv1.Evidence
 		pack.Stats = stats
 	}
 	return pack
+}
+
+func rrfMergeChunks(lists [][]*kmapv1.Chunk, top int) []*kmapv1.Chunk {
+	const k = 60.0
+	scores := map[string]float64{}
+	byID := map[string]*kmapv1.Chunk{}
+	var order []string
+	for _, list := range lists {
+		for rank, chunk := range list {
+			if !isProseChunk(chunk.GetText()) {
+				continue
+			}
+			id := chunk.GetId()
+			if _, ok := byID[id]; !ok {
+				byID[id] = chunk
+				order = append(order, id)
+			}
+			scores[id] += 1.0 / (k + float64(rank+1))
+		}
+	}
+	sort.SliceStable(order, func(i, j int) bool { return scores[order[i]] > scores[order[j]] })
+	out := make([]*kmapv1.Chunk, 0, top)
+	for _, id := range order {
+		out = append(out, byID[id])
+		if len(out) >= top {
+			break
+		}
+	}
+	return out
+}
+
+func isProseChunk(text string) bool {
+	if strings.ContainsRune(text, '@') || strings.Contains(strings.ToLower(text), "e-mail") {
+		return false
+	}
+	letters, digits := 0, 0
+	for _, symbol := range text {
+		switch {
+		case unicode.IsLetter(symbol):
+			letters++
+		case unicode.IsDigit(symbol):
+			digits++
+		}
+	}
+	if letters < 40 {
+		return false
+	}
+	return digits*2 <= letters
 }
 
 func (service *Service) embedQuery(ctx context.Context, question string) []float32 {
