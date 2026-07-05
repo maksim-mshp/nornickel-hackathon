@@ -35,6 +35,11 @@ type FactRetriever interface {
 
 type ChunkRetriever interface {
 	ChunksByText(ctx context.Context, termsQuery string, question string, limit int) ([]*kmapv1.Chunk, error)
+	VectorChunks(ctx context.Context, vector []float32, limit int) ([]*kmapv1.Chunk, error)
+}
+
+type Embedder interface {
+	Embed(ctx context.Context, in *kmapv1.EmbedRequest, opts ...grpc.CallOption) (*kmapv1.EmbedResponse, error)
 }
 
 type CachedAnswer struct {
@@ -78,6 +83,7 @@ type Service struct {
 	planner        Planner
 	retriever      FactRetriever
 	chunkRetriever ChunkRetriever
+	embedder       Embedder
 	synthTimeout   time.Duration
 }
 
@@ -110,6 +116,12 @@ func WithRetriever(retriever FactRetriever) Option {
 func WithChunkRetriever(retriever ChunkRetriever) Option {
 	return func(service *Service) {
 		service.chunkRetriever = retriever
+	}
+}
+
+func WithEmbedder(embedder Embedder) Option {
+	return func(service *Service) {
+		service.embedder = embedder
 	}
 }
 
@@ -195,14 +207,28 @@ func factStats(facts []*kmapv1.Fact) map[string]any {
 	return evidenceStats(facts, nil)
 }
 
-const chunkTextLimit = 10
+const (
+	chunkTextLimit = 10
+	chunkFTSLimit  = 15
+	chunkVecLimit  = 30
+)
 
 func (service *Service) augmentChunks(ctx context.Context, pack *kmapv1.EvidencePack, terms []string, question string) *kmapv1.EvidencePack {
 	if service.chunkRetriever == nil {
 		return pack
 	}
-	chunks, err := service.chunkRetriever.ChunksByText(ctx, ftsTermsQuery(terms, question), question, chunkTextLimit)
-	if err != nil || len(chunks) == 0 {
+	lexical, _ := service.chunkRetriever.ChunksByText(ctx, ftsTermsQuery(terms, question), question, chunkFTSLimit)
+	var semantic []*kmapv1.Chunk
+	if vector := service.embedQuery(ctx, conceptQuery(terms, question)); len(vector) > 0 {
+		raw, _ := service.chunkRetriever.VectorChunks(ctx, vector, chunkVecLimit)
+		for _, chunk := range raw {
+			if isRussianProse(chunk.GetText()) {
+				semantic = append(semantic, chunk)
+			}
+		}
+	}
+	chunks := interleaveChunks(lexical, semantic, chunkTextLimit)
+	if len(chunks) == 0 {
 		return pack
 	}
 	pack.Chunks = chunks
@@ -210,6 +236,62 @@ func (service *Service) augmentChunks(ctx context.Context, pack *kmapv1.Evidence
 		pack.Stats = stats
 	}
 	return pack
+}
+
+func (service *Service) embedQuery(ctx context.Context, text string) []float32 {
+	if service.embedder == nil || strings.TrimSpace(text) == "" {
+		return nil
+	}
+	response, err := service.embedder.Embed(ctx, &kmapv1.EmbedRequest{Texts: []string{text}, Mode: "query"})
+	if err != nil || len(response.GetVectors()) == 0 {
+		return nil
+	}
+	return response.GetVectors()[0].GetValues()
+}
+
+func conceptQuery(terms []string, question string) string {
+	if joined := strings.TrimSpace(strings.Join(terms, " ")); joined != "" {
+		return joined
+	}
+	return question
+}
+
+func isRussianProse(text string) bool {
+	cyrillic, latin := 0, 0
+	for _, symbol := range text {
+		switch {
+		case symbol >= 'а' && symbol <= 'я', symbol >= 'А' && symbol <= 'Я', symbol == 'ё', symbol == 'Ё':
+			cyrillic++
+		case symbol >= 'a' && symbol <= 'z', symbol >= 'A' && symbol <= 'Z':
+			latin++
+		}
+	}
+	return cyrillic >= 40 && cyrillic > latin
+}
+
+func interleaveChunks(lexical, semantic []*kmapv1.Chunk, limit int) []*kmapv1.Chunk {
+	out := make([]*kmapv1.Chunk, 0, limit)
+	seen := map[string]bool{}
+	add := func(chunk *kmapv1.Chunk) {
+		if chunk == nil || len(out) >= limit {
+			return
+		}
+		id := chunk.GetId()
+		if id == "" || seen[id] {
+			return
+		}
+		seen[id] = true
+		out = append(out, chunk)
+	}
+	for i := 0; len(out) < limit && (i < len(lexical) || i < len(semantic)); i++ {
+		if i < len(lexical) {
+			add(lexical[i])
+		}
+		if i < len(semantic) {
+			add(semantic[i])
+		}
+	}
+	return out
 }
 
 func evidenceStats(facts []*kmapv1.Fact, chunks []*kmapv1.Chunk) map[string]any {

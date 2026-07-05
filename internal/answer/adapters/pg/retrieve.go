@@ -4,8 +4,10 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strconv"
 	"strings"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	kmapv1 "github.com/maksim-mshp/nornickel-hackathon/contracts/gen/go/kmap/v1"
 	"github.com/maksim-mshp/nornickel-hackathon/internal/answer/app"
@@ -207,7 +209,31 @@ func (retriever *Retriever) ChunksByText(ctx context.Context, termsQuery string,
 		return nil, fmt.Errorf("chunks by text: %w", err)
 	}
 	defer rows.Close()
+	return scanChunks(rows, limit)
+}
 
+const vectorChunksSQL = `
+SELECT c.id::text, c.document_id::text, c.version, c.text, coalesce(c.page_from, 0),
+       coalesce(d.title, ''), d.geography::text, coalesce(d.year, 0)
+FROM core.chunks c
+JOIN core.documents d ON d.id = c.document_id
+WHERE c.embedding IS NOT NULL AND c.kind = 'text' AND char_length(c.text) >= 150
+ORDER BY c.embedding <=> $1::vector
+LIMIT $2`
+
+func (retriever *Retriever) VectorChunks(ctx context.Context, vector []float32, limit int) ([]*kmapv1.Chunk, error) {
+	if len(vector) == 0 || limit <= 0 {
+		return nil, nil
+	}
+	rows, err := retriever.pool.Query(ctx, vectorChunksSQL, vectorLiteral(vector), limit)
+	if err != nil {
+		return nil, fmt.Errorf("vector chunks: %w", err)
+	}
+	defer rows.Close()
+	return scanChunks(rows, limit)
+}
+
+func scanChunks(rows pgx.Rows, limit int) ([]*kmapv1.Chunk, error) {
 	chunks := make([]*kmapv1.Chunk, 0, limit)
 	for rows.Next() {
 		var id, docID, text, title, geo string
@@ -234,6 +260,19 @@ func (retriever *Retriever) ChunksByText(ctx context.Context, termsQuery string,
 		})
 	}
 	return chunks, rows.Err()
+}
+
+func vectorLiteral(vector []float32) string {
+	var builder strings.Builder
+	builder.WriteByte('[')
+	for index, value := range vector {
+		if index > 0 {
+			builder.WriteByte(',')
+		}
+		builder.WriteString(strconv.FormatFloat(float64(value), 'f', -1, 32))
+	}
+	builder.WriteByte(']')
+	return builder.String()
 }
 
 func factPayload(row factRow, ref string) (*structpb.Struct, error) {
