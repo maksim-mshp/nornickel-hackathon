@@ -288,9 +288,19 @@ var ftsStopTerms = map[string]bool{
 	"литературный": true, "литературного": true,
 }
 
+var ftsCommonTerms = map[string]bool{
+	"никель": true, "никеля": true, "никелевый": true, "никелевых": true, "никелевые": true,
+	"медь": true, "меди": true, "медный": true, "медных": true,
+	"кобальт": true, "кобальта": true,
+	"вода": true, "воды": true, "воде": true, "водой": true, "воду": true,
+	"металл": true, "металлы": true, "металлов": true, "металла": true,
+	"сплав": true, "сплавы": true, "сплавов": true, "сплава": true,
+	"раствор": true, "растворы": true, "растворов": true, "раствора": true,
+}
+
 func ftsTermsQuery(terms []string, question string) string {
 	seen := map[string]bool{}
-	out := make([]string, 0, len(terms)+8)
+	var all, distinct []string
 	add := func(value string) {
 		value = strings.TrimSpace(value)
 		lower := strings.ToLower(value)
@@ -298,13 +308,19 @@ func ftsTermsQuery(terms []string, question string) string {
 			return
 		}
 		seen[lower] = true
-		out = append(out, value)
+		all = append(all, value)
+		if !ftsCommonTerms[lower] {
+			distinct = append(distinct, value)
+		}
 	}
 	for _, term := range terms {
 		add(term)
 	}
-	if len(out) >= 2 {
-		return strings.Join(out, " OR ")
+	if len(distinct) >= 2 {
+		return strings.Join(distinct, " OR ")
+	}
+	if len(all) >= 2 {
+		return strings.Join(all, " OR ")
 	}
 	for _, word := range strings.FieldsFunc(question, func(r rune) bool {
 		return !unicode.IsLetter(r) && !unicode.IsDigit(r)
@@ -312,11 +328,14 @@ func ftsTermsQuery(terms []string, question string) string {
 		if len([]rune(word)) >= 3 {
 			add(word)
 		}
-		if len(out) >= 10 {
+		if len(all) >= 10 {
 			break
 		}
 	}
-	return strings.Join(out, " OR ")
+	if len(distinct) >= 2 {
+		return strings.Join(distinct, " OR ")
+	}
+	return strings.Join(all, " OR ")
 }
 
 func (service *Service) runSynthesis(ctx context.Context, question string, pack *kmapv1.EvidencePack) (Synthesis, error) {
