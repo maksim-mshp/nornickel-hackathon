@@ -80,18 +80,6 @@ func build(cfg config.Bundle, logger *slog.Logger) (*runtime.Assembly, error) {
 		)
 		closers = append(closers, llmConn)
 	}
-	if embedTarget := cfg.Runtime.GRPCClients["embed"]; embedTarget != "" {
-		embedConn, embedErr := grpc.NewClient(embedTarget,
-			grpc.WithTransportCredentials(insecure.NewCredentials()),
-			grpc.WithChainUnaryInterceptor(auth.UnaryClientInterceptor(signingKey)),
-		)
-		if embedErr != nil {
-			logger.Warn("answer vector retrieval disabled", "error", embedErr)
-		} else {
-			options = append(options, answerapp.WithEmbedder(kmapv1.NewEmbedServiceClient(embedConn)))
-			closers = append(closers, embedConn)
-		}
-	}
 	server := answergrpc.NewServer(kmapv1.NewSearchServiceClient(conn), options...)
 
 	var workers []runtime.Worker

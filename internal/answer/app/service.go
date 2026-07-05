@@ -35,11 +35,6 @@ type FactRetriever interface {
 
 type ChunkRetriever interface {
 	ChunksByText(ctx context.Context, termsQuery string, question string, limit int) ([]*kmapv1.Chunk, error)
-	VectorChunks(ctx context.Context, vector []float32, limit int) ([]*kmapv1.Chunk, error)
-}
-
-type Embedder interface {
-	Embed(ctx context.Context, in *kmapv1.EmbedRequest, opts ...grpc.CallOption) (*kmapv1.EmbedResponse, error)
 }
 
 type CachedAnswer struct {
@@ -83,7 +78,6 @@ type Service struct {
 	planner        Planner
 	retriever      FactRetriever
 	chunkRetriever ChunkRetriever
-	embedder       Embedder
 	synthTimeout   time.Duration
 }
 
@@ -116,12 +110,6 @@ func WithRetriever(retriever FactRetriever) Option {
 func WithChunkRetriever(retriever ChunkRetriever) Option {
 	return func(service *Service) {
 		service.chunkRetriever = retriever
-	}
-}
-
-func WithEmbedder(embedder Embedder) Option {
-	return func(service *Service) {
-		service.embedder = embedder
 	}
 }
 
@@ -210,24 +198,11 @@ func factStats(facts []*kmapv1.Fact) map[string]any {
 const chunkTextLimit = 10
 
 func (service *Service) augmentChunks(ctx context.Context, pack *kmapv1.EvidencePack, terms []string, question string) *kmapv1.EvidencePack {
-	if service.chunkRetriever == nil {
+	if service.chunkRetriever == nil || len(pack.GetChunks()) > 0 {
 		return pack
 	}
-	var chunks []*kmapv1.Chunk
-	if vector := service.embedQuery(ctx, question); len(vector) > 0 {
-		if semantic, err := service.chunkRetriever.VectorChunks(ctx, vector, chunkTextLimit); err == nil {
-			chunks = semantic
-		}
-	}
-	if len(chunks) == 0 {
-		if len(pack.GetChunks()) > 0 {
-			return pack
-		}
-		if lexical, err := service.chunkRetriever.ChunksByText(ctx, ftsTermsQuery(terms, question), question, chunkTextLimit); err == nil {
-			chunks = lexical
-		}
-	}
-	if len(chunks) == 0 {
+	chunks, err := service.chunkRetriever.ChunksByText(ctx, ftsTermsQuery(terms, question), question, chunkTextLimit)
+	if err != nil || len(chunks) == 0 {
 		return pack
 	}
 	pack.Chunks = chunks
@@ -235,17 +210,6 @@ func (service *Service) augmentChunks(ctx context.Context, pack *kmapv1.Evidence
 		pack.Stats = stats
 	}
 	return pack
-}
-
-func (service *Service) embedQuery(ctx context.Context, question string) []float32 {
-	if service.embedder == nil || strings.TrimSpace(question) == "" {
-		return nil
-	}
-	response, err := service.embedder.Embed(ctx, &kmapv1.EmbedRequest{Texts: []string{question}, Mode: "query"})
-	if err != nil || len(response.GetVectors()) == 0 {
-		return nil
-	}
-	return response.GetVectors()[0].GetValues()
 }
 
 func evidenceStats(facts []*kmapv1.Fact, chunks []*kmapv1.Chunk) map[string]any {
