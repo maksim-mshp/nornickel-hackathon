@@ -250,8 +250,15 @@ func (service *Service) embedQuery(ctx context.Context, text string) []float32 {
 }
 
 func conceptQuery(terms []string, question string) string {
-	if joined := strings.TrimSpace(strings.Join(terms, " ")); joined != "" {
-		return joined
+	stripped := strings.TrimSpace(strings.Map(func(symbol rune) rune {
+		if symbol >= '0' && symbol <= '9' {
+			return ' '
+		}
+		return symbol
+	}, question))
+	concept := strings.TrimSpace(stripped + " " + strings.Join(terms, " "))
+	if concept != "" {
+		return concept
 	}
 	return question
 }
