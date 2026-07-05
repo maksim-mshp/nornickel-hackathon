@@ -33,6 +33,10 @@ type FactRetriever interface {
 	FactsByText(ctx context.Context, termsQuery string, question string, limit int) ([]*kmapv1.Fact, error)
 }
 
+type ChunkRetriever interface {
+	ChunksByText(ctx context.Context, termsQuery string, question string, limit int) ([]*kmapv1.Chunk, error)
+}
+
 type CachedAnswer struct {
 	Plan     *kmapv1.QueryPlan
 	Evidence *kmapv1.EvidencePack
@@ -68,12 +72,13 @@ func extractiveSynthesis(pack *kmapv1.EvidencePack) Synthesis {
 }
 
 type Service struct {
-	search       SearchClient
-	cache        Cache
-	synth        Synthesizer
-	planner      Planner
-	retriever    FactRetriever
-	synthTimeout time.Duration
+	search         SearchClient
+	cache          Cache
+	synth          Synthesizer
+	planner        Planner
+	retriever      FactRetriever
+	chunkRetriever ChunkRetriever
+	synthTimeout   time.Duration
 }
 
 type Option func(*Service)
@@ -99,6 +104,12 @@ func WithPlanner(planner Planner) Option {
 func WithRetriever(retriever FactRetriever) Option {
 	return func(service *Service) {
 		service.retriever = retriever
+	}
+}
+
+func WithChunkRetriever(retriever ChunkRetriever) Option {
+	return func(service *Service) {
+		service.chunkRetriever = retriever
 	}
 }
 
@@ -181,6 +192,27 @@ func (service *Service) augmentFacts(ctx context.Context, pack *kmapv1.EvidenceP
 }
 
 func factStats(facts []*kmapv1.Fact) map[string]any {
+	return evidenceStats(facts, nil)
+}
+
+const chunkTextLimit = 10
+
+func (service *Service) augmentChunks(ctx context.Context, pack *kmapv1.EvidencePack, terms []string, question string) *kmapv1.EvidencePack {
+	if service.chunkRetriever == nil || len(pack.GetChunks()) > 0 {
+		return pack
+	}
+	chunks, err := service.chunkRetriever.ChunksByText(ctx, ftsTermsQuery(terms, question), question, chunkTextLimit)
+	if err != nil || len(chunks) == 0 {
+		return pack
+	}
+	pack.Chunks = chunks
+	if stats, err := structpb.NewStruct(evidenceStats(pack.GetFacts(), chunks)); err == nil {
+		pack.Stats = stats
+	}
+	return pack
+}
+
+func evidenceStats(facts []*kmapv1.Fact, chunks []*kmapv1.Chunk) map[string]any {
 	docGeo := map[string]string{}
 	docYear := map[string]int{}
 	for _, fact := range facts {
@@ -196,6 +228,24 @@ func factStats(facts []*kmapv1.Fact) map[string]any {
 		docGeo[key] = fields["geography"].GetStringValue()
 		if year := int(prov["year"].GetNumberValue()); year > 0 {
 			docYear[key] = year
+		}
+	}
+	for _, chunk := range chunks {
+		meta := chunk.GetMeta().GetFields()
+		key := chunk.GetDocumentId()
+		if key == "" {
+			key = meta["title"].GetStringValue()
+		}
+		if key == "" {
+			continue
+		}
+		if _, ok := docGeo[key]; !ok {
+			docGeo[key] = meta["geography"].GetStringValue()
+		}
+		if year := int(meta["year"].GetNumberValue()); year > 0 {
+			if _, ok := docYear[key]; !ok {
+				docYear[key] = year
+			}
 		}
 	}
 	ru, foreign, yearFrom, yearTo := 0, 0, 0, 0
@@ -309,6 +359,7 @@ func (service *Service) Ask(ctx context.Context, req *kmapv1.AskRequest, emit Em
 		pack = &kmapv1.EvidencePack{}
 	}
 	pack = service.augmentFacts(ctx, pack, terms, question)
+	pack = service.augmentChunks(ctx, pack, terms, question)
 	if err := emit(&kmapv1.AskResponse{Type: "evidence", Evidence: pack}); err != nil {
 		return err
 	}

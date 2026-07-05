@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"regexp"
 	"strconv"
 	"strings"
@@ -10,6 +11,63 @@ import (
 )
 
 var wordPattern = regexp.MustCompile(`\S+\s*`)
+
+var whitespacePattern = regexp.MustCompile(`\s+`)
+
+const summaryChunkLimit = 10
+
+type chunkView struct {
+	ref         string
+	sourceTitle string
+	page        int
+	text        string
+	geography   string
+}
+
+func chunkViews(pack *kmapv1.EvidencePack) []chunkView {
+	chunks := pack.GetChunks()
+	if len(chunks) > summaryChunkLimit {
+		chunks = chunks[:summaryChunkLimit]
+	}
+	views := make([]chunkView, 0, len(chunks))
+	for index, chunk := range chunks {
+		meta := chunk.GetMeta().GetFields()
+		views = append(views, chunkView{
+			ref:         fmt.Sprintf("C%d", index+1),
+			sourceTitle: meta["title"].GetStringValue(),
+			page:        int(chunk.GetPageFrom()),
+			text:        cleanSnippet(chunk.GetText(), 700),
+			geography:   meta["geography"].GetStringValue(),
+		})
+	}
+	return views
+}
+
+func cleanSnippet(text string, limit int) string {
+	text = whitespacePattern.ReplaceAllString(strings.TrimSpace(text), " ")
+	runes := []rune(text)
+	if len(runes) > limit {
+		return strings.TrimSpace(string(runes[:limit])) + "…"
+	}
+	return text
+}
+
+func passagesDigest(views []chunkView) string {
+	if len(views) == 0 {
+		return ""
+	}
+	var clauses []string
+	for _, view := range views {
+		source := shortTitle(view.sourceTitle)
+		snippet := cleanSnippet(view.text, 260)
+		if source == "" {
+			clauses = append(clauses, snippet+" ["+view.ref+"]")
+			continue
+		}
+		clauses = append(clauses, "«"+source+"»: "+snippet+" ["+view.ref+"]")
+	}
+	return "Из источников: " + strings.Join(clauses, " ") + "."
+}
 
 type factView struct {
 	ref           string
@@ -29,12 +87,18 @@ type methodView struct {
 
 func synthesize(pack *kmapv1.EvidencePack) (summary string, methods []methodView, confidence float64) {
 	views := factViews(pack)
-	if len(views) == 0 {
-		return "По запросу не найдено фактов с числовыми значениями в доступном корпусе.", nil, 0.3
+	cviews := chunkViews(pack)
+	if len(views) == 0 && len(cviews) == 0 {
+		return "По запросу не найдено релевантных материалов в доступном корпусе.", nil, 0.3
 	}
 
 	var paragraphs []string
-	paragraphs = append(paragraphs, sourcesDigest(views))
+	if passages := passagesDigest(cviews); passages != "" {
+		paragraphs = append(paragraphs, passages)
+	}
+	if len(views) > 0 {
+		paragraphs = append(paragraphs, sourcesDigest(views))
+	}
 	if consensus := consensusParagraph(pack); consensus != "" {
 		paragraphs = append(paragraphs, consensus)
 	}

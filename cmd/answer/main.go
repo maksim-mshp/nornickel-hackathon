@@ -59,7 +59,7 @@ func build(cfg config.Bundle, logger *slog.Logger) (*runtime.Assembly, error) {
 	retriever := answerpg.NewRetriever(pool.Pool)
 
 	closers := []io.Closer{conn, pool}
-	options := []answerapp.Option{answerapp.WithCache(cache), answerapp.WithRetriever(retriever)}
+	options := []answerapp.Option{answerapp.WithCache(cache), answerapp.WithRetriever(retriever), answerapp.WithChunkRetriever(retriever)}
 	if ms := cfg.Runtime.Budget.SynthesisMS; ms > 0 {
 		options = append(options, answerapp.WithSynthesisTimeout(time.Duration(ms)*time.Millisecond))
 	}

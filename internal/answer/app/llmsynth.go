@@ -14,14 +14,14 @@ import (
 const taskSynthesize = "synthesize_answer"
 
 const synthesisSystemPrompt = "Ты — аналитик R&D горно-металлургической отрасли. " +
-	"Составь связный обзор на русском СТРОГО по приведённым фактам [Fi]. Правила: " +
-	"1) каждое утверждение сопровождай ссылкой [Fi]; " +
-	"2) числа и единицы бери ТОЛЬКО из фактов [Fi] и копируй дословно — не округляй, не пересчитывай, не усредняй, не суммируй; " +
-	"3) НЕ пиши никаких других чисел: количество источников, пунктов, этапов, лет указывай словами (например «три источника»), а не цифрами; " +
+	"Составь связный, структурированный обзор на русском по вопросу пользователя, опираясь на приведённые фрагменты источников [Ci] и числовые факты [Fi]. Правила: " +
+	"1) описывай методы, технические решения и выводы своими словами по содержанию фрагментов [Ci], каждое утверждение сопровождай ссылкой на источник [Ci] или [Fi]; " +
+	"2) ВСЕ числовые значения и единицы бери ТОЛЬКО из фрагментов [Ci] и фактов [Fi] и копируй дословно — не округляй, не пересчитывай, не усредняй, не суммируй и не придумывай новых чисел; " +
+	"3) количество источников, пунктов, этапов и лет указывай словами (например «три источника»), а не цифрами; " +
 	"4) не нумеруй пункты цифрами; " +
 	"5) противоречия не сглаживай — опиши обе стороны; " +
-	"6) если релевантных данных мало — скажи об этом словами, без цифр. " +
-	"Группируй изложение по темам и источникам, будь конкретным, опирайся на цитаты."
+	"6) если фрагменты не покрывают часть вопроса — честно скажи об этом словами. " +
+	"Пиши как эксперт: сгруппируй изложение по методам/подходам и по источникам, будь конкретным, опирайся на содержание фрагментов."
 
 var errEmptySynthesis = errors.New("empty synthesis from llm")
 
@@ -39,11 +39,12 @@ func NewLLMSynthesizer(llm LLMClient) *LLMSynthesizer {
 
 func (synth *LLMSynthesizer) Synthesize(ctx context.Context, question string, pack *kmapv1.EvidencePack) (Synthesis, error) {
 	views := factViews(pack)
-	if len(views) == 0 {
+	cviews := chunkViews(pack)
+	if len(views) == 0 && len(cviews) == 0 {
 		return extractiveSynthesis(pack), nil
 	}
 
-	payload, err := synthesisPayload(question, pack, views)
+	payload, err := synthesisPayload(question, pack, views, cviews)
 	if err != nil {
 		return Synthesis{}, err
 	}
@@ -62,11 +63,27 @@ func (synth *LLMSynthesizer) Synthesize(ctx context.Context, question string, pa
 	}, nil
 }
 
-func synthesisPayload(question string, pack *kmapv1.EvidencePack, views []factView) (*structpb.Struct, error) {
+func synthesisPayload(question string, pack *kmapv1.EvidencePack, views []factView, cviews []chunkView) (*structpb.Struct, error) {
 	var builder strings.Builder
 	builder.WriteString("Вопрос: ")
 	builder.WriteString(question)
-	builder.WriteString("\n\nФакты:\n")
+	if len(cviews) > 0 {
+		builder.WriteString("\n\nФрагменты источников:\n")
+		for _, view := range cviews {
+			source := shortTitle(view.sourceTitle)
+			if source == "" {
+				source = "источник"
+			}
+			if view.page > 0 {
+				fmt.Fprintf(&builder, "[%s] %s (стр. %d): %s\n", view.ref, source, view.page, view.text)
+			} else {
+				fmt.Fprintf(&builder, "[%s] %s: %s\n", view.ref, source, view.text)
+			}
+		}
+	}
+	if len(views) > 0 {
+		builder.WriteString("\nЧисловые факты:\n")
+	}
 	for _, view := range views {
 		source := view.sourceTitle
 		if source == "" {

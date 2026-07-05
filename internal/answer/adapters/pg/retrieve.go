@@ -89,6 +89,7 @@ picked AS (
          ) AS rn
   FROM drt
   JOIN kg.numeric_facts f ON f.document_id = drt.document_id AND f.unit_code IS NOT NULL
+    AND char_length(regexp_replace(coalesce(f.quote, ''), '[^a-zA-Zа-яА-ЯёЁ]', '', 'g')) >= 24
   LEFT JOIN cr ON cr.chunk_id = f.chunk_id
 )
 SELECT p.id::text, p.operator::text, p.vmin::float8, p.vmax::float8, coalesce(p.unit_orig, ''),
@@ -151,6 +152,88 @@ func (retriever *Retriever) FactsByText(ctx context.Context, termsQuery string, 
 		facts = append(facts, &kmapv1.Fact{Id: row.id, Kind: "numeric", Payload: payload})
 	}
 	return facts, rows.Err()
+}
+
+const chunksByTextSQL = `
+WITH q AS (
+  SELECT websearch_to_tsquery('russian', $1) || websearch_to_tsquery('english', $1)
+       || websearch_to_tsquery('russian', $2) || websearch_to_tsquery('english', $2) AS query
+),
+cr AS (
+  SELECT c.id AS chunk_id, c.document_id, c.version, c.text, coalesce(c.page_from, 0) AS page,
+         ts_rank_cd(c.tsv_ru || c.tsv_en, q.query) AS crank
+  FROM core.chunks c, q
+  WHERE (c.tsv_ru @@ q.query OR c.tsv_en @@ q.query)
+    AND c.kind = 'text'
+    AND char_length(c.text) >= 120
+),
+dr AS (
+  SELECT document_id, max(crank) AS chunk_rank
+  FROM cr
+  GROUP BY document_id
+  ORDER BY chunk_rank DESC
+  LIMIT 40
+),
+drt AS (
+  SELECT dr.document_id,
+         dr.chunk_rank + 3 * ts_rank(to_tsvector('russian', d.title) || to_tsvector('english', d.title), q.query) AS drank,
+         coalesce(d.title, '') AS title, d.geography::text AS geo, coalesce(d.year, 0) AS year
+  FROM dr
+  JOIN core.documents d ON d.id = dr.document_id, q
+  ORDER BY drank DESC
+  LIMIT 12
+),
+picked AS (
+  SELECT cr.chunk_id, cr.document_id, cr.version, cr.text, cr.page, cr.crank,
+         drt.drank, drt.title, drt.geo, drt.year,
+         row_number() OVER (PARTITION BY cr.document_id ORDER BY cr.crank DESC) AS rn
+  FROM drt
+  JOIN cr ON cr.document_id = drt.document_id
+)
+SELECT chunk_id::text, document_id::text, version, text, page, title, geo, year
+FROM picked
+WHERE rn <= 3
+ORDER BY drank DESC, crank DESC
+LIMIT $3`
+
+func (retriever *Retriever) ChunksByText(ctx context.Context, termsQuery string, question string, limit int) ([]*kmapv1.Chunk, error) {
+	termsQuery = strings.TrimSpace(termsQuery)
+	question = strings.TrimSpace(question)
+	if (termsQuery == "" && question == "") || limit <= 0 {
+		return nil, nil
+	}
+	rows, err := retriever.pool.Query(ctx, chunksByTextSQL, termsQuery, question, limit)
+	if err != nil {
+		return nil, fmt.Errorf("chunks by text: %w", err)
+	}
+	defer rows.Close()
+
+	chunks := make([]*kmapv1.Chunk, 0, limit)
+	for rows.Next() {
+		var id, docID, text, title, geo string
+		var version, page, year int
+		if err := rows.Scan(&id, &docID, &version, &text, &page, &title, &geo, &year); err != nil {
+			return nil, fmt.Errorf("scan chunk: %w", err)
+		}
+		meta, err := structpb.NewStruct(map[string]any{
+			"title":     title,
+			"geography": geo,
+			"year":      float64(year),
+			"page":      float64(page),
+		})
+		if err != nil {
+			return nil, fmt.Errorf("chunk meta: %w", err)
+		}
+		chunks = append(chunks, &kmapv1.Chunk{
+			Id:         id,
+			DocumentId: docID,
+			Version:    int32(version),
+			Text:       text,
+			PageFrom:   int32(page),
+			Meta:       meta,
+		})
+	}
+	return chunks, rows.Err()
 }
 
 func factPayload(row factRow, ref string) (*structpb.Struct, error) {
