@@ -296,6 +296,10 @@ var ftsCommonTerms = map[string]bool{
 	"металл": true, "металлы": true, "металлов": true, "металла": true,
 	"сплав": true, "сплавы": true, "сплавов": true, "сплава": true,
 	"раствор": true, "растворы": true, "растворов": true, "раствора": true,
+	"скорость": true, "скорости": true, "температура": true, "температуры": true,
+	"давление": true, "давления": true, "концентрация": true, "концентрации": true,
+	"расход": true, "расхода": true, "плотность": true, "плотности": true,
+	"оптимальный": true, "оптимальная": true, "оптимальной": true, "параметр": true, "параметры": true,
 }
 
 func ftsTermsQuery(terms []string, question string) string {
