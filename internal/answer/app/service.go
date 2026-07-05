@@ -198,7 +198,7 @@ func factStats(facts []*kmapv1.Fact) map[string]any {
 const chunkTextLimit = 10
 
 func (service *Service) augmentChunks(ctx context.Context, pack *kmapv1.EvidencePack, terms []string, question string) *kmapv1.EvidencePack {
-	if service.chunkRetriever == nil || len(pack.GetChunks()) > 0 {
+	if service.chunkRetriever == nil {
 		return pack
 	}
 	chunks, err := service.chunkRetriever.ChunksByText(ctx, ftsTermsQuery(terms, question), question, chunkTextLimit)
