@@ -262,8 +262,26 @@ func mapEvidence(pack *kmapv1.EvidencePack) map[string]any {
 	for _, item := range pack.GetExperts() {
 		experts = append(experts, structMap(item.GetEvidence()))
 	}
+	chunks := make([]any, 0, len(pack.GetChunks()))
+	for _, item := range pack.GetChunks() {
+		meta := map[string]any{}
+		if item.GetMeta() != nil {
+			meta = item.GetMeta().AsMap()
+		}
+		chunks = append(chunks, map[string]any{
+			"id":         item.GetId(),
+			"documentId": item.GetDocumentId(),
+			"text":       item.GetText(),
+			"pageFrom":   item.GetPageFrom(),
+			"pageTo":     item.GetPageTo(),
+			"title":      meta["title"],
+			"geography":  meta["geography"],
+			"year":       meta["year"],
+		})
+	}
 	return map[string]any{
 		"facts":          facts,
+		"chunks":         chunks,
 		"consensus":      structList(pack.GetConsensus()),
 		"contradictions": structList(pack.GetContradictions()),
 		"gaps":           structList(pack.GetGaps()),
